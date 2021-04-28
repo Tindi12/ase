@@ -120,6 +120,7 @@ def test_combos():
 
     print('error in bondcombo:', repr(err_bondcombo))
     assert abs(err_bondcombo) < 1e-11
+    assert False
 
 
 def test_index_shuffle():

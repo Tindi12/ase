@@ -911,11 +911,12 @@ class FixInternals(FixConstraint):
         self.initialize(atoms)
         for constraint in self.constraints:
             constraint.prepare_jacobian(atoms.positions)
-        for j in range(50):
+        for j in range(500):
             maxerr = 0.0
             for constraint in self.constraints:
                 constraint.adjust_positions(atoms.positions, new)
                 maxerr = max(abs(constraint.sigma), maxerr)
+                print(j, maxerr)
             if maxerr < self.epsilon:
                 return
         raise ValueError('Shake did not converge.')
@@ -1024,11 +1025,30 @@ class FixInternals(FixConstraint):
 
         sum_i( coef_i * bond_length_i ) = constant
         """
-        def prepare_jacobian(self, pos):
+        def prepare_jacobianOLD(self, pos):
             bondvectors = [pos[k] - pos[h] for h, k in self.indices]
             derivs = get_distances_derivatives(bondvectors, cell=self.cell,
                                                pbc=self.pbc)
             self.finalize_jacobian(pos, len(bondvectors), 2, derivs)
+
+        def prepare_jacobian(self, pos):
+            bondvectors = [pos[k] - pos[h] for h, k in self.indices]
+            derivs = get_distances_derivatives(bondvectors, cell=self.cell,
+                                               pbc=self.pbc)
+            (_, ), (dists, ) = conditional_find_mic([bondvectors],
+                                                    cell=self.cell,
+                                                    pbc=self.pbc)
+            derivs *= 2 * dists[:, None, None]
+            self.finalize_jacobian(pos, len(bondvectors), 2, derivs)
+
+        def adjust_positionsOLD(self, oldpos, newpos):
+            bondvectors = [newpos[k] - newpos[h] for h, k in self.indices]
+            (_, ), (dists, ) = conditional_find_mic([bondvectors],
+                                                    cell=self.cell,
+                                                    pbc=self.pbc)
+            value = self.coefs @ dists
+            self.sigma = value - self.targetvalue
+            self.finalize_positions(newpos)
 
         def adjust_positions(self, oldpos, newpos):
             bondvectors = [newpos[k] - newpos[h] for h, k in self.indices]
@@ -1036,7 +1056,7 @@ class FixInternals(FixConstraint):
                                                     cell=self.cell,
                                                     pbc=self.pbc)
             value = self.coefs @ dists
-            self.sigma = value - self.targetvalue
+            self.sigma = value**2 - self.targetvalue**2
             self.finalize_positions(newpos)
 
         def __repr__(self):
