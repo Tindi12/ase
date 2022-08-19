@@ -34,9 +34,9 @@ def setup_cell():
 
     F = np.eye(3)
     for k in range(3):
-        l = list(range(3))
-        l.remove(k)
-        (i, j) = l
+        L = list(range(3))
+        L.remove(k)
+        (i, j) = L
         R = np.eye(3)
         theta = 0.1 * (k + 1)
         R[i, i] = np.cos(theta)
@@ -55,10 +55,10 @@ def symmetrized_optimisation(at_init, filter):
     at.calc = NoisyLennardJones(rng=rng)
 
     at_cell = filter(at)
-    dyn = PreconLBFGS(at_cell, precon=None)
     print("Initial Energy", at.get_potential_energy(), at.get_volume())
-    dyn.run(steps=300, fmax=0.001)
-    print("n_steps", dyn.get_number_of_steps())
+    with PreconLBFGS(at_cell, precon=None) as dyn:
+        dyn.run(steps=300, fmax=0.001)
+        print("n_steps", dyn.get_number_of_steps())
     print("Final Energy", at.get_potential_energy(), at.get_volume())
     print("Final forces\n", at.get_forces())
     print("Final stress\n", at.get_stress())
@@ -121,9 +121,10 @@ def test_sym_rot_adj_cell(filter):
 
 @pytest.mark.filterwarnings('ignore:ASE Atoms-like input is deprecated')
 def test_fix_symmetry_shuffle_indices():
-    atoms = Atoms('AlFeAl6', cell=[6] * 3,
-               positions=[[0, 0, 0], [2.9, 2.9, 2.9], [0, 0, 3], [0, 3, 0],
-                          [0, 3, 3], [3, 0, 0], [3, 0, 3], [3, 3, 0]], pbc=True)
+    atoms = Atoms(
+        'AlFeAl6', cell=[6] * 3,
+        positions=[[0, 0, 0], [2.9, 2.9, 2.9], [0, 0, 3], [0, 3, 0],
+                   [0, 3, 3], [3, 0, 0], [3, 0, 3], [3, 3, 0]], pbc=True)
     atoms.set_constraint(FixSymmetry(atoms))
     at_permut = atoms[[0, 2, 3, 4, 5, 6, 7, 1]]
     pos0 = atoms.get_positions()

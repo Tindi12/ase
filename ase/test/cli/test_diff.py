@@ -44,7 +44,7 @@ def test_singleFile_falseCalc_multipleImages(cli, traj):
 
 
 def test_singleFile_trueCalc_multipleImages(cli, traj):
-    cli.ase('diff', traj,  '-c')
+    cli.ase('diff', traj, '-c')
 
 
 def test_twoFiles_falseCalc_singleImage(cli, traj):
@@ -72,7 +72,7 @@ def test_twoFiles_trueCalc_multipleImages(cli, traj):
             break
     dfx_ordered = [float(row[c]) for row in body]
     for i in range(len(dfx_ordered) - 2):
-        assert dfx_ordered[i] <= dfx_ordered[i+1]
+        assert dfx_ordered[i] <= dfx_ordered[i + 1]
 
 
 def test_cli_opt(cli, traj):

@@ -39,6 +39,7 @@ import numpy as np
 import os
 from ase.calculators.calculator import FileIOCalculator
 
+
 class CRYSTAL(FileIOCalculator):
     """ A crystal calculator with ase-FileIOCalculator nomenclature
     """
@@ -130,7 +131,7 @@ class CRYSTAL(FileIOCalculator):
             if isinstance(p.xc, str):
                 xc = {'LDA': 'EXCHANGE\nLDA\nCORRELAT\nVWN',
                       'PBE': 'PBEXC'}.get(p.xc, p.xc)
-                outfile.write(xc.upper()+'\n')
+                outfile.write(xc.upper() + '\n')
         # Custom xc functional are given by a tuple of string
             else:
                 x, c = p.xc
@@ -201,7 +202,7 @@ class CRYSTAL(FileIOCalculator):
                 raise ValueError('Shifted Monkhorst-Pack not allowed.')
             outfile.write('SHRINK  \n')
             # isp is by default 1, 2 is suggested for metals.
-            outfile.write('0 ' + str(p.isp*max(self.kpts)) + ' \n')
+            outfile.write('0 ' + str(p.isp * max(self.kpts)) + ' \n')
             if ispbc[2]:
                 outfile.write(str(self.kpts[0])
                               + ' ' + str(self.kpts[1])
@@ -270,7 +271,7 @@ class CRYSTAL(FileIOCalculator):
             e_coul, f_coul = self.pcpot.coulomb_corrections
 
         energy = float(self.lines[index_energy].split()[pos_en]) * Hartree
-        energy -= e_coul # e_coul already in eV.
+        energy -= e_coul  # e_coul already in eV.
 
         self.results['energy'] = energy
         # Force line indexes
@@ -282,13 +283,13 @@ class CRYSTAL(FileIOCalculator):
                 break
         else:
             raise RuntimeError('Problem in reading forces')
-        for j in range(index_force_begin, index_force_begin+len(self.atoms)):
+        for j in range(index_force_begin, index_force_begin + len(self.atoms)):
             word = self.lines[j].split()
             # If GHOST atoms give problems, have a close look at this
             if len(word) == 5:
-                gradients.append([float(word[k+2]) for k in range(0, 3)])
+                gradients.append([float(word[k + 2]) for k in range(0, 3)])
             elif len(word) == 4:
-                gradients.append([float(word[k+1]) for k in range(0, 3)])
+                gradients.append([float(word[k + 1]) for k in range(0, 3)])
             else:
                 raise RuntimeError('Problem in reading forces')
 
@@ -350,7 +351,6 @@ class CRYSTAL(FileIOCalculator):
         # debye to e*Ang
         self.results['dipole'] = dipole * 0.2081943482534
 
-
     def embed(self, mmcharges=None, directory='./'):
         """Embed atoms in point-charges (mmcharges)
         """
@@ -384,7 +384,7 @@ class PointChargePotential:
             print("CRYSTAL: Warning: not writing external charges ")
             return
         with open(os.path.join(self.directory, filename), 'w') as charge_file:
-            charge_file.write(str(len(self.mmcharges))+' \n')
+            charge_file.write(str(len(self.mmcharges)) + ' \n')
             for [pos, charge] in zip(self.mmpositions, self.mmcharges):
                 [x, y, z] = pos
                 charge_file.write('%12.6f %12.6f %12.6f %12.6f \n'
@@ -402,7 +402,7 @@ class PointChargePotential:
         with open(os.path.join(self.directory, 'OUTPUT'), 'r') as infile:
             lines = infile.readlines()
 
-        print('PCPOT crys_pcc: '+str(self.crys_pcc))
+        print('PCPOT crys_pcc: ' + str(self.crys_pcc))
         # read in force and energy Coulomb corrections
         if self.crys_pcc:
             self.read_pc_corrections()

@@ -116,7 +116,7 @@ class BFGSLineSearch(Optimizer):
         self.p = -np.dot(self.H, g)
         p_size = np.sqrt((self.p**2).sum())
         if p_size <= np.sqrt(len(atoms) * 1e-10):
-            self.p /= (p_size / np.sqrt(len(atoms)*1e-10))
+            self.p /= (p_size / np.sqrt(len(atoms) * 1e-10))
         ls = LineSearch()
         self.alpha_k, e, self.e0, self.no_update = \
             ls._line_search(self.func, self.fprime, r, self.p, g, e, self.e0,
@@ -183,14 +183,13 @@ class BFGSLineSearch(Optimizer):
     def replay_trajectory(self, traj):
         """Initialize hessian from old trajectory."""
         self.replay = True
+        from ase.utils import IOContext
 
-        closelater = None
+        with IOContext() as files:
+            if isinstance(traj, str):
+                from ase.io.trajectory import Trajectory
+                traj = files.closelater(Trajectory(traj, mode='r'))
 
-        if isinstance(traj, str):
-            from ase.io.trajectory import Trajectory
-            traj = closelater = Trajectory(traj, 'r')
-
-        try:
             r0 = None
             g0 = None
             for i in range(0, len(traj) - 1):
@@ -202,9 +201,6 @@ class BFGSLineSearch(Optimizer):
                 g0 = g.copy()
             self.r0 = r0
             self.g0 = g0
-        finally:
-            if closelater is not None:
-                closelater.close()
 
     def log(self, forces=None):
         if self.logfile is None:
@@ -219,7 +215,7 @@ class BFGSLineSearch(Optimizer):
         w = self.logfile.write
         if self.nsteps == 0:
             w('%s  %4s[%3s] %8s %15s  %12s\n' %
-              (' '*len(name), 'Step', 'FC', 'Time', 'Energy', 'fmax'))
+              (' ' * len(name), 'Step', 'FC', 'Time', 'Energy', 'fmax'))
             if self.force_consistent:
                 w('*Force-consistent energies used in optimization.\n')
         w('%s:  %3d[%3d] %02d:%02d:%02d %15.6f%1s %12.4f\n'

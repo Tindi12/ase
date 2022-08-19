@@ -8,7 +8,7 @@ import pytest
 import numpy as np
 
 import ase
-from ase.utils import workdir
+from ase.utils import workdir, seterr, get_python_package_path_description
 from ase.test.factories import (CalculatorInputs,
                                 factory_classes,
                                 NoSuchCalculator,
@@ -84,7 +84,7 @@ def calculators_header(config):
             if hasattr(factory, 'importname'):
                 import importlib
                 module = importlib.import_module(factory.importname)
-                configinfo = str(module.__path__[0])  # type: ignore
+                configinfo = get_python_package_path_description(module)
             else:
                 configtokens = []
                 for varname, variable in vars(factory).items():
@@ -125,24 +125,8 @@ def monkeypatch_disabled_calculators(request, factories):
     factories.monkeypatch_disabled_calculators()
 
 
-class BadUnitTest(Exception):
-    pass
-
-
-def raise_if_stale_files(path):
-    garbage = [str(p) for p in path.iterdir()]
-    if garbage:
-        raise BadUnitTest(f"""\
-Stale leftover files: There are tests or fixtures which create files.  \
-Please use the testdir fixture to ensure that they run inside a clean \
-directory, e.g., "def mytest(testdir, ...): ...", or use the tmp_path \
-or tmp_path_factory fixtures to generate paths outside the workdir.
-
-Files: {garbage}""")
-
-
 @pytest.fixture(scope='session', autouse=True)
-def sessionlevel_testing_path(tmp_path_factory):
+def sessionlevel_testing_path():
     # We cd into a tempdir so tests and fixtures won't create files
     # elsewhere (e.g. in the unsuspecting user's directory).
     #
@@ -150,23 +134,19 @@ def sessionlevel_testing_path(tmp_path_factory):
     # because they can access each others' files and hence are not
     # independent.  Therefore we want them to explicitly use the
     # "testdir" fixture which ensures that each has a clean directory.
-    path = Path(tmp_path_factory.mktemp('ase-test-workdir'))
-    with workdir(path):
-        yield path
-
-    raise_if_stale_files(path)
-
-
-@pytest.fixture(autouse=True)
-def _check_no_undeclared_leftover_files(sessionlevel_testing_path):
-    # Instead of testing for stale files only at the end, we also test
-    # after each test so most trouble can be attributed to the test
-    # which caused it.
-    already_bad = any(sessionlevel_testing_path.iterdir())
-    yield
-    # We don't want to fail the whole test suite once we have a culprit:
-    if not already_bad:
-        raise_if_stale_files(sessionlevel_testing_path)
+    #
+    # To prevent tests from writing files, we chmod the directory.
+    # But if the tests are killed, we cannot clean it up and it will
+    # disturb other pytest runs if we use the pytest tempdir factory.
+    #
+    # So we use the tempfile module for this temporary directory.
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix='ase-test-workdir-') as tempdir:
+        path = Path(tempdir)
+        path.chmod(0o555)
+        with workdir(path):
+            yield path
+        path.chmod(0o755)
 
 
 @pytest.fixture(autouse=False)
@@ -177,6 +157,12 @@ def testdir(tmp_path):
         yield tmp_path
     # We print the path so user can see where test failed, if it failed.
     print(f'Testdir: {path}')
+
+
+@pytest.fixture
+def allraise():
+    with seterr(all='raise'):
+        yield
 
 
 @pytest.fixture
@@ -351,7 +337,10 @@ def arbitrarily_seed_rng(request):
     #
     # In order not to generate all the same random numbers in every test,
     # we seed according to a kind of hash:
-    ase_path = ase.__path__[0]
+    ase_path = get_python_package_path_description(ase, default='abort!')
+    if "abort!" in ase_path:
+        raise RuntimeError("Bad ase.__path__: {:}".format(
+            ase_path.replace('abort!', '')))
     abspath = Path(request.module.__file__)
     relpath = abspath.relative_to(ase_path)
     module_identifier = relpath.as_posix()  # Same on all platforms

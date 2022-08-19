@@ -9,7 +9,7 @@ import string
 import warnings
 from importlib import import_module
 from math import sin, cos, radians, atan2, degrees
-from contextlib import contextmanager
+from contextlib import contextmanager, ExitStack
 from math import gcd
 from pathlib import PurePath, Path
 import re
@@ -23,7 +23,7 @@ __all__ = ['exec_', 'basestring', 'import_module', 'seterr', 'plural',
            'opencew', 'OpenLock', 'rotate', 'irotate', 'pbc2pbc', 'givens',
            'hsv2rgb', 'hsv', 'pickleload', 'FileNotFoundError',
            'formula_hill', 'formula_metal', 'PurePath', 'xwopen',
-           'tokenize_version']
+           'tokenize_version', 'get_python_package_path_description']
 
 
 def tokenize_version(version_string: str):
@@ -129,6 +129,9 @@ class DevNull:
 devnull = DevNull()
 
 
+@deprecated('convert_string_to_fd does not facilitate proper resource '
+            'management.  '
+            'Please use e.g. ase.utils.IOContext class instead.')
 def convert_string_to_fd(name, world=None):
     """Create a file-descriptor for text output.
 
@@ -167,7 +170,7 @@ def xwopen(filename, world=None):
             fd.close()
 
 
-#@deprecated('use "with xwopen(...) as fd: ..." to prevent resource leak')
+# @deprecated('use "with xwopen(...) as fd: ..." to prevent resource leak')
 def opencew(filename, world=None):
     return _opencew(filename, world)
 
@@ -300,8 +303,8 @@ def search_current_git_hash(arg, world=None):
     HEAD_file = os.path.join(git_dpath, 'HEAD')
     if not os.path.isfile(HEAD_file):
         return None
-    with open(HEAD_file, 'r') as f:
-        line = f.readline().strip()
+    with open(HEAD_file, 'r') as fd:
+        line = fd.readline().strip()
     if line.startswith('ref: '):
         ref = line[5:]
         ref_file = os.path.join(git_dpath, ref)
@@ -310,8 +313,8 @@ def search_current_git_hash(arg, world=None):
         ref_file = HEAD_file
     if not os.path.isfile(ref_file):
         return None
-    with open(ref_file, 'r') as f:
-        line = f.readline().strip()
+    with open(ref_file, 'r') as fd:
+        line = fd.readline().strip()
     if all(c in string.hexdigits for c in line):
         return line
     return None
@@ -467,6 +470,7 @@ class iofunction:
     """Decorate func so it accepts either str or file.
 
     (Won't work on functions that return a generator.)"""
+
     def __init__(self, mode):
         self.mode = mode
 
@@ -487,7 +491,6 @@ class iofunction:
                     # fd may be None if open() failed
                     fd.close()
         return iofunc
-
 
 
 def writer(func):
@@ -514,7 +517,7 @@ def read_json(cls, fd):
     """Read new instance from JSON file."""
     from ase.io.jsonio import read_json as _read_json
     obj = _read_json(fd)
-    assert type(obj) is cls
+    assert isinstance(obj, cls)
     return obj
 
 
@@ -605,3 +608,56 @@ def warn_legacy(feature_name):
 def lazyproperty(meth):
     """Decorator like lazymethod, but making item available as a property."""
     return property(lazymethod(meth))
+
+
+class IOContext:
+    @lazyproperty
+    def _exitstack(self):
+        return ExitStack()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.close()
+
+    def closelater(self, fd):
+        return self._exitstack.enter_context(fd)
+
+    def close(self):
+        self._exitstack.close()
+
+    def openfile(self, file, comm=None, mode='w'):
+        from ase.parallel import world
+        if comm is None:
+            comm = world
+
+        if hasattr(file, 'close'):
+            return file  # File already opened, not for us to close.
+
+        if file is None or comm.rank != 0:
+            return self.closelater(open(os.devnull, mode=mode))
+
+        if file == '-':
+            return sys.stdout
+
+        return self.closelater(open(file, mode=mode))
+
+
+def get_python_package_path_description(
+        package, default='module has no path') -> str:
+    """Helper to get path description of a python package/module
+
+    If path has multiple elements, the first one is returned.
+    If it is empty, the default is returned.
+    Exceptions are returned as strings default+(exception).
+    Always returns a string.
+    """
+    try:
+        p = list(package.__path__)
+        if p:
+            return str(p[0])
+        else:
+            return default
+    except Exception as ex:
+        return "{:} ({:})".format(default, ex)

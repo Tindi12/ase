@@ -442,7 +442,7 @@ class View:
                 if visible[a]:
                     try:
                         kinds = self.atoms.arrays['spacegroup_kinds']
-                        site_occ = self.atoms.info['occupancy'][kinds[a]]
+                        site_occ = self.atoms.info['occupancy'][str(kinds[a])]
                         # first an empty circle if a site is not fully occupied
                         if (np.sum([v for v in site_occ.values()])) < 1.0:
                             fill = '#ffffff'
@@ -471,7 +471,7 @@ class View:
                         # legacy behavior
                         # Draw the atoms
                         if (self.moving and a < len(self.move_atoms_mask)
-                            and self.move_atoms_mask[a]):
+                                and self.move_atoms_mask[a]):
                             circle(movecolor, False,
                                    A[a, 0] - 4, A[a, 1] - 4,
                                    A[a, 0] + ra + 4, A[a, 1] + ra + 4)
@@ -603,7 +603,7 @@ class View:
                 selected[:] = False
             selected[indices] = True
             if (len(indices) == 1 and
-                indices[0] not in self.images.selected_ordered):
+                    indices[0] not in self.images.selected_ordered):
                 selected_ordered += [indices[0]]
             elif len(indices) > 1:
                 selected_ordered = []

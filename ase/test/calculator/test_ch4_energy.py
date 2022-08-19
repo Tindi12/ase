@@ -56,6 +56,7 @@ def test_ch4(tmp_path, spec):
 
 
 calc = pytest.mark.calculator
+filterwarnings = pytest.mark.filterwarnings
 
 
 @pytest.mark.calculator_lite
@@ -64,9 +65,11 @@ calc = pytest.mark.calculator
 @calc('cp2k')
 @calc('espresso', ecutwfc=300 / Ry)
 @calc('gpaw', symmetry='off', mode='pw', txt='gpaw.txt', mixer={'beta': 0.6},
-      marks=pytest.mark.filterwarnings('ignore:.*?ignore_bad_restart_file'))
+      marks=[filterwarnings('ignore:.*?ignore_bad_restart_file'),
+             filterwarnings('ignore:convert_string_to_fd')])
 @calc('nwchem')
-@calc('octopus', Spacing='0.4 * angstrom')
+@calc('octopus', Spacing='0.25 * angstrom', BoxShape='minimum',
+      convreldens=1e-3)
 @calc('openmx')
 @calc('siesta', marks=pytest.mark.xfail)
 def test_ch4_reaction(factory):

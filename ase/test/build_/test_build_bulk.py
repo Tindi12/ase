@@ -2,17 +2,15 @@ def test_build_bulk():
     from ase.data import chemical_symbols, reference_states
     from ase.build import bulk
 
-
     lat_map = dict(fcc='FCC',
                    bcc='BCC',
                    hcp='HEX',
                    bct='BCT',
                    diamond='FCC',
-                   #sc='CUB',
-                   #orthorhombic='ORC',
+                   # sc='CUB',
+                   # orthorhombic='ORC',
                    rhombohedral='RHL')
     lat_counts = {}
-
 
     for Z, ref in enumerate(reference_states):
         if ref is None:
@@ -49,7 +47,6 @@ def test_build_bulk():
         cub_atoms = bulk(sym, cubic=True)
         cub_lat = cub_atoms.cell.get_bravais_lattice()
         assert cub_lat.name == 'CUB', cub_lat
-
 
     for key, val in lat_counts.items():
         print(key, len(val), ''.join(val))

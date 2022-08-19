@@ -13,7 +13,6 @@ import ase.units as units
 def test_rattle_linear(testdir):
     """Test RATTLE and QM/MM for rigid linear acetonitrile."""
 
-
     sigma = np.array([sigma_me, sigma_c, sigma_n])
     epsilon = np.array([epsilon_me, epsilon_c, epsilon_n])
     i = LJInteractionsGeneral(sigma, epsilon, sigma, epsilon, 3)
@@ -52,6 +51,6 @@ def test_rattle_linear(testdir):
 
         de = dimer.get_potential_energy() - e
 
-        assert np.all(abs(dimer[:3].get_all_distances()-d1) < 1e-10)
-        assert np.all(abs(dimer[3:].get_all_distances()-d2) < 1e-10)
+        assert np.all(abs(dimer[:3].get_all_distances() - d1) < 1e-10)
+        assert np.all(abs(dimer[3:].get_all_distances() - d2) < 1e-10)
         assert abs(de - -0.005) < 0.001

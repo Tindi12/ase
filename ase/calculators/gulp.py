@@ -17,6 +17,7 @@ import numpy as np
 from ase.units import eV, Ang
 from ase.calculators.calculator import FileIOCalculator, ReadError
 
+
 class GULPOptimizer:
     def __init__(self, atoms, calc):
         self.atoms = atoms
@@ -40,7 +41,7 @@ class GULPOptimizer:
 
 
 class GULP(FileIOCalculator):
-    implemented_properties = ['energy', 'forces', 'stress']
+    implemented_properties = ['energy', 'free_energy', 'forces', 'stress']
     command = 'gulp < PREFIX.gin > PREFIX.got'
     discard_results_on_any_change = True
     default_parameters = dict(
@@ -60,8 +61,6 @@ class GULP(FileIOCalculator):
         opt = GULPOptimizer(atoms, self)
         return opt
 
-#conditions=[['O', 'default', 'O1'], ['O', 'O2', 'H', '<', '1.6']]
-
     def __init__(self, restart=None,
                  ignore_bad_restart_file=FileIOCalculator._deprecated,
                  label='gulp', atoms=None, optimized=None,
@@ -75,7 +74,12 @@ class GULP(FileIOCalculator):
         self.conditions = conditions
         self.library_check()
         self.atom_types = []
-        self.fractional_coordinates = None # GULP prints the fractional coordinates before the Final lattice vectors so they need to be stored and then atoms positions need to be set after we get the Final lattice vectors
+
+        # GULP prints the fractional coordinates before the Final
+        # lattice vectors so they need to be stored and then atoms
+        # positions need to be set after we get the Final lattice
+        # vectors
+        self.fractional_coordinates = None
 
     def write_input(self, atoms, properties=None, system_changes=None):
         FileIOCalculator.write_input(self, atoms, properties, system_changes)
@@ -114,16 +118,16 @@ class GULP(FileIOCalculator):
         if p.options:
             for t in p.options:
                 s += '%s\n' % t
-        with open(self.prefix + '.gin', 'w') as f:
-            f.write(s)
+        with open(self.prefix + '.gin', 'w') as fd:
+            fd.write(s)
 
     def read_results(self):
         FileIOCalculator.read(self, self.label)
         if not os.path.isfile(self.label + '.got'):
             raise ReadError
 
-        with open(self.label + '.got') as f:
-            lines = f.readlines()
+        with open(self.label + '.got') as fd:
+            lines = fd.readlines()
 
         cycles = -1
         self.optimized = None
@@ -167,12 +171,16 @@ class GULP(FileIOCalculator):
                         break
                     g = lines[s].split()[3:6]
 
-                    # Uncomment the section below to separate the numbers when there is no space between them, in the case of long numbers. This prevents the code to break if numbers are too big.
+                    # Uncomment the section below to separate the numbers when
+                    # there is no space between them, in the case of long
+                    # numbers. This prevents the code to break if numbers are
+                    # too big.
 
                     '''for t in range(3-len(g)):
                         g.append(' ')
                     for j in range(2):
-                        min_index=[i+1 for i,e in enumerate(g[j][1:]) if e == '-']
+                        min_index=[i+1 for i,e in enumerate(g[j][1:])
+                                   if e == '-']
                         if j==0 and len(min_index) != 0:
                             if len(min_index)==1:
                                 g[2]=g[1]
@@ -208,26 +216,28 @@ class GULP(FileIOCalculator):
                 self.atoms.set_positions(positions)
 
             elif line.find('Final stress tensor components') != -1:
-                res=[0.,0.,0.,0.,0.,0.]
+                res = [0., 0., 0., 0., 0., 0.]
                 for j in range(3):
-                    var=lines[i+j+3].split()[1]
-                    res[j]=float(var)
-                    var=lines[i+j+3].split()[3]
-                    res[j+3]=float(var)
-                stress=np.array(res)
-                self.results['stress']=stress
+                    var = lines[i + j + 3].split()[1]
+                    res[j] = float(var)
+                    var = lines[i + j + 3].split()[3]
+                    res[j + 3] = float(var)
+                stress = np.array(res)
+                self.results['stress'] = stress
 
             elif line.find('Final Cartesian lattice vectors') != -1:
-                lattice_vectors = np.zeros((3,3))
+                lattice_vectors = np.zeros((3, 3))
                 s = i + 2
-                for j in range(s, s+3):
-                    temp=lines[j].split()
+                for j in range(s, s + 3):
+                    temp = lines[j].split()
                     for k in range(3):
-                        lattice_vectors[j-s][k]=float(temp[k])
+                        lattice_vectors[j - s][k] = float(temp[k])
                 self.atoms.set_cell(lattice_vectors)
                 if self.fractional_coordinates is not None:
-                    self.fractional_coordinates = np.array(self.fractional_coordinates)
-                    self.atoms.set_scaled_positions(self.fractional_coordinates)
+                    self.fractional_coordinates = np.array(
+                        self.fractional_coordinates)
+                    self.atoms.set_scaled_positions(
+                        self.fractional_coordinates)
 
             elif line.find('Final fractional coordinates of atoms') != -1:
                 s = i + 5
@@ -259,6 +269,7 @@ class GULP(FileIOCalculator):
             if 'GULP_LIB' not in os.environ:
                 raise RuntimeError("Be sure to have set correctly $GULP_LIB "
                                    "or to have the force field library.")
+
 
 class Conditions:
     """Atomic labels for the GULP calculator.
@@ -310,8 +321,8 @@ class Conditions:
         if elselabel1 is None:
             elselabel1 = sym1
 
-        #self.atom_types is a list of element types  used instead of element
-        #symbols in orger to track the changes made. Take care of this because
+        # self.atom_types is a list of element types  used instead of element
+        # symbols in orger to track the changes made. Take care of this because
         # is very important.. gulp_read function that parse the output
         # has to know which atom_type it has to associate with which
         # atom_symbol
@@ -332,7 +343,7 @@ class Conditions:
                 for t in range(len(self.atoms_symbols)):
                     if (self.atoms_symbols[t] == sym1
                         and dist_mat[i, t] < dist_12
-                        and t not in index_assigned_sym1):
+                            and t not in index_assigned_sym1):
                         dist_12 = dist_mat[i, t]
                         closest_sym1_index = t
                 index_assigned_sym1.append(closest_sym1_index)

@@ -120,7 +120,6 @@ Versions
 3) Changed magic string from "AFFormat" to "- of Ulm".
 """
 
-import os
 import numbers
 from pathlib import Path
 from typing import Union, Set
@@ -424,6 +423,12 @@ class Writer:
 
 
 class DummyWriter:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, tb):
+        self.close()
+
     def add_array(self, name, shape, dtype=float):
         pass
 
@@ -467,10 +472,8 @@ class Reader:
 
         self._little_endian = _little_endian
 
-        if isinstance(fd, str):
-            fd = Path(fd)
-        if isinstance(fd, Path):
-            fd = fd.open('rb')
+        if not hasattr(fd, 'read'):
+            fd = Path(fd).open('rb')
 
         self._fd = fd
         self._index = index
@@ -707,34 +710,3 @@ def copy(reader: Union[str, Path, Reader],
         reader.close()
     if close_writer:
         writer.close()
-
-
-class CLICommand:
-    """Manipulate/show content of ulm-file.
-
-    The ULM file format is used for ASE's trajectory files,
-    for GPAW's gpw-files and other things.
-
-    Example (show first image of a trajectory file):
-
-        ase ulm abc.traj -n 0 -v
-    """
-
-    @staticmethod
-    def add_arguments(parser):
-        add = parser.add_argument
-        add('filename', help='Name of ULM-file.')
-        add('-n', '--index', type=int,
-            help='Show only one index.  Default is to show all.')
-        add('-d', '--delete', metavar='key1,key2,...',
-            help='Remove key(s) from ULM-file.')
-        add('-v', '--verbose', action='store_true', help='More output.')
-
-    @staticmethod
-    def run(args):
-        if args.delete:
-            exclude = set('.' + key for key in args.delete.split(','))
-            copy(args.filename, args.filename + '.temp', exclude)
-            os.rename(args.filename + '.temp', args.filename)
-        else:
-            print_ulm_info(args.filename, args.index, verbose=args.verbose)

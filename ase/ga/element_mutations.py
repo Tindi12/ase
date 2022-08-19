@@ -6,9 +6,9 @@ from ase.data import atomic_numbers
 from ase.ga.offspring_creator import OffspringCreator
 
 
-def chunks(l, n):
+def chunks(line, n):
     """split a list into smaller chunks"""
-    return [l[i:i + n] for i in range(0, len(l), n)]
+    return [line[i:i + n] for i in range(0, len(line), n)]
 
 
 class ElementMutation(OffspringCreator):
@@ -430,7 +430,7 @@ class MoveRightMutation(ElementMutation):
 
     def __init__(self, element_pool, max_diff_elements=None,
                  min_percentage_elements=None, verbose=False, num_muts=1,
-                rng=np.random):
+                 rng=np.random):
         ElementMutation.__init__(self, element_pool, max_diff_elements,
                                  min_percentage_elements, verbose,
                                  num_muts=num_muts, rng=rng)

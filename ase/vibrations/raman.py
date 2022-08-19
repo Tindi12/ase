@@ -1,15 +1,14 @@
-import sys
 import numpy as np
 
 import ase.units as u
-from ase.parallel import world, parprint, paropen
+from ase.parallel import world
 from ase.phonons import Phonons
 from ase.vibrations.vibrations import Vibrations, AtomicDisplacements
-from ase.utils import convert_string_to_fd
 from ase.dft import monkhorst_pack
+from ase.utils import IOContext
 
 
-class RamanCalculatorBase:
+class RamanCalculatorBase(IOContext):
     def __init__(self, atoms,  # XXX do we need atoms at this stage ?
                  *args,
                  name='raman',
@@ -38,7 +37,7 @@ class RamanCalculatorBase:
 
         self.exext = exext
 
-        self.txt = convert_string_to_fd(txt)
+        self.txt = self.openfile(txt, comm)
         self.verbose = verbose
 
         self.comm = comm
@@ -47,6 +46,7 @@ class RamanCalculatorBase:
 class StaticRamanCalculatorBase(RamanCalculatorBase):
     """Base class for Raman intensities derived from
     static polarizabilities"""
+
     def __init__(self, atoms, exobj, exkwargs=None, *args, **kwargs):
         self.exobj = exobj
         if exkwargs is None:
@@ -62,6 +62,7 @@ class StaticRamanCalculatorBase(RamanCalculatorBase):
         disp.calculate_and_save_static_polarizability(atoms)
         return returnvalue
 
+
 class StaticRamanCalculator(StaticRamanCalculatorBase, Vibrations):
     pass
 
@@ -70,7 +71,7 @@ class StaticRamanPhononsCalculator(StaticRamanCalculatorBase, Phonons):
     pass
 
 
-class RamanBase(AtomicDisplacements):
+class RamanBase(AtomicDisplacements, IOContext):
     def __init__(self, atoms,  # XXX do we need atoms at this stage ?
                  *args,
                  name='raman',
@@ -94,7 +95,7 @@ class RamanBase(AtomicDisplacements):
           Communicator, default world
         """
         self.atoms = atoms
-        
+
         self.name = name
         if exname is None:
             self.exname = name
@@ -102,7 +103,7 @@ class RamanBase(AtomicDisplacements):
             self.exname = exname
         self.exext = exext
 
-        self.txt = convert_string_to_fd(txt)
+        self.txt = self.openfile(txt, comm)
         self.verbose = verbose
 
         self.comm = comm
@@ -110,6 +111,7 @@ class RamanBase(AtomicDisplacements):
 
 class RamanData(RamanBase):
     """Base class to evaluate Raman spectra from pre-computed data"""
+
     def __init__(self, atoms,  # XXX do we need atoms at this stage ?
                  *args,
                  exname=None,      # name for excited state calculations
@@ -206,7 +208,7 @@ class RamanData(RamanBase):
         unit e^4 Angstrom^4 / eV^2
         """
         self.calculate_energies_and_modes()
-        
+
         m2 = Raman.m2
         alpha_Qcc = self.me_Qcc(*args, **kwargs)
         if not self.observation:  # XXXX remove
@@ -270,8 +272,13 @@ class RamanData(RamanBase):
                      m2(alpha_Qcc[:, 1, 1] - alpha_Qcc[:, 2, 2])) / 2)
         return alpha2_r, gamma2_r, delta2_r
 
-    def summary(self, log=sys.stdout):
+    def summary(self, log='-'):
         """Print summary for given omega [eV]"""
+        with IOContext() as io:
+            log = io.openfile(log, comm=self.comm, mode='a')
+            return self._summary(log)
+
+    def _summary(self, log):
         hnu = self.get_energies()
         intensities = self.get_absolute_intensities()
         te = int(np.log10(intensities.max())) - 2
@@ -284,13 +291,10 @@ class RamanData(RamanBase):
         else:
             ts = '10^{0}'.format(te)
 
-        if isinstance(log, str):
-            log = paropen(log, 'a')
-
-        parprint('-------------------------------------', file=log)
-        parprint(' Mode    Frequency        Intensity', file=log)
-        parprint('  #    meV     cm^-1      [{0}A^4/amu]'.format(ts), file=log)
-        parprint('-------------------------------------', file=log)
+        print('-------------------------------------', file=log)
+        print(' Mode    Frequency        Intensity', file=log)
+        print('  #    meV     cm^-1      [{0}A^4/amu]'.format(ts), file=log)
+        print('-------------------------------------', file=log)
         for n, e in enumerate(hnu):
             if e.imag != 0:
                 c = 'i'
@@ -298,10 +302,10 @@ class RamanData(RamanBase):
             else:
                 c = ' '
                 e = e.real
-            parprint('%3d %6.1f%s  %7.1f%s  %9.2f' %
-                     (n, 1000 * e, c, e / u.invcm, c, intensities[n] * scale),
-                     file=log)
-        parprint('-------------------------------------', file=log)
+            print('%3d %6.1f%s  %7.1f%s  %9.2f' %
+                  (n, 1000 * e, c, e / u.invcm, c, intensities[n] * scale),
+                  file=log)
+        print('-------------------------------------', file=log)
         # XXX enable this in phonons
         # parprint('Zero-point energy: %.3f eV' %
         #         self.vibrations.get_zero_point_energy(),
@@ -316,14 +320,14 @@ class Raman(RamanData):
             kwargs.pop(key, None)
         kwargs['name'] = kwargs.get('name', self.name)
         self.vibrations = Vibrations(atoms, *args, **kwargs)
-        
+
         self.delta = self.vibrations.delta
         self.indices = self.vibrations.indices
 
     def calculate_energies_and_modes(self):
         if hasattr(self, 'im_r'):
             return
-        
+
         self.read()
 
         self.im_r = self.vibrations.im

@@ -8,7 +8,7 @@ from ase.utils import reader, writer
 
 @reader
 def read_lammps_data(fileobj, Z_of_type=None, style="full",
-                     sort_by_id=False, units="metal"):
+                     sort_by_id=True, units="metal"):
     """Method which reads a LAMMPS data file.
 
     sort_by_id: Order the particles according to their id. Might be faster to
@@ -305,11 +305,11 @@ def read_lammps_data(fileobj, Z_of_type=None, style="full",
     # copy per-atom quantities from read-in values
     for (i, id) in enumerate(pos_in.keys()):
         # by id
-        ind_of_id[id] = i
         if sort_by_id:
             ind = id - 1
         else:
             ind = i
+        ind_of_id[id] = ind
         type = pos_in[id][0]
         positions[ind, :] = [pos_in[id][1], pos_in[id][2], pos_in[id][3]]
         if velocities is not None:
@@ -485,7 +485,7 @@ def write_lammps_data(fd, atoms, specorder=None, force_skew=False,
             q = convert(q, "charge", "ASE", units)
             s = species.index(symbols[i]) + 1
             fd.write("{0:>6} {1:>3} {2:>5} {3:23.17g} {4:23.17g} {5:23.17g}\n"
-                    .format(*(i + 1, s, q) + tuple(r)))
+                     .format(*(i + 1, s, q) + tuple(r)))
     elif atom_style == 'full':
         charges = atoms.get_initial_charges()
         # The label 'mol-id' has apparenlty been introduced in read earlier,
@@ -504,10 +504,11 @@ def write_lammps_data(fd, atoms, specorder=None, force_skew=False,
                     " each atom must have exactly one mol-id."))
         else:
             # Assigning each atom to a distinct molecule id would seem
-            # preferableabove assigning all atoms to a single molecule id per
-            # default, as done within ase <= v 3.19.1. I.e.,
-            # molecules = np.arange(start=1, stop=len(atoms)+1, step=1, dtype=int)
-            # However, according to LAMMPS default behavior,
+            # preferableabove assigning all atoms to a single molecule
+            # id per default, as done within ase <= v 3.19.1. I.e.,
+            # molecules = np.arange(start=1, stop=len(atoms)+1,
+            # step=1, dtype=int) However, according to LAMMPS default
+            # behavior,
             molecules = np.zeros(len(atoms), dtype=int)
             # which is what happens if one creates new atoms within LAMMPS
             # without explicitly taking care of the molecule id.
@@ -524,7 +525,7 @@ def write_lammps_data(fd, atoms, specorder=None, force_skew=False,
             q = convert(q, "charge", "ASE", units)
             s = species.index(symbols[i]) + 1
             fd.write("{0:>6} {1:>3} {2:>3} {3:>5} {4:23.17g} {5:23.17g} "
-                    "{6:23.17g}\n".format(*(i + 1, m, s, q) + tuple(r)))
+                     "{6:23.17g}\n".format(*(i + 1, m, s, q) + tuple(r)))
     else:
         raise NotImplementedError
 

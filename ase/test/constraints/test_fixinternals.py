@@ -40,10 +40,9 @@ def setup_fixinternals():
 
     # Initialize constraint
     constr = FixInternals(bonds=[(target_bond, bond_def)],
-                              angles_deg=[(target_angle, angle_def)],
-                              dihedrals_deg=[(target_dihedral, dihedral_def)],
-                              epsilon=1e-10)
-    print(constr)
+                          angles_deg=[(target_angle, angle_def)],
+                          dihedrals_deg=[(target_dihedral, dihedral_def)],
+                          epsilon=1e-10)
     return (atoms, constr, bond_def, target_bond, angle_def, target_angle,
             dihedral_def, target_dihedral)
 
@@ -51,8 +50,6 @@ def setup_fixinternals():
 def test_fixinternals():
     (atoms, constr, bond_def, target_bond, angle_def, target_angle,
      dihedral_def, target_dihedral) = setup_fixinternals()
-
-    calc = EMT()
 
     opt = BFGS(atoms)
 
@@ -64,7 +61,7 @@ def test_fixinternals():
     print('bond length before', atoms.get_distance(*bond_def))
     print('target bondlength', target_bond)
 
-    atoms.calc = calc
+    atoms.calc = EMT()
     atoms.set_constraint(constr)
     print('-----Optimization-----')
     opt.run(fmax=0.01)
@@ -147,8 +144,46 @@ def test_index_shuffle():
 
 def test_combo_index_shuffle():
     atoms, constr, bondcombo_def, target_bondcombo = setup_combos()
-
     answer = (1, 2, 3)
     assert all(a == b for a, b in zip(constr.get_indices(), answer))
     constr.index_shuffle(atoms, range(len(atoms)))
     assert all(a == b for a, b in zip(constr.get_indices(), answer))
+
+
+def test_zero_distance_error():
+    """Zero distances cannot be fixed due to a singularity in the derivative.
+    """
+    atoms = setup_atoms()
+    constr = FixInternals(bonds=[(0.0, [1, 2])])
+    atoms.calc = EMT()
+    atoms.set_constraint(constr)
+    opt = BFGS(atoms)
+    with pytest.raises(ZeroDivisionError):
+        opt.run()
+
+
+def test_planar_angle_error():
+    """Support for planar angles could be added in the future using
+       dummy/ghost atoms. See issue #868."""
+    atoms = setup_atoms()
+    constr = FixInternals(angles_deg=[(180, [6, 0, 1])])
+    atoms.calc = EMT()
+    atoms.set_constraint(constr)
+    opt = BFGS(atoms)
+    with pytest.raises(ZeroDivisionError):
+        opt.run()
+
+
+def test_undefined_dihedral_error():
+    atoms = setup_atoms()
+    pos = atoms.get_positions()
+    pos[0:3] = [[8, 5, 5], [7, 5, 5], [6, 5, 5]]
+    atoms.set_positions(pos)  # with undefined dihedral
+    with pytest.raises(ZeroDivisionError):
+        atoms.get_dihedral(6, 0, 1, 2)
+    constr = FixInternals(dihedrals_deg=[(20., [6, 0, 1, 2])])
+    atoms.calc = EMT()
+    atoms.set_constraint(constr)
+    opt = BFGS(atoms)
+    with pytest.raises(ZeroDivisionError):
+        opt.run()

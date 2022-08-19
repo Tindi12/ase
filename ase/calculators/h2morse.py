@@ -69,7 +69,7 @@ class H2MorseCalculator(MorsePotential):
         r = np.linalg.norm(vr)
         hr = vr / r
         # perpendicular axes
-        vrand = self.rng.rand(3)
+        vrand = self.rng.random(3)
         hx = np.cross(hr, vrand)
         hx /= np.linalg.norm(hx)
         hy = np.cross(hr, hx)
@@ -81,21 +81,21 @@ class H2MorseCalculator(MorsePotential):
 
     def read(self, filename):
         ms = self
-        with open(filename) as f:
-            ms.wfs = [int(f.readline().split()[0])]
+        with open(filename) as fd:
+            ms.wfs = [int(fd.readline().split()[0])]
             for i in range(1, 4):
                 ms.wfs.append(
                     np.array([float(x)
-                              for x in f.readline().split()[:4]]))
+                              for x in fd.readline().split()[:4]]))
         ms.filename = filename
         return ms
 
     def write(self, filename, option=None):
         """write calculated state to a file"""
-        with open(filename, 'w') as f:
-            f.write('{}\n'.format(self.wfs[0]))
+        with open(filename, 'w') as fd:
+            fd.write('{}\n'.format(self.wfs[0]))
             for wf in self.wfs[1:]:
-                f.write('{0:g} {1:g} {2:g}\n'.format(*wf))
+                fd.write('{0:g} {1:g} {2:g}\n'.format(*wf))
 
     def overlap(self, other):
         ov = np.zeros((4, 4))
@@ -108,6 +108,7 @@ class H2MorseCalculator(MorsePotential):
 
 class H2MorseExcitedStatesCalculator():
     """First singlet excited states of H2 from Morse potentials"""
+
     def __init__(self, nstates=3):
         """
         Parameters
@@ -151,6 +152,7 @@ class H2MorseExcitedStatesCalculator():
 
 class H2MorseExcitedStates(ExcitationList):
     """First singlet excited states of H2"""
+
     def __init__(self, nstates=3):
         """
         Parameters
@@ -169,18 +171,18 @@ class H2MorseExcitedStates(ExcitationList):
     def read(cls, filename, nstates=3):
         """Read myself from a file"""
         exl = cls(nstates)
-        with open(filename, 'r') as f:
+        with open(filename, 'r') as fd:
             exl.filename = filename
-            n = int(f.readline().split()[0])
+            n = int(fd.readline().split()[0])
             for i in range(min(n, exl.nstates)):
-                exl.append(H2Excitation.fromstring(f.readline()))
+                exl.append(H2Excitation.fromstring(fd.readline()))
         return exl
 
     def write(self, fname):
-        with open(fname, 'w') as f:
-            f.write('{0}\n'.format(len(self)))
+        with open(fname, 'w') as fd:
+            fd.write('{0}\n'.format(len(self)))
             for ex in self:
-                f.write(ex.outstring())
+                fd.write(ex.outstring())
 
 
 class H2Excitation(Excitation):
@@ -198,6 +200,7 @@ class H2Excitation(Excitation):
 class H2MorseExcitedStatesAndCalculator(
         H2MorseExcitedStatesCalculator, H2MorseExcitedStates):
     """Traditional joined object for backward compatibility only"""
+
     def __init__(self, calculator, nstates=3):
         if isinstance(calculator, str):
             exlist = H2MorseExcitedStates.read(calculator, nstates)

@@ -7,9 +7,8 @@ from ase import Atoms
 import numpy as np
 
 
-def test_sql_db_ext_tables(psycopg2):
+def test_sql_db_ext_tables(psycopg2, testdir):
     DB_NAMES = ["test_ext_tables.db", "postgresql", "mysql", "mariadb"]
-
 
     def get_db_name(name):
         if name == 'postgresql':
@@ -29,7 +28,6 @@ def test_sql_db_ext_tables(psycopg2):
                 name = os.environ.get('MYSQL_DB_URL')
         return name
 
-
     def test_create_and_delete_ext_tab(db_name):
         ext_tab = ["tab1", "tab2", "tab3"]
         atoms = Atoms()
@@ -44,7 +42,6 @@ def test_sql_db_ext_tables(psycopg2):
 
         db.delete_external_table("tab1")
         assert "tab1" not in db._get_external_table_names()
-
 
     def test_insert_in_external_tables(db_name):
         atoms = Atoms()
@@ -80,11 +77,14 @@ def test_sql_db_ext_tables(psycopg2):
         # Try to insert something that should not pass
         # i.e. string value into the same table
         with pytest.raises(ValueError):
-            db.write(atoms, external_tables={"insert_tab": {"rate": "something"}})
+            db.write(atoms, external_tables={
+                     "insert_tab": {"rate": "something"}})
 
         # Try to insert Numpy floats
-        db.write(atoms, external_tables={"insert_tab": {"rate": np.float32(1.0)}})
-        db.write(atoms, external_tables={"insert_tab": {"rate": np.float64(1.0)}})
+        db.write(atoms, external_tables={
+                 "insert_tab": {"rate": np.float32(1.0)}})
+        db.write(atoms, external_tables={
+                 "insert_tab": {"rate": np.float64(1.0)}})
 
         # Make sure that we cannot insert a Numpy integer types into
         # a float array
@@ -135,7 +135,6 @@ def test_sql_db_ext_tables(psycopg2):
             with pytest.raises(ValueError):
                 db.write(atoms, external_tables={tab_name: {"value": 1}})
 
-
     def test_extract_from_table(db_name):
         atoms = Atoms()
         db = connect(db_name)
@@ -151,19 +150,18 @@ def test_sql_db_ext_tables(psycopg2):
         assert abs(row["insert_tab"]["rate"] - 12.0) < 1E-8
         assert abs(row["insert_tab"]["rate1"] + 10.0) < 1E-8
 
-
     def test_write_atoms_row(db_name):
         atoms = Atoms()
         db = connect(db_name)
         uid = db.write(
-            atoms, external_tables={"insert_tab": {"rate": 12.0, "rate1": -10.0},
-                                    "another_tab": {"somevalue": 1.0}})
+            atoms, external_tables={
+                "insert_tab": {"rate": 12.0, "rate1": -10.0},
+                "another_tab": {"somevalue": 1.0}})
         row = db.get(id=uid)
 
         # Hack: Just change the unique ID
         row["unique_id"] = "uniqueIDTest"
         db.write(row)
-
 
     def test_external_table_upon_update(db_name):
         db = connect(db_name)
@@ -172,7 +170,6 @@ def test_sql_db_ext_tables(psycopg2):
         atoms = Atoms('Pb', positions=[[0, 0, 0]])
         uid = db.write(atoms)
         db.update(uid, external_tables={'sys': ext_table})
-
 
     def test_external_table_upon_update_with_float(db_name):
         db = connect(db_name)

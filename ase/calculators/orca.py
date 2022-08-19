@@ -36,7 +36,7 @@ class ORCA(FileIOCalculator):
             orcasimpleinput: str
                 What you'd put after the "!" in an orca input file.
 
-            orcablock: str
+            orcablocks: str
                 What you'd put in the "% ... end"-blocks.
 
         are used to define the ORCA simple-inputline and the ORCA-block input.
@@ -100,7 +100,8 @@ class ORCA(FileIOCalculator):
         re_not_converged = re.compile(r"Wavefunction not fully converged")
         found_line = re_energy.search(text)
         if found_line and not re_not_converged.search(found_line.group()):
-            self.results['energy'] = float(found_line.group().split()[-1]) * Hartree
+            self.results['energy'] = float(
+                found_line.group().split()[-1]) * Hartree
 
     def read_forces(self):
         """Read Forces from ORCA output file."""
@@ -165,8 +166,8 @@ class PointChargePotential:
     def get_forces(self, calc):
         ''' reads forces on point charges from .pcgrad file '''
         with open(os.path.join(self.directory, self.label + '.pcgrad'),
-                  'r', encoding='utf-8') as f:
-            lines = f.readlines()
+                  'r', encoding='utf-8') as fd:
+            lines = fd.readlines()
         numpc = int(lines[0])
         forces = np.zeros((numpc, 3))
         for i in range(numpc):

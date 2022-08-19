@@ -275,7 +275,7 @@ class CP2K(Calculator):
                 self._shell.send('%.18e %.18e %.18e' % tuple(pos))
             self._shell.send('*END')
             max_change = float(self._shell.recv())
-            assert max_change >= 0 # sanity check
+            assert max_change >= 0  # sanity check
             self._shell.expect('* READY')
 
         self._shell.send('EVAL_EF %d' % self._force_env_id)
@@ -289,7 +289,7 @@ class CP2K(Calculator):
         forces = np.zeros(shape=(n_atoms, 3))
         self._shell.send('GET_F %d' % self._force_env_id)
         nvals = int(self._shell.recv())
-        assert nvals == 3 * n_atoms # sanity check
+        assert nvals == 3 * n_atoms  # sanity check
         for i in range(n_atoms):
             line = self._shell.recv()
             forces[i, :] = [float(x) for x in line.split()]
@@ -392,10 +392,13 @@ class CP2K(Calculator):
                 xc_sec = root.get_subsection('FORCE_EVAL/DFT/XC/XC_FUNCTIONAL')
                 # libxc input section changed over time
                 if functional.startswith("XC_") and self._shell.version < 3.0:
-                    legacy_libxc += " " + functional # handled later
-                elif functional.startswith("XC_"):
+                    legacy_libxc += " " + functional  # handled later
+                elif functional.startswith("XC_") and self._shell.version < 5.0:
                     s = InputSection(name='LIBXC')
                     s.keywords.append('FUNCTIONAL ' + functional)
+                    xc_sec.subsections.append(s)
+                elif functional.startswith("XC_"):
+                    s = InputSection(name=functional[3:])
                     xc_sec.subsections.append(s)
                 else:
                     s = InputSection(name=functional.upper())
@@ -467,7 +470,6 @@ class Cp2kShell:
 
         self.isready = False
         self.version = 1.0  # assume oldest possible version until verified
-        self._child = None
         self._debug = debug
 
         # launch cp2k_shell child process
@@ -500,11 +502,13 @@ class Cp2kShell:
         """Terminate cp2k_shell child process"""
         if self.isready:
             self.send('EXIT')
+            self._child.communicate()
             rtncode = self._child.wait()
             assert rtncode == 0  # child process exited properly?
         else:
             warn("CP2K-shell not ready, sending SIGTERM.", RuntimeWarning)
             self._child.terminate()
+            self._child.communicate()
         self._child = None
         self.version = None
         self.isready = False
@@ -534,8 +538,10 @@ class Cp2kShell:
         received = self.recv()
         assert received == line
 
+
 class InputSection:
     """Represents a section of a CP2K input file"""
+
     def __init__(self, name, params=None):
         self.name = name.upper()
         self.params = params

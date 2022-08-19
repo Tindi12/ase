@@ -46,7 +46,8 @@ def test_basic_example_main_run(seed, testdir):
     # Define the composition of the atoms to optimize
     atom_numbers = 2 * [47] + 2 * [79]
 
-    # define the closest distance two atoms of a given species can be to each other
+    # define the closest distance two atoms of a given species can be to each
+    # other
     unique_atom_types = get_all_atom_types(slab, atom_numbers)
     blmin = closest_distances_generator(atom_numbers=unique_atom_types,
                                         ratio_of_covalent_radii=0.7)
@@ -60,7 +61,8 @@ def test_basic_example_main_run(seed, testdir):
 
     # generate the starting population
     population_size = 5
-    starting_population = [sg.get_new_candidate() for i in range(population_size)]
+    starting_population = [sg.get_new_candidate()
+                           for i in range(population_size)]
 
     # from ase.visualize import view   # uncomment these lines
     # view(starting_population)        # to see the starting population
@@ -72,7 +74,6 @@ def test_basic_example_main_run(seed, testdir):
 
     for a in starting_population:
         d.add_unrelaxed_candidate(a)
-
 
     # XXXXXXXXXX This should be the beginning of a new test,
     # but we are using some resources from the precious part.
@@ -100,18 +101,21 @@ def test_basic_example_main_run(seed, testdir):
 
     pairing = CutAndSplicePairing(slab, n_to_optimize, blmin, rng=rng)
     mutations = OperationSelector([1., 1., 1.],
-                            [MirrorMutation(blmin, n_to_optimize, rng=rng),
-                             RattleMutation(blmin, n_to_optimize, rng=rng),
-                             PermutationMutation(n_to_optimize, rng=rng)],
-                             rng=rng)
+                                  [MirrorMutation(blmin, n_to_optimize,
+                                                  rng=rng),
+                                   RattleMutation(
+                                       blmin, n_to_optimize, rng=rng),
+                                   PermutationMutation(n_to_optimize,
+                                                       rng=rng)],
+                                  rng=rng)
 
     # Relax all unrelaxed structures (e.g. the starting population)
     while da.get_number_of_unrelaxed_candidates() > 0:
         a = da.get_an_unrelaxed_candidate()
         a.calc = EMT()
         print('Relaxing starting candidate {0}'.format(a.info['confid']))
-        dyn = BFGS(a, trajectory=None, logfile=None)
-        dyn.run(fmax=0.05, steps=100)
+        with BFGS(a, trajectory=None, logfile=None) as dyn:
+            dyn.run(fmax=0.05, steps=100)
         set_raw_score(a, -a.get_potential_energy())
         da.add_relaxed_step(a)
 
@@ -131,7 +135,7 @@ def test_basic_example_main_run(seed, testdir):
         da.add_unrelaxed_candidate(a3, description=desc)
 
         # Check if we want to do a mutation
-        if rng.rand() < mutation_probability:
+        if rng.random() < mutation_probability:
             a3_mut, desc = mutations.get_new_individual([a3])
             if a3_mut is not None:
                 da.add_unrelaxed_step(a3_mut, desc)
@@ -139,8 +143,8 @@ def test_basic_example_main_run(seed, testdir):
 
         # Relax the new candidate
         a3.calc = EMT()
-        dyn = BFGS(a3, trajectory=None, logfile=None)
-        dyn.run(fmax=0.05, steps=100)
+        with BFGS(a3, trajectory=None, logfile=None) as dyn:
+            dyn.run(fmax=0.05, steps=100)
         set_raw_score(a3, -a3.get_potential_energy())
         da.add_relaxed_step(a3)
         population.update()

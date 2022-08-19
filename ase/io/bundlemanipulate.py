@@ -58,8 +58,8 @@ def copy_frames(inbundle, outbundle, start=0, end=None, step=1,
 
     # Make the new bundle directory
     os.mkdir(outbundle)
-    with open(os.path.join(outbundle, 'metadata.json'), 'w') as f:
-        json.dump(metadata, f, indent=2)
+    with open(os.path.join(outbundle, 'metadata.json'), 'w') as fd:
+        json.dump(metadata, fd, indent=2)
 
     for nout, nin in enumerate(frames):
         if verbose:
@@ -152,7 +152,9 @@ def read_bundle_info(name):
 
     if not os.path.isfile(metaname):
         if os.path.isfile(os.path.join(name, 'metadata')):
-            raise IOError("Found obsolete metadata in unsecure Pickle format.  Refusing to load.")
+            raise IOError(
+                "Found obsolete metadata in unsecure Pickle format.  "
+                "Refusing to load.")
         else:
             raise IOError("'{}' does not appear to be a BundleTrajectory "
                           "(no {})".format(name, metaname))

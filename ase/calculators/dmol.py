@@ -131,20 +131,20 @@ class DMol3(FileIOCalculator):
         with open(self.label + '.input', 'w') as fd:
             self._write_input_file(fd)
 
-    def _write_input_file(self, f):
-        f.write('%-32s %s\n' % ('calculate', 'gradient'))
+    def _write_input_file(self, fd):
+        fd.write('%-32s %s\n' % ('calculate', 'gradient'))
 
         # if no key about eigs
-        f.write('%-32s %s\n' % ('print', 'eigval_last_it'))
+        fd.write('%-32s %s\n' % ('print', 'eigval_last_it'))
 
         for key, value in self.parameters.items():
             if isinstance(value, str):
-                f.write('%-32s %s\n' % (key, value))
+                fd.write('%-32s %s\n' % (key, value))
             elif isinstance(value, (list, tuple)):
                 for val in value:
-                    f.write('%-32s %s\n' % (key, val))
+                    fd.write('%-32s %s\n' % (key, val))
             else:
-                f.write('%-32s %r\n' % (key, value))
+                fd.write('%-32s %r\n' % (key, value))
 
     def read(self, label):
         FileIOCalculator.read(self, label)
@@ -211,7 +211,8 @@ class DMol3(FileIOCalculator):
         if np.all(self.atoms.pbc):  # [True, True, True]
             dmol_atoms = self.read_atoms_from_outmol()
             if (np.linalg.norm(self.atoms.positions - dmol_atoms.positions) <
-                    tol) and (np.linalg.norm(self.atoms.cell - dmol_atoms.cell) < tol):
+                    tol) and (np.linalg.norm(self.atoms.cell -
+                                             dmol_atoms.cell) < tol):
                 self.internal_transformation = False
             else:
                 R, err = find_transformation(dmol_atoms, self.atoms)
@@ -596,9 +597,9 @@ def read_grd(filename):
     data = np.empty(grid)
 
     origin_data = [int(fld) for fld in lines[4].split()[1:]]
-    origin_xyz = cell[0] * (-float(origin_data[0])-0.5) / (grid[0] - 1) + \
-        cell[1] * (-float(origin_data[2])-0.5) / (grid[1] - 1) + \
-        cell[2] * (-float(origin_data[4])-0.5) / (grid[2] - 1)
+    origin_xyz = cell[0] * (-float(origin_data[0]) - 0.5) / (grid[0] - 1) + \
+        cell[1] * (-float(origin_data[2]) - 0.5) / (grid[1] - 1) + \
+        cell[2] * (-float(origin_data[4]) - 0.5) / (grid[2] - 1)
 
     # Fastest index describes which index ( x or y ) varies fastest
     # 1: x  , 3: y

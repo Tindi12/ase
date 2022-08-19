@@ -2,7 +2,6 @@ def test_bandgap():
     import numpy as np
     from ase.dft.bandgap import bandgap
 
-
     class Calculator:
         def __init__(self, e_skn):
             self.e_skn = np.array(e_skn, dtype=float)
@@ -22,7 +21,6 @@ def test_bandgap():
         def get_number_of_spins(self):
             return self.ns
 
-
     def test(e_skn):
         c = Calculator(e_skn)
         if c.ns == 1:
@@ -37,7 +35,6 @@ def test_bandgap():
         return [(gap, (s1, k1), (s2, k2))
                 for gap, (s1, k1, n1), (s2, k2, n2) in result]
 
-
     r = test([[[-1, 1]]])
     assert r == [(2, 0, 0), (2, 0, 0)]
     r = test([[[-1, 2], [-3, 1]]])
@@ -45,8 +42,10 @@ def test_bandgap():
     r = test([[[-1, 2, 3], [-1, -1, 1]]])
     assert r == [(0, None, None), (0, None, None)]
     r = test([[[-1, 2, 3], [-1, -1, 1]], [[-1, 2, 2], [-3, 1, 1]]])
-    assert r == [(0, (None, None), (None, None)), (0, (None, None), (None, None)),
-                 (0, (None, None), (None, None)), (0, (None, None), (None, None)),
+    assert r == [(0, (None, None), (None, None)),
+                 (0, (None, None), (None, None)),
+                 (0, (None, None), (None, None)),
+                 (0, (None, None), (None, None)),
                  (2, (1, 0), (1, 1)), (3, (1, 0), (1, 0))]
     r = test([[[-1, 5], [-2, 2]], [[-2, 4], [-4, 1]]])
     assert r == [(2, (0, 0), (1, 1)), (3, (0, 1), (1, 1)),
@@ -56,4 +55,3 @@ def test_bandgap():
     assert r == [(2, (0, 0), (1, 0)), (2, (1, 0), (1, 0)),
                  (3, (0, 0), (0, 0)), (3, (0, 0), (0, 0)),
                  (2, (1, 0), (1, 0)), (2, (1, 0), (1, 0))]
-

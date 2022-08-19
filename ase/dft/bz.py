@@ -12,8 +12,8 @@ def bz_vertices(icell, dim=3):
     if dim < 2:
         icell[1, 1] = 1e-3
 
-    I = (np.indices((3, 3, 3)) - 1).reshape((3, 27))
-    G = np.dot(icell.T, I).T
+    indices = (np.indices((3, 3, 3)) - 1).reshape((3, 27))
+    G = np.dot(icell.T, indices).T
     vor = Voronoi(G)
     bz1 = []
     for vertices, points in zip(vor.ridge_vertices, vor.ridge_points):
@@ -32,7 +32,7 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
     if ax is None:
         fig = plt.gcf()
 
-    dimensions = cell.any(1).sum()
+    dimensions = cell.rank
     assert dimensions > 0, 'No BZ for 0D!'
 
     if dimensions == 3:
@@ -49,9 +49,17 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
             def draw(self, renderer):
                 xs3d, ys3d, zs3d = self._verts3d
                 xs, ys, zs = proj3d.proj_transform(xs3d, ys3d,
-                                                   zs3d, renderer.M)
+                                                   zs3d, ax.axes.M)
                 self.set_positions((xs[0], ys[0]), (xs[1], ys[1]))
                 FancyArrowPatch.draw(self, renderer)
+
+            # FIXME: Compatibility fix for matplotlib 3.5.0: Handling of 3D
+            # artists have changed and all 3D artists now need
+            # "do_3d_projection". Since this class is a hack that manually
+            # projects onto the 3D axes we don't need to do anything in this
+            # method. Ideally we shouldn't resort to a hack like this.
+            def do_3d_projection(self, *_, **__):
+                return 0
 
         azim = pi / 5
         elev = elev or pi / 6
@@ -60,7 +68,7 @@ def bz_plot(cell, vectors=False, paths=None, points=None,
         view = [x * cos(elev), y * cos(elev), sin(elev)]
 
         if ax is None:
-            ax = fig.gca(projection='3d')
+            ax = fig.add_subplot(projection='3d')
     elif dimensions == 2:
         # 2d in xy
         assert all(abs(cell[2][0:2]) < 1e-6) and all(abs(cell.T[2]
