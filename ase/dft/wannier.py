@@ -420,10 +420,13 @@ def get_eigenvalues(calc):
     nkpts = len(calc.get_bz_k_points())
     nbands = calc.get_number_of_bands()
     eps_skn = np.empty((nspins, nkpts, nbands))
+    bz2ibz_map = calc.get_bz_to_ibz_map()
 
     for ispin in range(nspins):
         for ikpt in range(nkpts):
-            eps_skn[ispin, ikpt] = calc.get_eigenvalues(kpt=ikpt, spin=ispin)
+            ikpt_ibz = bz2ibz_map[ikpt]
+            eps_skn[ispin, ikpt] = calc.get_eigenvalues(kpt=ikpt_ibz,
+                                                        spin=ispin)
     return eps_skn
 
 
@@ -959,6 +962,7 @@ class Wannier:
         """
 
         # Default size of plotting cell is the one corresponding to k-points.
+        kd = self.calc.wfs.kd
         if repeat is None:
             repeat = self.kptgrid
         N1, N2, N3 = repeat
@@ -967,7 +971,9 @@ class Wannier:
         largedim = dim * [N1, N2, N3]
 
         wanniergrid = np.zeros(largedim, dtype=complex)
+        bz2ibz_map = self.calc.get_bz_to_ibz_map()
         for k, kpt_c in enumerate(self.kpt_kc):
+            k_ibz = bz2ibz_map[k]
             # The coordinate vector of wannier functions
             if isinstance(index, int):
                 vec_n = self.V_knw[k, :, index]
@@ -976,8 +982,12 @@ class Wannier:
 
             wan_G = np.zeros(dim, complex)
             for n, coeff in enumerate(vec_n):
-                wan_G += coeff * self.calc.get_pseudo_wave_function(
-                    n, k, self.spin, pad=True)
+                # calc_pseudo_wave_function only works in IBZ.
+                # We calculate the pseudo-wf at the equivalent ibz kpt, and
+                # then transform back to the current kpt in the full BZ.
+                psit_G = self.calc.get_pseudo_wave_function(
+                    n, k_ibz, self.spin, pad=True)
+                wan_G += coeff * kd.transform_wave_function(psit_G, k)
 
             # Distribute the small wavefunction over large cell:
             for n1 in range(N1):
