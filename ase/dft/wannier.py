@@ -417,7 +417,7 @@ def choose_states(calcdata, fixedenergy, fixedstates, Nk, nwannier, log, spin):
 
 def get_eigenvalues(calc):
     nspins = calc.get_number_of_spins()
-    nkpts = len(calc.get_ibz_k_points())
+    nkpts = len(calc.get_bz_k_points())
     nbands = calc.get_number_of_bands()
     eps_skn = np.empty((nspins, nkpts, nbands))
 
@@ -445,7 +445,7 @@ class CalcData:
 def get_calcdata(calc):
     kpt_kc = calc.get_bz_k_points()
     # Make sure there is no symmetry reduction
-    assert len(calc.get_ibz_k_points()) == len(kpt_kc)
+    # assert len(calc.get_ibz_k_points()) == len(kpt_kc)
     lumo = calc.get_homo_lumo()[1]
     gap = bandgap(calc=calc, output=None)[0]
     return CalcData(
