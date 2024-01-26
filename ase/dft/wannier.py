@@ -579,6 +579,7 @@ class Wannier:
 
         if file is None:
             self.Z_dknn = self.new_Z(calc, k0_dkc)
+            print('calcaulted Z_dknn')
         self.initialize(file=file, initialwannier=initialwannier, rng=rng)
 
     @property
@@ -600,13 +601,16 @@ class Wannier:
     def new_Z(self, calc, k0_dkc):
         Nb = self.nbands
         Z_dknn = np.empty((self.Ndir, self.Nk, Nb, Nb), complex)
+        i = 1
         for d, dirG in enumerate(self.Gdir_dc):
             for k in range(self.Nk):
+                print('loop %d / %d. d = %d, k = %d' % (i, self.Nk * len(self.Gdir_dc), d, k))
                 k1 = self.kklst_dk[d, k]
                 k0_c = k0_dkc[d, k]
                 Z_dknn[d, k] = calc.get_wannier_localization_matrix(
                     nbands=Nb, dirG=dirG, kpoint=k, nextkpoint=k1,
                     G_I=k0_c, spin=self.spin)
+                i = i + 1
         return Z_dknn
 
     @property
