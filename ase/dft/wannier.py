@@ -282,7 +282,6 @@ def init_orbitals(atoms, ntot, rng=np.random):
     'ntot': total number of needed orbitals
     'rng': generator random numbers
     """
-
     # List all the elements that should have occupied d-orbitals
     # in the valence states (according to GPAW setups)
     d_metals = set(list(range(21, 31)) + list(range(39, 52)) +
@@ -448,7 +447,12 @@ class CalcData:
 def get_calcdata(calc):
     kpt_kc = calc.get_bz_k_points()
     # Make sure there is no symmetry reduction
-    # assert len(calc.get_ibz_k_points()) == len(kpt_kc)
+    if len(calc.get_ibz_k_points()) != len(kpt_kc):
+        raise NotImplementedError(
+            'Calculator contains symmetries! These have not yet been'
+            ' implemented. If you use GPAW, you can construct a new calculator'
+            ' without symmetries by running'
+            ' calc.fixed_density(symmetry=\'off\').')
     lumo = calc.get_homo_lumo()[1]
     gap = bandgap(calc=calc, output=None)[0]
     return CalcData(
@@ -579,7 +583,6 @@ class Wannier:
 
         if file is None:
             self.Z_dknn = self.new_Z(calc, k0_dkc)
-            print('calcaulted Z_dknn')
         self.initialize(file=file, initialwannier=initialwannier, rng=rng)
 
     @property
@@ -604,7 +607,6 @@ class Wannier:
         i = 1
         for d, dirG in enumerate(self.Gdir_dc):
             for k in range(self.Nk):
-                print('loop %d / %d. d = %d, k = %d' % (i, self.Nk * len(self.Gdir_dc), d, k))
                 k1 = self.kklst_dk[d, k]
                 k0_c = k0_dkc[d, k]
                 Z_dknn[d, k] = calc.get_wannier_localization_matrix(
