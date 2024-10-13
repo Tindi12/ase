@@ -9,7 +9,7 @@ from abc import abstractmethod
 from dataclasses import dataclass, field
 from math import pi, sqrt
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Set, Union
+from typing import Any, Dict, Optional, Sequence, Set, Union
 
 import numpy as np
 

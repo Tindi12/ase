@@ -6,7 +6,7 @@ import sys
 from abc import ABC, abstractmethod
 from subprocess import PIPE, Popen
 
-from ase.calculators.calculator import Calculator, all_properties
+from ase.calculators.calculator import Calculator
 
 
 class PackedCalculator(ABC):

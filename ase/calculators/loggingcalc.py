@@ -12,7 +12,7 @@ from typing import Any, Dict
 
 import numpy as np
 
-from ase.calculators.calculator import Calculator, all_properties
+from ase.calculators.calculator import Calculator
 
 logger = logging.getLogger(__name__)
 

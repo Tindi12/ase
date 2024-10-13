@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from contextlib import ExitStack
 from os import PathLike
 from pathlib import Path
-from typing import Any, Iterable, List, Mapping, Optional, Set
+from typing import Any, List, Mapping, Optional, Set
 
 from ase.calculators.abc import GetOutputsMixin
 from ase.calculators.calculator import (

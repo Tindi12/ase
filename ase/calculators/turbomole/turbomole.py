@@ -19,7 +19,6 @@ import numpy as np
 
 from ase.calculators.calculator import (
     Calculator,
-    PropertyNotImplementedError,
     ReadError,
 )
 from ase.calculators.turbomole import reader
