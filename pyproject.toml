@@ -85,7 +85,7 @@ exclude = ["./build/", "./dist", "./doc/build"]
 src = ["ase"]
 
 [tool.ruff.format]
-quote-style = "single"
+quote-style = "preserve"
 skip-magic-trailing-comma = false
 
 [tool.ruff.lint]
