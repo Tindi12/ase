@@ -27,7 +27,6 @@ def ptable(spacing=2.5):
         if x > 18:
             x = 1
             y += 1
-    atoms = Atoms(np.arange(1, zmax + 1),
-                  positions[1:] * spacing)
+    atoms = Atoms(np.arange(1, zmax + 1), positions[1:] * spacing)
 
     return atoms
