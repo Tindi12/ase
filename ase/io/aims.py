@@ -76,8 +76,8 @@ def parse_geometry_lines(lines, apply_constraints=True):
         inp = line.split()
         if inp == []:
             continue
-        if inp[0] in ["atom", "atom_frac"]:
-            if inp[0] == "atom":
+        if inp[0] in ['atom', 'atom_frac']:
+            if inp[0] == 'atom':
                 cart_positions = True
             else:
                 scaled_positions = True
@@ -94,39 +94,39 @@ def parse_geometry_lines(lines, apply_constraints=True):
             xyz = np.array([0, 0, 0])
             i += 1
 
-        elif inp[0] == "lattice_vector":
+        elif inp[0] == 'lattice_vector':
             floatvect = float(inp[1]), float(inp[2]), float(inp[3])
             cell.append(floatvect)
             n_periodic = n_periodic + 1
             periodic[n_periodic] = True
 
-        elif inp[0] == "initial_moment":
+        elif inp[0] == 'initial_moment':
             magmoms[-1] = float(inp[1])
 
-        elif inp[0] == "initial_charge":
+        elif inp[0] == 'initial_charge':
             charges[-1] = float(inp[1])
 
-        elif inp[0] == "constrain_relaxation":
-            if inp[1] == ".true.":
+        elif inp[0] == 'constrain_relaxation':
+            if inp[1] == '.true.':
                 fix.append(i)
-            elif inp[1] == "x":
+            elif inp[1] == 'x':
                 xyz[0] = 1
-            elif inp[1] == "y":
+            elif inp[1] == 'y':
                 xyz[1] = 1
-            elif inp[1] == "z":
+            elif inp[1] == 'z':
                 xyz[2] = 1
 
-        elif inp[0] == "velocity":
+        elif inp[0] == 'velocity':
             floatvect = [v_unit * float(line) for line in inp[1:4]]
             velocities.append(floatvect)
 
         elif inp[0] in [
-            "symmetry_n_params",
-            "symmetry_params",
-            "symmetry_lv",
-            "symmetry_frac",
+            'symmetry_n_params',
+            'symmetry_params',
+            'symmetry_lv',
+            'symmetry_frac',
         ]:
-            symmetry_block.append(" ".join(inp))
+            symmetry_block.append(' '.join(inp))
 
     if xyz.all():
         fix.append(i)
@@ -136,7 +136,7 @@ def parse_geometry_lines(lines, apply_constraints=True):
     if cart_positions and scaled_positions:
         raise Exception(
             "Can't specify atom positions with mixture of "
-            "Cartesian and fractional coordinates"
+            'Cartesian and fractional coordinates'
         )
     elif scaled_positions and periodic.any():
         atoms = Atoms(
@@ -148,7 +148,7 @@ def parse_geometry_lines(lines, apply_constraints=True):
     if len(velocities) > 0:
         if len(velocities) != len(positions):
             raise Exception(
-                "Number of positions and velocities have to coincide."
+                'Number of positions and velocities have to coincide.'
             )
         atoms.set_velocities(velocities)
 
@@ -163,17 +163,17 @@ def parse_geometry_lines(lines, apply_constraints=True):
         atomic_expressions = []
         atomic_params = []
 
-        n_lat_param = int(symmetry_block[0].split(" ")[2])
+        n_lat_param = int(symmetry_block[0].split(' ')[2])
 
         lattice_params = params[:n_lat_param]
         atomic_params = params[n_lat_param:]
 
         for ll, line in enumerate(symmetry_block[2:]):
-            expression = " ".join(line.split(" ")[1:])
+            expression = ' '.join(line.split(' ')[1:])
             if ll < 3:
-                lattice_expressions += expression.split(",")
+                lattice_expressions += expression.split(',')
             else:
-                atomic_expressions += expression.split(",")
+                atomic_expressions += expression.split(',')
 
         fix_params.append(
             FixCartesianParametricRelations.from_expressions(
@@ -210,12 +210,12 @@ def parse_geometry_lines(lines, apply_constraints=True):
 
 def get_aims_header():
     """Returns the header for aims input files"""
-    lines = ["#" + "=" * 79]
+    lines = ['#' + '=' * 79]
     for line in [
-        "Created using the Atomic Simulation Environment (ASE)",
+        'Created using the Atomic Simulation Environment (ASE)',
         time.asctime(),
     ]:
-        lines.append("# " + line + "\n")
+        lines.append('# ' + line + '\n')
     return lines
 
 
@@ -223,9 +223,9 @@ def _write_velocities_alias(args: List, kwargs: Dict[str, Any]) -> bool:
     arg_position = 5
     if len(args) > arg_position and args[arg_position]:
         args[arg_position - 1] = True
-    elif kwargs.get("velocities", False):
+    elif kwargs.get('velocities', False):
         if len(args) < arg_position:
-            kwargs["write_velocities"] = True
+            kwargs['write_velocities'] = True
         else:
             args[arg_position - 1] = True
     else:
@@ -235,7 +235,7 @@ def _write_velocities_alias(args: List, kwargs: Dict[str, Any]) -> bool:
 
 # Write aims geometry files
 @deprecated(
-    "Use of `velocities` is deprecated, please use `write_velocities`",
+    'Use of `velocities` is deprecated, please use `write_velocities`',
     category=FutureWarning,
     callback=_write_velocities_alias,
 )
@@ -284,43 +284,43 @@ def write_aims(
 
     if scaled and not np.all(atoms.pbc):
         raise ValueError(
-            "Requesting scaled for a calculation where scaled=True, but "
-            "the system is not periodic"
+            'Requesting scaled for a calculation where scaled=True, but '
+            'the system is not periodic'
         )
 
     if geo_constrain:
         if not scaled and np.all(atoms.pbc):
             warnings.warn(
-                "Setting scaled to True because a symmetry_block is detected."
+                'Setting scaled to True because a symmetry_block is detected.'
             )
             scaled = True
         elif not np.all(atoms.pbc):
             warnings.warn(
-                "Parameteric constraints can only be used in periodic systems."
+                'Parameteric constraints can only be used in periodic systems.'
             )
             geo_constrain = False
 
     for line in get_aims_header():
-        fd.write(line + "\n")
+        fd.write(line + '\n')
 
     # If writing additional information is requested via info_str:
     if info_str is not None:
-        fd.write("\n# Additional information:\n")
+        fd.write('\n# Additional information:\n')
         if isinstance(info_str, list):
-            fd.write("\n".join([f"#  {s}" for s in info_str]))
+            fd.write('\n'.join([f'#  {s}' for s in info_str]))
         else:
-            fd.write(f"# {info_str}")
-        fd.write("\n")
+            fd.write(f'# {info_str}')
+        fd.write('\n')
 
-    fd.write("#=======================================================\n")
+    fd.write('#=======================================================\n')
 
     i = 0
     if atoms.get_pbc().any():
         for n, vector in enumerate(atoms.get_cell()):
-            fd.write("lattice_vector ")
+            fd.write('lattice_vector ')
             for i in range(3):
-                fd.write(f"{vector[i]:16.16f} ")
-            fd.write("\n")
+                fd.write(f'{vector[i]:16.16f} ')
+            fd.write('\n')
 
     fix_cart = np.zeros((len(atoms), 3), dtype=bool)
     for constr in atoms.constraints:
@@ -339,23 +339,23 @@ def write_aims(
 
     for i, atom in enumerate(atoms):
         if ghosts[i] == 1:
-            atomstring = "empty "
+            atomstring = 'empty '
         elif scaled:
-            atomstring = "atom_frac "
+            atomstring = 'atom_frac '
         else:
-            atomstring = "atom "
+            atomstring = 'atom '
         fd.write(atomstring)
         if scaled:
             for pos in scaled_positions[i]:
-                fd.write(f"{pos:16.16f} ")
+                fd.write(f'{pos:16.16f} ')
         else:
             for pos in atom.position:
-                fd.write(f"{pos:16.16f} ")
+                fd.write(f'{pos:16.16f} ')
         fd.write(atom.symbol)
-        fd.write("\n")
+        fd.write('\n')
         # (1) all coords are constrained:
         if fix_cart[i].all():
-            fd.write("    constrain_relaxation .true.\n")
+            fd.write('    constrain_relaxation .true.\n')
         # (2) some coords are constrained:
         elif fix_cart[i].any():
             xyz = fix_cart[i]
@@ -363,13 +363,13 @@ def write_aims(
                 if xyz[n]:
                     fd.write(f"    constrain_relaxation {'xyz'[n]}\n")
         if atom.charge:
-            fd.write(f"    initial_charge {atom.charge:16.6f}\n")
+            fd.write(f'    initial_charge {atom.charge:16.6f}\n')
         if atom.magmom:
-            fd.write(f"    initial_moment {atom.magmom:16.6f}\n")
+            fd.write(f'    initial_moment {atom.magmom:16.6f}\n')
 
         if write_velocities and atoms.get_velocities() is not None:
             v = atoms.get_velocities()[i] / v_unit
-            fd.write(f"    velocity {v[0]:.16f} {v[1]:.16f} {v[2]:.16f}\n")
+            fd.write(f'    velocity {v[0]:.16f} {v[1]:.16f} {v[2]:.16f}\n')
 
     if geo_constrain:
         for line in get_sym_block(atoms):
@@ -386,63 +386,63 @@ def get_sym_block(atoms):
     # Initialize param/expressions lists
     atomic_sym_params = []
     lv_sym_params = []
-    atomic_param_constr = np.zeros((len(atoms),), dtype="<U100")
-    lv_param_constr = np.zeros((3,), dtype="<U100")
+    atomic_param_constr = np.zeros((len(atoms),), dtype='<U100')
+    lv_param_constr = np.zeros((3,), dtype='<U100')
 
     # Populate param/expressions list
     for constr in atoms.constraints:
         if isinstance(constr, FixScaledParametricRelations):
             atomic_sym_params += constr.params
 
-            if np.any(atomic_param_constr[constr.indices] != ""):
+            if np.any(atomic_param_constr[constr.indices] != ''):
                 warnings.warn(
-                    "multiple parametric constraints defined for the same "
-                    "atom, using the last one defined"
+                    'multiple parametric constraints defined for the same '
+                    'atom, using the last one defined'
                 )
 
             atomic_param_constr[constr.indices] = [
-                ", ".join(expression) for expression in constr.expressions
+                ', '.join(expression) for expression in constr.expressions
             ]
         elif isinstance(constr, FixCartesianParametricRelations):
             lv_sym_params += constr.params
 
-            if np.any(lv_param_constr[constr.indices] != ""):
+            if np.any(lv_param_constr[constr.indices] != ''):
                 warnings.warn(
-                    "multiple parametric constraints defined for the same "
-                    "lattice vector, using the last one defined"
+                    'multiple parametric constraints defined for the same '
+                    'lattice vector, using the last one defined'
                 )
 
             lv_param_constr[constr.indices] = [
-                ", ".join(expression) for expression in constr.expressions
+                ', '.join(expression) for expression in constr.expressions
             ]
 
-    if np.all(atomic_param_constr == "") and np.all(lv_param_constr == ""):
+    if np.all(atomic_param_constr == '') and np.all(lv_param_constr == ''):
         return []
 
     # Check Constraint Parameters
     if len(atomic_sym_params) != len(np.unique(atomic_sym_params)):
         warnings.warn(
-            "Some parameters were used across constraints, they will be "
-            "combined in the aims calculations"
+            'Some parameters were used across constraints, they will be '
+            'combined in the aims calculations'
         )
         atomic_sym_params = np.unique(atomic_sym_params)
 
     if len(lv_sym_params) != len(np.unique(lv_sym_params)):
         warnings.warn(
-            "Some parameters were used across constraints, they will be "
-            "combined in the aims calculations"
+            'Some parameters were used across constraints, they will be '
+            'combined in the aims calculations'
         )
         lv_sym_params = np.unique(lv_sym_params)
 
-    if np.any(atomic_param_constr == ""):
+    if np.any(atomic_param_constr == ''):
         raise OSError(
-            "FHI-aims input files require all atoms have defined parametric "
-            "constraints"
+            'FHI-aims input files require all atoms have defined parametric '
+            'constraints'
         )
 
-    cell_inds = np.where(lv_param_constr == "")[0]
+    cell_inds = np.where(lv_param_constr == '')[0]
     for ind in cell_inds:
-        lv_param_constr[ind] = "{:.16f}, {:.16f}, {:.16f}".format(
+        lv_param_constr[ind] = '{:.16f}, {:.16f}, {:.16f}'.format(
             *atoms.cell[ind]
         )
 
@@ -452,27 +452,27 @@ def get_sym_block(atoms):
 
     sym_block = []
     if n_total_params > 0:
-        sym_block.append("#" + "=" * 55 + "\n")
-        sym_block.append("# Parametric constraints\n")
-        sym_block.append("#" + "=" * 55 + "\n")
+        sym_block.append('#' + '=' * 55 + '\n')
+        sym_block.append('# Parametric constraints\n')
+        sym_block.append('#' + '=' * 55 + '\n')
         sym_block.append(
-            "symmetry_n_params {:d} {:d} {:d}\n".format(
+            'symmetry_n_params {:d} {:d} {:d}\n'.format(
                 n_total_params, n_lv_params, n_atomic_params
             )
         )
         sym_block.append(
-            "symmetry_params %s\n" % " ".join(lv_sym_params + atomic_sym_params)
+            'symmetry_params %s\n' % ' '.join(lv_sym_params + atomic_sym_params)
         )
 
         for constr in lv_param_constr:
-            sym_block.append(f"symmetry_lv {constr:s}\n")
+            sym_block.append(f'symmetry_lv {constr:s}\n')
 
         for constr in atomic_param_constr:
-            sym_block.append(f"symmetry_frac {constr:s}\n")
+            sym_block.append(f'symmetry_frac {constr:s}\n')
     return sym_block
 
 
-def format_aims_control_parameter(key, value, format="%s"):
+def format_aims_control_parameter(key, value, format='%s'):
     """Format a line for the aims control.in
 
     Parameter
@@ -489,7 +489,7 @@ def format_aims_control_parameter(key, value, format="%s"):
     str
         The properly formatted line for the aims control.in
     """
-    return f"{key:35s}" + (format % value) + "\n"
+    return f'{key:35s}' + (format % value) + '\n'
 
 
 # Write aims control.in files
@@ -510,82 +510,82 @@ def write_control(fd, atoms, parameters, verbose_header=False):
     """
 
     parameters = dict(parameters)
-    lim = "#" + "=" * 79
+    lim = '#' + '=' * 79
 
-    if parameters["xc"] == "LDA":
-        parameters["xc"] = "pw-lda"
+    if parameters['xc'] == 'LDA':
+        parameters['xc'] = 'pw-lda'
 
-    cubes = parameters.pop("cubes", None)
+    cubes = parameters.pop('cubes', None)
 
     for line in get_aims_header():
-        fd.write(line + "\n")
+        fd.write(line + '\n')
 
     if verbose_header:
-        fd.write("# \n# List of parameters used to initialize the calculator:")
+        fd.write('# \n# List of parameters used to initialize the calculator:')
         for p, v in parameters.items():
-            s = f"#     {p}:{v}\n"
+            s = f'#     {p}:{v}\n'
             fd.write(s)
-    fd.write(lim + "\n")
+    fd.write(lim + '\n')
 
-    assert "kpts" not in parameters or "k_grid" not in parameters
-    assert "smearing" not in parameters or "occupation_type" not in parameters
+    assert 'kpts' not in parameters or 'k_grid' not in parameters
+    assert 'smearing' not in parameters or 'occupation_type' not in parameters
 
     for key, value in parameters.items():
-        if key == "kpts":
-            mp = kpts2mp(atoms, parameters["kpts"])
+        if key == 'kpts':
+            mp = kpts2mp(atoms, parameters['kpts'])
             dk = 0.5 - 0.5 / np.array(mp)
             fd.write(
-                format_aims_control_parameter("k_grid", tuple(mp), "%d %d %d")
+                format_aims_control_parameter('k_grid', tuple(mp), '%d %d %d')
             )
             fd.write(
-                format_aims_control_parameter("k_offset", tuple(dk), "%f %f %f")
+                format_aims_control_parameter('k_offset', tuple(dk), '%f %f %f')
             )
-        elif key in ("species_dir", "tier"):
+        elif key in ('species_dir', 'tier'):
             continue
-        elif key == "aims_command":
+        elif key == 'aims_command':
             continue
-        elif key == "plus_u":
+        elif key == 'plus_u':
             continue
-        elif key == "smearing":
-            name = parameters["smearing"][0].lower()
-            if name == "fermi-dirac":
-                name = "fermi"
-            width = parameters["smearing"][1]
-            if name == "methfessel-paxton":
-                order = parameters["smearing"][2]
-                order = " %d" % order
+        elif key == 'smearing':
+            name = parameters['smearing'][0].lower()
+            if name == 'fermi-dirac':
+                name = 'fermi'
+            width = parameters['smearing'][1]
+            if name == 'methfessel-paxton':
+                order = parameters['smearing'][2]
+                order = ' %d' % order
             else:
-                order = ""
+                order = ''
 
             fd.write(
                 format_aims_control_parameter(
-                    "occupation_type", (name, width, order), "%s %f%s"
+                    'occupation_type', (name, width, order), '%s %f%s'
                 )
             )
-        elif key == "output":
+        elif key == 'output':
             for output_type in value:
-                fd.write(format_aims_control_parameter(key, output_type, "%s"))
-        elif key == "vdw_correction_hirshfeld" and value:
-            fd.write(format_aims_control_parameter(key, "", "%s"))
+                fd.write(format_aims_control_parameter(key, output_type, '%s'))
+        elif key == 'vdw_correction_hirshfeld' and value:
+            fd.write(format_aims_control_parameter(key, '', '%s'))
         elif isinstance(value, bool):
             fd.write(
-                format_aims_control_parameter(key, str(value).lower(), ".%s.")
+                format_aims_control_parameter(key, str(value).lower(), '.%s.')
             )
         elif isinstance(value, (tuple, list)):
             fd.write(
                 format_aims_control_parameter(
-                    key, " ".join([str(x) for x in value]), "%s"
+                    key, ' '.join([str(x) for x in value]), '%s'
                 )
             )
         elif isinstance(value, str):
-            fd.write(format_aims_control_parameter(key, value, "%s"))
+            fd.write(format_aims_control_parameter(key, value, '%s'))
         else:
-            fd.write(format_aims_control_parameter(key, value, "%r"))
+            fd.write(format_aims_control_parameter(key, value, '%r'))
 
     if cubes:
         cubes.write(fd)
 
-    fd.write(lim + "\n\n")
+    fd.write(lim + '\n\n')
 
     # Get the species directory
     species_dir = get_species_directory
@@ -595,11 +595,11 @@ def write_control(fd, atoms, parameters, verbose_header=False):
     # be None, meaning the default should be used for all species, or a
     # list of integers/None values giving a specific basis set size
     # for each species in the calculation.
-    tier = parameters.pop("tier", None)
+    tier = parameters.pop('tier', None)
     tier_array = np.full(len(species_array), tier)
     # Path to species files for FHI-aims. In this files are specifications
     # for the basis set sizes depending on which basis set tier is used.
-    species_dir = get_species_directory(parameters.get("species_dir"))
+    species_dir = get_species_directory(parameters.get('species_dir'))
     # Parse the species files for each species present in the calculation
     # according to the tier of each species.
     species_basis_dict = parse_species_path(
@@ -635,18 +635,18 @@ def get_species_directory(species_dir=None):
         or does not exit.
     """
     if species_dir is None:
-        species_dir = os.environ.get("AIMS_SPECIES_DIR")
+        species_dir = os.environ.get('AIMS_SPECIES_DIR')
 
     if species_dir is None:
         raise RuntimeError(
-            "Missing species directory!  Use species_dir "
-            + "parameter or set $AIMS_SPECIES_DIR environment variable."
+            'Missing species directory!  Use species_dir '
+            + 'parameter or set $AIMS_SPECIES_DIR environment variable.'
         )
 
     species_path = Path(species_dir)
     if not species_path.exists():
         raise RuntimeError(
-            f"The requested species_dir {species_dir} does not exist"
+            f'The requested species_dir {species_dir} does not exist'
         )
 
     return species_path
@@ -686,10 +686,10 @@ def write_species(control_file_descriptor, species_basis_dict, parameters):
     # function.
     for species_symbol, basis_set_text in species_basis_dict.items():
         control_file_descriptor.write(basis_set_text)
-        if parameters.get("plus_u") is not None:
+        if parameters.get('plus_u') is not None:
             if species_symbol in parameters.plus_u:
                 control_file_descriptor.write(
-                    f"plus_u {parameters.plus_u[species_symbol]} \n"
+                    f'plus_u {parameters.plus_u[species_symbol]} \n'
                 )
 
 
@@ -709,16 +709,16 @@ def parse_species_path(species_array, tier_array, species_dir):
     """
     if len(species_array) != len(tier_array):
         raise ValueError(
-            f"The species array length: {len(species_array)}, "
-            f"is not the same as the tier_array length: {len(tier_array)}"
+            f'The species array length: {len(species_array)}, '
+            f'is not the same as the tier_array length: {len(tier_array)}'
         )
 
     species_basis_dict = {}
 
     for symbol, tier in zip(species_array, tier_array):
-        path = species_dir / f"{atomic_numbers[symbol]:02}_{symbol}_default"
+        path = species_dir / f'{atomic_numbers[symbol]:02}_{symbol}_default'
         # Open the species file:
-        with open(path, encoding="utf8") as species_file_handle:
+        with open(path, encoding='utf8') as species_file_handle:
             # Read the species file into a string.
             species_file_str = species_file_handle.read()
             species_basis_dict[symbol] = manipulate_tiers(
@@ -745,21 +745,21 @@ def manipulate_tiers(species_string: str, tier: Union[None, int] = 1):
     """
     if tier is None:  # Then we use the default species file untouched.
         return species_string
-    tier_pattern = r"(#  \".* tier\" .*|# +Further.*)"
+    tier_pattern = r'(#  \".* tier\" .*|# +Further.*)'
     top, *tiers = re.split(tier_pattern, species_string)
     tier_comments = tiers[::2]
     tier_basis = tiers[1::2]
     assert len(tier_comments) == len(
         tier_basis
-    ), "Something wrong with splitting"
+    ), 'Something wrong with splitting'
     n_tiers = len(tier_comments)
-    assert tier <= n_tiers, f"Only {n_tiers} tiers available, you choose {tier}"
+    assert tier <= n_tiers, f'Only {n_tiers} tiers available, you choose {tier}'
     string_new = top
     for i, (c, b) in enumerate(zip(tier_comments, tier_basis)):
-        b = re.sub(r"\n( *for_aux| *hydro| *ionic| *confined)", r"\n#\g<1>", b)
+        b = re.sub(r'\n( *for_aux| *hydro| *ionic| *confined)', r'\n#\g<1>', b)
         if i < tier:
             b = re.sub(
-                r"\n#( *for_aux| *hydro| *ionic| *confined)", r"\n\g<1>", b
+                r'\n#( *for_aux| *hydro| *ionic| *confined)', r'\n\g<1>', b
             )
         string_new += c + b
     return string_new
@@ -767,20 +767,20 @@ def manipulate_tiers(species_string: str, tier: Union[None, int] = 1):
 
 # Read aims.out files
 scalar_property_to_line_key = {
-    "free_energy": ["| Electronic free energy"],
-    "number_of_iterations": ["| Number of self-consistency cycles"],
-    "magnetic_moment": ["N_up - N_down"],
-    "n_atoms": ["| Number of atoms"],
-    "n_bands": [
-        "Number of Kohn-Sham states",
-        "Reducing total number of  Kohn-Sham states",
-        "Reducing total number of Kohn-Sham states",
+    'free_energy': ['| Electronic free energy'],
+    'number_of_iterations': ['| Number of self-consistency cycles'],
+    'magnetic_moment': ['N_up - N_down'],
+    'n_atoms': ['| Number of atoms'],
+    'n_bands': [
+        'Number of Kohn-Sham states',
+        'Reducing total number of  Kohn-Sham states',
+        'Reducing total number of Kohn-Sham states',
     ],
-    "n_electrons": ["The structure contains"],
-    "n_kpts": ["| Number of k-points"],
-    "n_spins": ["| Number of spin channels"],
-    "electronic_temp": ["Occupation type:"],
-    "fermi_energy": ["| Chemical potential (Fermi level)"],
+    'n_electrons': ['The structure contains'],
+    'n_kpts': ['| Number of k-points'],
+    'n_spins': ['| Number of spin channels'],
+    'electronic_temp': ['Occupation type:'],
+    'fermi_energy': ['| Chemical potential (Fermi level)'],
 }
 
 
@@ -864,7 +864,7 @@ class AimsOutChunk:
             return None
 
         line = self.lines[line_start]
-        return float(line.split(":")[-1].strip().split()[0])
+        return float(line.split(':')[-1].strip().split()[0])
 
 
 class AimsOutHeaderChunk(AimsOutChunk):
@@ -889,7 +889,7 @@ class AimsOutHeaderChunk(AimsOutChunk):
         Constraints for the lattice vectors are not supported.
         """
 
-        line_inds = self.search_for_all("Found relaxation constraint for atom")
+        line_inds = self.search_for_all('Found relaxation constraint for atom')
         if len(line_inds) == 0:
             return []
 
@@ -899,16 +899,16 @@ class AimsOutHeaderChunk(AimsOutChunk):
             line = self.lines[ll]
             xyz = [0, 0, 0]
             ind = int(line.split()[5][:-1]) - 1
-            if "All coordinates fixed" in line:
+            if 'All coordinates fixed' in line:
                 if ind not in fix:
                     fix.append(ind)
-            if "coordinate fixed" in line:
+            if 'coordinate fixed' in line:
                 coord = line.split()[6]
-                if coord == "x":
+                if coord == 'x':
                     xyz[0] = 1
-                elif coord == "y":
+                elif coord == 'y':
                     xyz[1] = 1
-                elif coord == "z":
+                elif coord == 'z':
                     xyz[2] = 1
                 keep = True
                 for n, c in enumerate(fix_cart):
@@ -927,7 +927,7 @@ class AimsOutHeaderChunk(AimsOutChunk):
     @lazyproperty
     def initial_cell(self):
         """Parse the initial cell from the aims.out file"""
-        line_start = self.reverse_search_for(["| Unit cell:"])
+        line_start = self.reverse_search_for(['| Unit cell:'])
         if line_start == LINE_NOT_FOUND:
             return None
 
@@ -940,17 +940,17 @@ class AimsOutHeaderChunk(AimsOutChunk):
     def initial_atoms(self):
         """Create an atoms object for the initial geometry.in structure
         from the aims.out file"""
-        line_start = self.reverse_search_for(["Atomic structure:"])
+        line_start = self.reverse_search_for(['Atomic structure:'])
         if line_start == LINE_NOT_FOUND:
             raise AimsParseError(
-                "No information about the structure in the chunk."
+                'No information about the structure in the chunk.'
             )
 
         line_start += 2
 
         cell = self.initial_cell
         positions = np.zeros((self.n_atoms, 3))
-        symbols = [""] * self.n_atoms
+        symbols = [''] * self.n_atoms
         for ll, line in enumerate(
             self.lines[line_start : line_start + self.n_atoms]
         ):
@@ -971,37 +971,37 @@ class AimsOutHeaderChunk(AimsOutChunk):
     def is_md(self):
         """Determine if calculation is a molecular dynamics calculation"""
         return LINE_NOT_FOUND != self.reverse_search_for(
-            ["Complete information for previous time-step:"]
+            ['Complete information for previous time-step:']
         )
 
     @lazyproperty
     def is_relaxation(self):
         """Determine if the calculation is a geometry optimization or not"""
         return LINE_NOT_FOUND != self.reverse_search_for(
-            ["Geometry relaxation:"]
+            ['Geometry relaxation:']
         )
 
     @lazymethod
     def _parse_k_points(self):
         """Get the list of k-points used in the calculation"""
-        n_kpts = self.parse_scalar("n_kpts")
+        n_kpts = self.parse_scalar('n_kpts')
         if n_kpts is None:
             return {
-                "k_points": None,
-                "k_point_weights": None,
+                'k_points': None,
+                'k_point_weights': None,
             }
         n_kpts = int(n_kpts)
 
-        line_start = self.reverse_search_for(["| K-points in task"])
-        line_end = self.reverse_search_for(["| k-point:"])
+        line_start = self.reverse_search_for(['| K-points in task'])
+        line_end = self.reverse_search_for(['| k-point:'])
         if (
             (line_start == LINE_NOT_FOUND)
             or (line_end == LINE_NOT_FOUND)
             or (line_end - line_start != n_kpts)
         ):
             return {
-                "k_points": None,
-                "k_point_weights": None,
+                'k_points': None,
+                'k_point_weights': None,
             }
 
         k_points = np.zeros((n_kpts, 3))
@@ -1011,17 +1011,17 @@ class AimsOutHeaderChunk(AimsOutChunk):
             k_point_weights[kk] = float(line.split()[-1])
 
         return {
-            "k_points": k_points,
-            "k_point_weights": k_point_weights,
+            'k_points': k_points,
+            'k_point_weights': k_point_weights,
         }
 
     @lazyproperty
     def n_atoms(self):
         """The number of atoms for the material"""
-        n_atoms = self.parse_scalar("n_atoms")
+        n_atoms = self.parse_scalar('n_atoms')
         if n_atoms is None:
             raise AimsParseError(
-                "No information about the number of atoms in the header."
+                'No information about the number of atoms in the header.'
             )
         return int(n_atoms)
 
@@ -1029,18 +1029,18 @@ class AimsOutHeaderChunk(AimsOutChunk):
     def n_bands(self):
         """The number of Kohn-Sham states for the chunk"""
         line_start = self.reverse_search_for(
-            scalar_property_to_line_key["n_bands"]
+            scalar_property_to_line_key['n_bands']
         )
 
         if line_start == LINE_NOT_FOUND:
             raise AimsParseError(
-                "No information about the number of Kohn-Sham states "
-                "in the header."
+                'No information about the number of Kohn-Sham states '
+                'in the header.'
             )
 
         line = self.lines[line_start]
-        if "| Number of Kohn-Sham states" in line:
-            return int(line.split(":")[-1].strip().split()[0])
+        if '| Number of Kohn-Sham states' in line:
+            return int(line.split(':')[-1].strip().split()[0])
 
         return int(line.split()[-1].strip()[:-1])
 
@@ -1048,12 +1048,12 @@ class AimsOutHeaderChunk(AimsOutChunk):
     def n_electrons(self):
         """The number of electrons for the chunk"""
         line_start = self.reverse_search_for(
-            scalar_property_to_line_key["n_electrons"]
+            scalar_property_to_line_key['n_electrons']
         )
 
         if line_start == LINE_NOT_FOUND:
             raise AimsParseError(
-                "No information about the number of electrons in the header."
+                'No information about the number of electrons in the header.'
             )
 
         line = self.lines[line_start]
@@ -1062,7 +1062,7 @@ class AimsOutHeaderChunk(AimsOutChunk):
     @lazyproperty
     def n_k_points(self):
         """The number of k_ppoints for the calculation"""
-        n_kpts = self.parse_scalar("n_kpts")
+        n_kpts = self.parse_scalar('n_kpts')
         if n_kpts is None:
             return None
 
@@ -1071,11 +1071,11 @@ class AimsOutHeaderChunk(AimsOutChunk):
     @lazyproperty
     def n_spins(self):
         """The number of spin channels for the chunk"""
-        n_spins = self.parse_scalar("n_spins")
+        n_spins = self.parse_scalar('n_spins')
         if n_spins is None:
             raise AimsParseError(
-                "No information about the number of spin "
-                "channels in the header."
+                'No information about the number of spin '
+                'channels in the header.'
             )
         return int(n_spins)
 
@@ -1083,41 +1083,41 @@ class AimsOutHeaderChunk(AimsOutChunk):
     def electronic_temperature(self):
         """The electronic temperature for the chunk"""
         line_start = self.reverse_search_for(
-            scalar_property_to_line_key["electronic_temp"]
+            scalar_property_to_line_key['electronic_temp']
         )
         if line_start == LINE_NOT_FOUND:
             return 0.10
 
         line = self.lines[line_start]
-        return float(line.split("=")[-1].strip().split()[0])
+        return float(line.split('=')[-1].strip().split()[0])
 
     @lazyproperty
     def k_points(self):
         """All k-points listed in the calculation"""
-        return self._parse_k_points()["k_points"]
+        return self._parse_k_points()['k_points']
 
     @lazyproperty
     def k_point_weights(self):
         """The k-point weights for the calculation"""
-        return self._parse_k_points()["k_point_weights"]
+        return self._parse_k_points()['k_point_weights']
 
     @lazyproperty
     def header_summary(self):
         """Dictionary summarizing the information inside the header"""
         return {
-            "initial_atoms": self.initial_atoms,
-            "initial_cell": self.initial_cell,
-            "constraints": self.constraints,
-            "is_relaxation": self.is_relaxation,
-            "is_md": self.is_md,
-            "n_atoms": self.n_atoms,
-            "n_bands": self.n_bands,
-            "n_electrons": self.n_electrons,
-            "n_spins": self.n_spins,
-            "electronic_temperature": self.electronic_temperature,
-            "n_k_points": self.n_k_points,
-            "k_points": self.k_points,
-            "k_point_weights": self.k_point_weights,
+            'initial_atoms': self.initial_atoms,
+            'initial_cell': self.initial_cell,
+            'constraints': self.constraints,
+            'is_relaxation': self.is_relaxation,
+            'is_md': self.is_md,
+            'n_atoms': self.n_atoms,
+            'n_bands': self.n_bands,
+            'n_electrons': self.n_electrons,
+            'n_spins': self.n_spins,
+            'electronic_temperature': self.electronic_temperature,
+            'n_k_points': self.n_k_points,
+            'k_points': self.k_points,
+            'k_point_weights': self.k_point_weights,
         }
 
 
@@ -1142,11 +1142,11 @@ class AimsOutCalcChunk(AimsOutChunk):
         """Create an atoms object for the subsequent structures
         calculated in the aims.out file"""
         start_keys = [
-            "Atomic structure (and velocities) as used in the preceding "
-            "time step",
-            "Updated atomic structure",
-            "Atomic structure that was used in the preceding time step of "
-            "the wrapper",
+            'Atomic structure (and velocities) as used in the preceding '
+            'time step',
+            'Updated atomic structure',
+            'Atomic structure that was used in the preceding time step of '
+            'the wrapper',
         ]
         line_start = self.reverse_search_for(start_keys)
         if line_start == LINE_NOT_FOUND:
@@ -1168,9 +1168,9 @@ class AimsOutCalcChunk(AimsOutChunk):
         velocities = []
         atoms = Atoms()
         for line in self.lines[line_start:line_end]:
-            if "lattice_vector   " in line:
+            if 'lattice_vector   ' in line:
                 cell.append([float(inp) for inp in line.split()[1:]])
-            elif "atom   " in line:
+            elif 'atom   ' in line:
                 line_split = line.split()
                 atoms.append(
                     Atom(
@@ -1178,7 +1178,7 @@ class AimsOutCalcChunk(AimsOutChunk):
                         tuple(float(inp) for inp in line_split[1:4]),
                     )
                 )
-            elif "velocity   " in line:
+            elif 'velocity   ' in line:
                 velocities.append([float(inp) for inp in line.split()[1:]])
 
         assert len(atoms) == self.n_atoms
@@ -1188,7 +1188,7 @@ class AimsOutCalcChunk(AimsOutChunk):
             atoms.set_pbc([True, True, True])
         elif len(cell) != 0:
             raise AimsParseError(
-                "Parsed geometry has incorrect number of lattice vectors."
+                'Parsed geometry has incorrect number of lattice vectors.'
             )
 
         if len(velocities) > 0:
@@ -1200,7 +1200,7 @@ class AimsOutCalcChunk(AimsOutChunk):
     @lazyproperty
     def forces(self):
         """Parse the forces from the aims.out file"""
-        line_start = self.reverse_search_for(["Total atomic forces"])
+        line_start = self.reverse_search_for(['Total atomic forces'])
         if line_start == LINE_NOT_FOUND:
             return None
 
@@ -1217,7 +1217,7 @@ class AimsOutCalcChunk(AimsOutChunk):
     def stresses(self):
         """Parse the stresses from the aims.out file"""
         line_start = self.reverse_search_for(
-            ["Per atom stress (eV) used for heat flux calculation"]
+            ['Per atom stress (eV) used for heat flux calculation']
         )
         if line_start == LINE_NOT_FOUND:
             return None
@@ -1236,8 +1236,8 @@ class AimsOutCalcChunk(AimsOutChunk):
 
         line_start = self.reverse_search_for(
             [
-                "Analytical stress tensor - Symmetrized",
-                "Numerical stress tensor",
+                'Analytical stress tensor - Symmetrized',
+                'Numerical stress tensor',
             ]
         )  # Offest to relevant lines
         if line_start == LINE_NOT_FOUND:
@@ -1255,8 +1255,8 @@ class AimsOutCalcChunk(AimsOutChunk):
         to a metallic system"""
         line_start = self.reverse_search_for(
             [
-                "material is metallic within the approximate finite "
-                "broadening function (occupation_type)"
+                'material is metallic within the approximate finite '
+                'broadening function (occupation_type)'
             ]
         )
         return line_start != LINE_NOT_FOUND
@@ -1267,18 +1267,18 @@ class AimsOutCalcChunk(AimsOutChunk):
         atoms = self._parse_atoms()
 
         if np.all(atoms.pbc) and self.is_metallic:
-            line_ind = self.reverse_search_for(["Total energy corrected"])
+            line_ind = self.reverse_search_for(['Total energy corrected'])
         else:
-            line_ind = self.reverse_search_for(["Total energy uncorrected"])
+            line_ind = self.reverse_search_for(['Total energy uncorrected'])
         if line_ind == LINE_NOT_FOUND:
-            raise AimsParseError("No energy is associated with the structure.")
+            raise AimsParseError('No energy is associated with the structure.')
 
         return float(self.lines[line_ind].split()[5])
 
     @lazyproperty
     def dipole(self):
         """Parse the electric dipole moment from the aims.out file."""
-        line_start = self.reverse_search_for(["Total dipole moment [eAng]"])
+        line_start = self.reverse_search_for(['Total dipole moment [eAng]'])
         if line_start == LINE_NOT_FOUND:
             return None
 
@@ -1290,8 +1290,8 @@ class AimsOutCalcChunk(AimsOutChunk):
         """Parse the dielectric tensor from the aims.out file"""
         line_start = self.reverse_search_for(
             [
-                "DFPT for dielectric_constant:--->",
-                "PARSE DFPT_dielectric_tensor",
+                'DFPT for dielectric_constant:--->',
+                'PARSE DFPT_dielectric_tensor',
             ],
         )
         if line_start == LINE_NOT_FOUND:
@@ -1306,7 +1306,7 @@ class AimsOutCalcChunk(AimsOutChunk):
     @lazyproperty
     def polarization(self):
         """Parse the polarization vector from the aims.out file"""
-        line_start = self.reverse_search_for(["| Cartesian Polarization"])
+        line_start = self.reverse_search_for(['| Cartesian Polarization'])
         if line_start == LINE_NOT_FOUND:
             return None
         line = self.lines[line_start]
@@ -1319,32 +1319,32 @@ class AimsOutCalcChunk(AimsOutChunk):
         atoms = self._parse_atoms()
 
         line_start = self.reverse_search_for(
-            ["Performing Hirshfeld analysis of fragment charges and moments."]
+            ['Performing Hirshfeld analysis of fragment charges and moments.']
         )
         if line_start == LINE_NOT_FOUND:
             return {
-                "charges": None,
-                "volumes": None,
-                "atomic_dipoles": None,
-                "dipole": None,
+                'charges': None,
+                'volumes': None,
+                'atomic_dipoles': None,
+                'dipole': None,
             }
 
-        line_inds = self.search_for_all("Hirshfeld charge", line_start, -1)
+        line_inds = self.search_for_all('Hirshfeld charge', line_start, -1)
         hirshfeld_charges = np.array(
-            [float(self.lines[ind].split(":")[1]) for ind in line_inds]
+            [float(self.lines[ind].split(':')[1]) for ind in line_inds]
         )
 
-        line_inds = self.search_for_all("Hirshfeld volume", line_start, -1)
+        line_inds = self.search_for_all('Hirshfeld volume', line_start, -1)
         hirshfeld_volumes = np.array(
-            [float(self.lines[ind].split(":")[1]) for ind in line_inds]
+            [float(self.lines[ind].split(':')[1]) for ind in line_inds]
         )
 
         line_inds = self.search_for_all(
-            "Hirshfeld dipole vector", line_start, -1
+            'Hirshfeld dipole vector', line_start, -1
         )
         hirshfeld_atomic_dipoles = np.array(
             [
-                [float(inp) for inp in self.lines[ind].split(":")[1].split()]
+                [float(inp) for inp in self.lines[ind].split(':')[1].split()]
                 for ind in line_inds
             ]
         )
@@ -1357,10 +1357,10 @@ class AimsOutCalcChunk(AimsOutChunk):
         else:
             hirshfeld_dipole = None
         return {
-            "charges": hirshfeld_charges,
-            "volumes": hirshfeld_volumes,
-            "atomic_dipoles": hirshfeld_atomic_dipoles,
-            "dipole": hirshfeld_dipole,
+            'charges': hirshfeld_charges,
+            'volumes': hirshfeld_volumes,
+            'atomic_dipoles': hirshfeld_atomic_dipoles,
+            'dipole': hirshfeld_dipole,
         }
 
     @lazymethod
@@ -1372,19 +1372,19 @@ class AimsOutCalcChunk(AimsOutChunk):
 
         atoms = self._parse_atoms()
 
-        line_start = self.reverse_search_for(["Writing Kohn-Sham eigenvalues."])
+        line_start = self.reverse_search_for(['Writing Kohn-Sham eigenvalues.'])
         if line_start == LINE_NOT_FOUND:
-            return {"eigenvalues": None, "occupancies": None}
+            return {'eigenvalues': None, 'occupancies': None}
 
         line_end_1 = self.reverse_search_for(
-            ["Self-consistency cycle converged."], line_start
+            ['Self-consistency cycle converged.'], line_start
         )
         line_end_2 = self.reverse_search_for(
             [
-                "What follows are estimated values for band gap, "
-                "HOMO, LUMO, etc.",
-                "Current spin moment of the entire structure :",
-                "Highest occupied state (VBM)",
+                'What follows are estimated values for band gap, '
+                'HOMO, LUMO, etc.',
+                'Current spin moment of the entire structure :',
+                'Highest occupied state (VBM)',
             ],
             line_start,
         )
@@ -1397,34 +1397,34 @@ class AimsOutCalcChunk(AimsOutChunk):
 
         n_kpts = self.n_k_points if np.all(atoms.pbc) else 1
         if n_kpts is None:
-            return {"eigenvalues": None, "occupancies": None}
+            return {'eigenvalues': None, 'occupancies': None}
 
         eigenvalues = np.full((n_kpts, self.n_bands, self.n_spins), np.nan)
         occupancies = np.full((n_kpts, self.n_bands, self.n_spins), np.nan)
 
         occupation_block_start = self.search_for_all(
-            "State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]",
+            'State    Occupation    Eigenvalue [Ha]    Eigenvalue [eV]',
             line_start,
             line_end,
         )
-        kpt_def = self.search_for_all("K-point: ", line_start, line_end)
+        kpt_def = self.search_for_all('K-point: ', line_start, line_end)
 
         if len(kpt_def) > 0:
             kpt_inds = [int(self.lines[ll].split()[1]) - 1 for ll in kpt_def]
         elif (self.n_k_points is None) or (self.n_k_points == 1):
             kpt_inds = [0]
         else:
-            raise ParseError("Cannot find k-point definitions")
+            raise ParseError('Cannot find k-point definitions')
 
         assert len(kpt_inds) == len(occupation_block_start)
         spins = [0] * len(occupation_block_start)
 
         if self.n_spins == 2:
-            spin_def = self.search_for_all("Spin-", line_start, line_end)
+            spin_def = self.search_for_all('Spin-', line_start, line_end)
             assert len(spin_def) == len(occupation_block_start)
 
             spins = [
-                int("Spin-down eigenvalues:" in self.lines[ll])
+                int('Spin-down eigenvalues:' in self.lines[ll])
                 for ll in spin_def
             ]
 
@@ -1434,17 +1434,17 @@ class AimsOutCalcChunk(AimsOutChunk):
             for ll, line in enumerate(
                 self.lines[occ_start + 1 : occ_start + self.n_bands + 1]
             ):
-                if "***" in line:
-                    warn_msg = f"The {ll + 1}th eigenvalue for the "
-                    "{kpt_ind+1}th k-point and {spin}th channels could "
-                    "not be read (likely too large to be printed "
-                    "in the output file)"
+                if '***' in line:
+                    warn_msg = f'The {ll + 1}th eigenvalue for the '
+                    '{kpt_ind+1}th k-point and {spin}th channels could '
+                    'not be read (likely too large to be printed '
+                    'in the output file)'
                     warnings.warn(warn_msg)
                     continue
                 split_line = line.split()
                 eigenvalues[kpt_ind, ll, spin] = float(split_line[3])
                 occupancies[kpt_ind, ll, spin] = float(split_line[1])
-        return {"eigenvalues": eigenvalues, "occupancies": occupancies}
+        return {'eigenvalues': eigenvalues, 'occupancies': occupancies}
 
     @lazyproperty
     def atoms(self):
@@ -1470,24 +1470,24 @@ class AimsOutCalcChunk(AimsOutChunk):
     def results(self):
         """Convert an AimsOutChunk to a Results Dictionary"""
         results = {
-            "energy": self.free_energy,
-            "free_energy": self.free_energy,
-            "total_energy": self.total_energy,
-            "forces": self.forces,
-            "stress": self.stress,
-            "stresses": self.stresses,
-            "magmom": self.magmom,
-            "dipole": self.dipole,
-            "fermi_energy": self.E_f,
-            "n_iter": self.n_iter,
-            "hirshfeld_charges": self.hirshfeld_charges,
-            "hirshfeld_dipole": self.hirshfeld_dipole,
-            "hirshfeld_volumes": self.hirshfeld_volumes,
-            "hirshfeld_atomic_dipoles": self.hirshfeld_atomic_dipoles,
-            "eigenvalues": self.eigenvalues,
-            "occupancies": self.occupancies,
-            "dielectric_tensor": self.dielectric_tensor,
-            "polarization": self.polarization,
+            'energy': self.free_energy,
+            'free_energy': self.free_energy,
+            'total_energy': self.total_energy,
+            'forces': self.forces,
+            'stress': self.stress,
+            'stresses': self.stresses,
+            'magmom': self.magmom,
+            'dipole': self.dipole,
+            'fermi_energy': self.E_f,
+            'n_iter': self.n_iter,
+            'hirshfeld_charges': self.hirshfeld_charges,
+            'hirshfeld_dipole': self.hirshfeld_dipole,
+            'hirshfeld_volumes': self.hirshfeld_volumes,
+            'hirshfeld_atomic_dipoles': self.hirshfeld_atomic_dipoles,
+            'eigenvalues': self.eigenvalues,
+            'occupancies': self.occupancies,
+            'dielectric_tensor': self.dielectric_tensor,
+            'polarization': self.polarization,
         }
 
         return {
@@ -1498,98 +1498,98 @@ class AimsOutCalcChunk(AimsOutChunk):
     @lazyproperty
     def initial_atoms(self):
         """The initial structure defined in the geoemtry.in file"""
-        return self._header["initial_atoms"]
+        return self._header['initial_atoms']
 
     @lazyproperty
     def initial_cell(self):
         """The initial lattice vectors defined in the geoemtry.in file"""
-        return self._header["initial_cell"]
+        return self._header['initial_cell']
 
     @lazyproperty
     def constraints(self):
         """The relaxation constraints for the calculation"""
-        return self._header["constraints"]
+        return self._header['constraints']
 
     @lazyproperty
     def n_atoms(self):
         """The number of atoms for the material"""
-        return self._header["n_atoms"]
+        return self._header['n_atoms']
 
     @lazyproperty
     def n_bands(self):
         """The number of Kohn-Sham states for the chunk"""
-        return self._header["n_bands"]
+        return self._header['n_bands']
 
     @lazyproperty
     def n_electrons(self):
         """The number of electrons for the chunk"""
-        return self._header["n_electrons"]
+        return self._header['n_electrons']
 
     @lazyproperty
     def n_spins(self):
         """The number of spin channels for the chunk"""
-        return self._header["n_spins"]
+        return self._header['n_spins']
 
     @lazyproperty
     def electronic_temperature(self):
         """The electronic temperature for the chunk"""
-        return self._header["electronic_temperature"]
+        return self._header['electronic_temperature']
 
     @lazyproperty
     def n_k_points(self):
         """The number of electrons for the chunk"""
-        return self._header["n_k_points"]
+        return self._header['n_k_points']
 
     @lazyproperty
     def k_points(self):
         """The number of spin channels for the chunk"""
-        return self._header["k_points"]
+        return self._header['k_points']
 
     @lazyproperty
     def k_point_weights(self):
         """k_point_weights electronic temperature for the chunk"""
-        return self._header["k_point_weights"]
+        return self._header['k_point_weights']
 
     @lazyproperty
     def free_energy(self):
         """The free energy for the chunk"""
-        return self.parse_scalar("free_energy")
+        return self.parse_scalar('free_energy')
 
     @lazyproperty
     def n_iter(self):
         """The number of SCF iterations needed to converge the SCF cycle for
         the chunk"""
-        return self.parse_scalar("number_of_iterations")
+        return self.parse_scalar('number_of_iterations')
 
     @lazyproperty
     def magmom(self):
         """The magnetic moment for the chunk"""
-        return self.parse_scalar("magnetic_moment")
+        return self.parse_scalar('magnetic_moment')
 
     @lazyproperty
     def E_f(self):
         """The Fermi energy for the chunk"""
-        return self.parse_scalar("fermi_energy")
+        return self.parse_scalar('fermi_energy')
 
     @lazyproperty
     def converged(self):
         """True if the chunk is a fully converged final structure"""
-        return (len(self.lines) > 0) and ("Have a nice day." in self.lines[-5:])
+        return (len(self.lines) > 0) and ('Have a nice day.' in self.lines[-5:])
 
     @lazyproperty
     def hirshfeld_charges(self):
         """The Hirshfeld charges for the chunk"""
-        return self._parse_hirshfeld()["charges"]
+        return self._parse_hirshfeld()['charges']
 
     @lazyproperty
     def hirshfeld_atomic_dipoles(self):
         """The Hirshfeld atomic dipole moments for the chunk"""
-        return self._parse_hirshfeld()["atomic_dipoles"]
+        return self._parse_hirshfeld()['atomic_dipoles']
 
     @lazyproperty
     def hirshfeld_volumes(self):
         """The Hirshfeld volume for the chunk"""
-        return self._parse_hirshfeld()["volumes"]
+        return self._parse_hirshfeld()['volumes']
 
     @lazyproperty
     def hirshfeld_dipole(self):
@@ -1597,39 +1597,39 @@ class AimsOutCalcChunk(AimsOutChunk):
         atoms = self._parse_atoms()
 
         if not np.any(atoms.pbc):
-            return self._parse_hirshfeld()["dipole"]
+            return self._parse_hirshfeld()['dipole']
 
         return None
 
     @lazyproperty
     def eigenvalues(self):
         """All outputted eigenvalues for the system"""
-        return self._parse_eigenvalues()["eigenvalues"]
+        return self._parse_eigenvalues()['eigenvalues']
 
     @lazyproperty
     def occupancies(self):
         """All outputted occupancies for the system"""
-        return self._parse_eigenvalues()["occupancies"]
+        return self._parse_eigenvalues()['occupancies']
 
 
 def get_header_chunk(fd):
     """Returns the header information from the aims.out file"""
     header = []
-    line = ""
+    line = ''
 
     # Stop the header once the first SCF cycle begins
     while (
-        "Convergence:    q app. |  density  | eigen (eV) | Etot (eV)"
+        'Convergence:    q app. |  density  | eigen (eV) | Etot (eV)'
         not in line
-        and "Convergence:    q app. |  density,  spin     | eigen (eV) |"
+        and 'Convergence:    q app. |  density,  spin     | eigen (eV) |'
         not in line
-        and "Begin self-consistency iteration #" not in line
+        and 'Begin self-consistency iteration #' not in line
     ):
         try:
             line = next(fd).strip()  # Raises StopIteration on empty file
         except StopIteration:
             raise ParseError(
-                "No SCF steps present, calculation failed at setup."
+                'No SCF steps present, calculation failed at setup.'
             )
 
         header.append(line)
@@ -1647,10 +1647,10 @@ def get_aims_out_chunks(fd, header_chunk):
     # occurs before the re-initialization
     if header_chunk.is_relaxation:
         chunk_end_line = (
-            "Geometry optimization: Attempting to predict improved coordinates."
+            'Geometry optimization: Attempting to predict improved coordinates.'
         )
     else:
-        chunk_end_line = "Begin self-consistency loop: Re-initialization"
+        chunk_end_line = 'Begin self-consistency loop: Re-initialization'
 
     # If SCF is not converged then do not treat the next chunk_end_line as a
     # new chunk until after the SCF is re-initialized
@@ -1668,18 +1668,18 @@ def get_aims_out_chunks(fd, header_chunk):
             # don't end chunk on next Re-initialization
             patterns = [
                 (
-                    "Self-consistency cycle not yet converged -"
-                    " restarting mixer to attempt better convergence."
+                    'Self-consistency cycle not yet converged -'
+                    ' restarting mixer to attempt better convergence.'
                 ),
                 (
-                    "Components of the stress tensor (for mathematical "
-                    "background see comments in numerical_stress.f90)."
+                    'Components of the stress tensor (for mathematical '
+                    'background see comments in numerical_stress.f90).'
                 ),
-                "Calculation of numerical stress completed",
+                'Calculation of numerical stress completed',
             ]
             if any(pattern in line for pattern in patterns):
                 ignore_chunk_end_line = True
-            elif "Begin self-consistency loop: Re-initialization" in line:
+            elif 'Begin self-consistency loop: Re-initialization' in line:
                 ignore_chunk_end_line = False
 
             try:
@@ -1706,7 +1706,7 @@ def check_convergence(chunks, non_convergence_ok=False):
         True if the calculation is converged
     """
     if not non_convergence_ok and not chunks[-1].converged:
-        raise ParseError("The calculation did not complete successfully")
+        raise ParseError('The calculation did not complete successfully')
     return True
 
 
