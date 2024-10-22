@@ -1,4 +1,5 @@
 """Defines class/functions to write input and parse output for FHI-aims."""
+
 import os
 import re
 import time
@@ -47,7 +48,6 @@ def read_aims(fd, apply_constraints=True):
 
 
 def parse_geometry_lines(lines, apply_constraints=True):
-
     from ase import Atoms
     from ase.constraints import (
         FixAtoms,
@@ -77,7 +77,6 @@ def parse_geometry_lines(lines, apply_constraints=True):
         if inp == []:
             continue
         if inp[0] in ["atom", "atom_frac"]:
-
             if inp[0] == "atom":
                 cart_positions = True
             else:
@@ -141,17 +140,16 @@ def parse_geometry_lines(lines, apply_constraints=True):
         )
     elif scaled_positions and periodic.any():
         atoms = Atoms(
-            symbols,
-            scaled_positions=positions,
-            cell=cell,
-            pbc=periodic)
+            symbols, scaled_positions=positions, cell=cell, pbc=periodic
+        )
     else:
         atoms = Atoms(symbols, positions)
 
     if len(velocities) > 0:
         if len(velocities) != len(positions):
             raise Exception(
-                "Number of positions and velocities have to coincide.")
+                "Number of positions and velocities have to coincide."
+            )
         atoms.set_velocities(velocities)
 
     fix_params = []
@@ -287,7 +285,8 @@ def write_aims(
     if scaled and not np.all(atoms.pbc):
         raise ValueError(
             "Requesting scaled for a calculation where scaled=True, but "
-            "the system is not periodic")
+            "the system is not periodic"
+        )
 
     if geo_constrain:
         if not scaled and np.all(atoms.pbc):
@@ -444,7 +443,8 @@ def get_sym_block(atoms):
     cell_inds = np.where(lv_param_constr == "")[0]
     for ind in cell_inds:
         lv_param_constr[ind] = "{:.16f}, {:.16f}, {:.16f}".format(
-            *atoms.cell[ind])
+            *atoms.cell[ind]
+        )
 
     n_atomic_params = len(atomic_sym_params)
     n_lv_params = len(lv_sym_params)
@@ -535,15 +535,11 @@ def write_control(fd, atoms, parameters, verbose_header=False):
             mp = kpts2mp(atoms, parameters["kpts"])
             dk = 0.5 - 0.5 / np.array(mp)
             fd.write(
-                format_aims_control_parameter(
-                    "k_grid",
-                    tuple(mp),
-                    "%d %d %d"))
+                format_aims_control_parameter("k_grid", tuple(mp), "%d %d %d")
+            )
             fd.write(
-                format_aims_control_parameter(
-                    "k_offset",
-                    tuple(dk),
-                    "%f %f %f"))
+                format_aims_control_parameter("k_offset", tuple(dk), "%f %f %f")
+            )
         elif key in ("species_dir", "tier"):
             continue
         elif key == "aims_command":
@@ -573,8 +569,8 @@ def write_control(fd, atoms, parameters, verbose_header=False):
             fd.write(format_aims_control_parameter(key, "", "%s"))
         elif isinstance(value, bool):
             fd.write(
-                format_aims_control_parameter(
-                    key, str(value).lower(), ".%s."))
+                format_aims_control_parameter(key, str(value).lower(), ".%s.")
+            )
         elif isinstance(value, (tuple, list)):
             fd.write(
                 format_aims_control_parameter(
@@ -607,8 +603,10 @@ def write_control(fd, atoms, parameters, verbose_header=False):
     # Parse the species files for each species present in the calculation
     # according to the tier of each species.
     species_basis_dict = parse_species_path(
-        species_array=species_array, tier_array=tier_array,
-        species_dir=species_dir)
+        species_array=species_array,
+        tier_array=tier_array,
+        species_dir=species_dir,
+    )
     # Write the basis functions to be included for each species in the
     # calculation into the control.in file (fd).
     write_species(fd, species_basis_dict, parameters)
@@ -648,7 +646,8 @@ def get_species_directory(species_dir=None):
     species_path = Path(species_dir)
     if not species_path.exists():
         raise RuntimeError(
-            f"The requested species_dir {species_dir} does not exist")
+            f"The requested species_dir {species_dir} does not exist"
+        )
 
     return species_path
 
@@ -690,7 +689,8 @@ def write_species(control_file_descriptor, species_basis_dict, parameters):
         if parameters.get("plus_u") is not None:
             if species_symbol in parameters.plus_u:
                 control_file_descriptor.write(
-                    f"plus_u {parameters.plus_u[species_symbol]} \n")
+                    f"plus_u {parameters.plus_u[species_symbol]} \n"
+                )
 
 
 def parse_species_path(species_array, tier_array, species_dir):
@@ -710,7 +710,8 @@ def parse_species_path(species_array, tier_array, species_dir):
     if len(species_array) != len(tier_array):
         raise ValueError(
             f"The species array length: {len(species_array)}, "
-            f"is not the same as the tier_array length: {len(tier_array)}")
+            f"is not the same as the tier_array length: {len(tier_array)}"
+        )
 
     species_basis_dict = {}
 
@@ -721,7 +722,8 @@ def parse_species_path(species_array, tier_array, species_dir):
             # Read the species file into a string.
             species_file_str = species_file_handle.read()
             species_basis_dict[symbol] = manipulate_tiers(
-                species_file_str, tier)
+                species_file_str, tier
+            )
     return species_basis_dict
 
 
@@ -747,8 +749,9 @@ def manipulate_tiers(species_string: str, tier: Union[None, int] = 1):
     top, *tiers = re.split(tier_pattern, species_string)
     tier_comments = tiers[::2]
     tier_basis = tiers[1::2]
-    assert len(
-        tier_comments) == len(tier_basis), "Something wrong with splitting"
+    assert len(tier_comments) == len(
+        tier_basis
+    ), "Something wrong with splitting"
     n_tiers = len(tier_comments)
     assert tier <= n_tiers, f"Only {n_tiers} tiers available, you choose {tier}"
     string_new = top
@@ -756,7 +759,8 @@ def manipulate_tiers(species_string: str, tier: Union[None, int] = 1):
         b = re.sub(r"\n( *for_aux| *hydro| *ionic| *confined)", r"\n#\g<1>", b)
         if i < tier:
             b = re.sub(
-                r"\n#( *for_aux| *hydro| *ionic| *confined)", r"\n\g<1>", b)
+                r"\n#( *for_aux| *hydro| *ionic| *confined)", r"\n\g<1>", b
+            )
         string_new += c + b
     return string_new
 
@@ -853,7 +857,8 @@ class AimsOutChunk:
             The scalar value of the property
         """
         line_start = self.reverse_search_for(
-            scalar_property_to_line_key[property])
+            scalar_property_to_line_key[property]
+        )
 
         if line_start == LINE_NOT_FOUND:
             return None
@@ -928,7 +933,7 @@ class AimsOutHeaderChunk(AimsOutChunk):
 
         return [
             [float(inp) for inp in line.split()[-3:]]
-            for line in self.lines[line_start + 1:line_start + 4]
+            for line in self.lines[line_start + 1 : line_start + 4]
         ]
 
     @lazyproperty
@@ -938,7 +943,8 @@ class AimsOutHeaderChunk(AimsOutChunk):
         line_start = self.reverse_search_for(["Atomic structure:"])
         if line_start == LINE_NOT_FOUND:
             raise AimsParseError(
-                "No information about the structure in the chunk.")
+                "No information about the structure in the chunk."
+            )
 
         line_start += 2
 
@@ -946,7 +952,8 @@ class AimsOutHeaderChunk(AimsOutChunk):
         positions = np.zeros((self.n_atoms, 3))
         symbols = [""] * self.n_atoms
         for ll, line in enumerate(
-                self.lines[line_start:line_start + self.n_atoms]):
+            self.lines[line_start : line_start + self.n_atoms]
+        ):
             inp = line.split()
             positions[ll, :] = [float(pos) for pos in inp[4:7]]
             symbols[ll] = inp[3]
@@ -971,7 +978,8 @@ class AimsOutHeaderChunk(AimsOutChunk):
     def is_relaxation(self):
         """Determine if the calculation is a geometry optimization or not"""
         return LINE_NOT_FOUND != self.reverse_search_for(
-            ["Geometry relaxation:"])
+            ["Geometry relaxation:"]
+        )
 
     @lazymethod
     def _parse_k_points(self):
@@ -998,7 +1006,7 @@ class AimsOutHeaderChunk(AimsOutChunk):
 
         k_points = np.zeros((n_kpts, 3))
         k_point_weights = np.zeros(n_kpts)
-        for kk, line in enumerate(self.lines[line_start + 1:line_end + 1]):
+        for kk, line in enumerate(self.lines[line_start + 1 : line_end + 1]):
             k_points[kk] = [float(inp) for inp in line.split()[4:7]]
             k_point_weights[kk] = float(line.split()[-1])
 
@@ -1021,12 +1029,14 @@ class AimsOutHeaderChunk(AimsOutChunk):
     def n_bands(self):
         """The number of Kohn-Sham states for the chunk"""
         line_start = self.reverse_search_for(
-            scalar_property_to_line_key["n_bands"])
+            scalar_property_to_line_key["n_bands"]
+        )
 
         if line_start == LINE_NOT_FOUND:
             raise AimsParseError(
                 "No information about the number of Kohn-Sham states "
-                "in the header.")
+                "in the header."
+            )
 
         line = self.lines[line_start]
         if "| Number of Kohn-Sham states" in line:
@@ -1038,7 +1048,8 @@ class AimsOutHeaderChunk(AimsOutChunk):
     def n_electrons(self):
         """The number of electrons for the chunk"""
         line_start = self.reverse_search_for(
-            scalar_property_to_line_key["n_electrons"])
+            scalar_property_to_line_key["n_electrons"]
+        )
 
         if line_start == LINE_NOT_FOUND:
             raise AimsParseError(
@@ -1064,7 +1075,8 @@ class AimsOutHeaderChunk(AimsOutChunk):
         if n_spins is None:
             raise AimsParseError(
                 "No information about the number of spin "
-                "channels in the header.")
+                "channels in the header."
+            )
         return int(n_spins)
 
     @lazyproperty
@@ -1145,9 +1157,9 @@ class AimsOutCalcChunk(AimsOutChunk):
         line_end = self.reverse_search_for(
             [
                 'Next atomic structure:',
-                'Writing the current geometry to file "geometry.in.next_step"'
+                'Writing the current geometry to file "geometry.in.next_step"',
             ],
-            line_start
+            line_start,
         )
         if line_end == LINE_NOT_FOUND:
             line_end = len(self.lines)
@@ -1160,8 +1172,12 @@ class AimsOutCalcChunk(AimsOutChunk):
                 cell.append([float(inp) for inp in line.split()[1:]])
             elif "atom   " in line:
                 line_split = line.split()
-                atoms.append(Atom(line_split[4], tuple(
-                    float(inp) for inp in line_split[1:4])))
+                atoms.append(
+                    Atom(
+                        line_split[4],
+                        tuple(float(inp) for inp in line_split[1:4]),
+                    )
+                )
             elif "velocity   " in line:
                 velocities.append([float(inp) for inp in line.split()[1:]])
 
@@ -1193,7 +1209,7 @@ class AimsOutCalcChunk(AimsOutChunk):
         return np.array(
             [
                 [float(inp) for inp in line.split()[-3:]]
-                for line in self.lines[line_start:line_start + self.n_atoms]
+                for line in self.lines[line_start : line_start + self.n_atoms]
             ]
         )
 
@@ -1207,7 +1223,7 @@ class AimsOutCalcChunk(AimsOutChunk):
             return None
         line_start += 3
         stresses = []
-        for line in self.lines[line_start:line_start + self.n_atoms]:
+        for line in self.lines[line_start : line_start + self.n_atoms]:
             xx, yy, zz, xy, xz, yz = (float(d) for d in line.split()[2:8])
             stresses.append([xx, yy, zz, yz, xz, xy])
 
@@ -1223,14 +1239,13 @@ class AimsOutCalcChunk(AimsOutChunk):
                 "Analytical stress tensor - Symmetrized",
                 "Numerical stress tensor",
             ]
-
         )  # Offest to relevant lines
         if line_start == LINE_NOT_FOUND:
             return None
 
         stress = [
             [float(inp) for inp in line.split()[2:5]]
-            for line in self.lines[line_start + 5:line_start + 8]
+            for line in self.lines[line_start + 5 : line_start + 8]
         ]
         return full_3x3_to_voigt_6_stress(stress)
 
@@ -1239,8 +1254,11 @@ class AimsOutCalcChunk(AimsOutChunk):
         """Checks the outputfile to see if the chunk corresponds
         to a metallic system"""
         line_start = self.reverse_search_for(
-            ["material is metallic within the approximate finite "
-             "broadening function (occupation_type)"])
+            [
+                "material is metallic within the approximate finite "
+                "broadening function (occupation_type)"
+            ]
+        )
         return line_start != LINE_NOT_FOUND
 
     @lazyproperty
@@ -1271,21 +1289,23 @@ class AimsOutCalcChunk(AimsOutChunk):
     def dielectric_tensor(self):
         """Parse the dielectric tensor from the aims.out file"""
         line_start = self.reverse_search_for(
-            ["DFPT for dielectric_constant:--->",
-            "PARSE DFPT_dielectric_tensor"],
+            [
+                "DFPT for dielectric_constant:--->",
+                "PARSE DFPT_dielectric_tensor",
+            ],
         )
         if line_start == LINE_NOT_FOUND:
             return None
 
         # we should find the tensor in the next three lines:
-        lines = self.lines[line_start + 1:line_start + 4]
+        lines = self.lines[line_start + 1 : line_start + 4]
 
         # make ndarray and return
         return np.array([np.fromstring(line, sep=' ') for line in lines])
 
     @lazyproperty
     def polarization(self):
-        """ Parse the polarization vector from the aims.out file"""
+        """Parse the polarization vector from the aims.out file"""
         line_start = self.reverse_search_for(["| Cartesian Polarization"])
         if line_start == LINE_NOT_FOUND:
             return None
@@ -1320,7 +1340,8 @@ class AimsOutCalcChunk(AimsOutChunk):
         )
 
         line_inds = self.search_for_all(
-            "Hirshfeld dipole vector", line_start, -1)
+            "Hirshfeld dipole vector", line_start, -1
+        )
         hirshfeld_atomic_dipoles = np.array(
             [
                 [float(inp) for inp in self.lines[ind].split(":")[1].split()]
@@ -1363,7 +1384,7 @@ class AimsOutCalcChunk(AimsOutChunk):
                 "What follows are estimated values for band gap, "
                 "HOMO, LUMO, etc.",
                 "Current spin moment of the entire structure :",
-                "Highest occupied state (VBM)"
+                "Highest occupied state (VBM)",
             ],
             line_start,
         )
@@ -1402,13 +1423,16 @@ class AimsOutCalcChunk(AimsOutChunk):
             spin_def = self.search_for_all("Spin-", line_start, line_end)
             assert len(spin_def) == len(occupation_block_start)
 
-            spins = [int("Spin-down eigenvalues:" in self.lines[ll])
-                     for ll in spin_def]
+            spins = [
+                int("Spin-down eigenvalues:" in self.lines[ll])
+                for ll in spin_def
+            ]
 
         for occ_start, kpt_ind, spin in zip(
-                occupation_block_start, kpt_inds, spins):
+            occupation_block_start, kpt_inds, spins
+        ):
             for ll, line in enumerate(
-                self.lines[occ_start + 1:occ_start + self.n_bands + 1]
+                self.lines[occ_start + 1 : occ_start + self.n_bands + 1]
             ):
                 if "***" in line:
                     warn_msg = f"The {ll + 1}th eigenvalue for the "
@@ -1425,7 +1449,7 @@ class AimsOutCalcChunk(AimsOutChunk):
     @lazyproperty
     def atoms(self):
         """Convert AimsOutChunk to Atoms object and add all non-standard
-outputs to atoms.info"""
+        outputs to atoms.info"""
         atoms = self._parse_atoms()
 
         atoms.calc = SinglePointDFTCalculator(
@@ -1467,8 +1491,8 @@ outputs to atoms.info"""
         }
 
         return {
-            key: value for key,
-            value in results.items() if value is not None}
+            key: value for key, value in results.items() if value is not None
+        }
 
     # Properties from the aims.out header
     @lazyproperty
@@ -1534,7 +1558,7 @@ outputs to atoms.info"""
     @lazyproperty
     def n_iter(self):
         """The number of SCF iterations needed to converge the SCF cycle for
-the chunk"""
+        the chunk"""
         return self.parse_scalar("number_of_iterations")
 
     @lazyproperty
@@ -1596,10 +1620,10 @@ def get_header_chunk(fd):
     # Stop the header once the first SCF cycle begins
     while (
         "Convergence:    q app. |  density  | eigen (eV) | Etot (eV)"
-            not in line
-            and "Convergence:    q app. |  density,  spin     | eigen (eV) |"
-            not in line
-            and "Begin self-consistency iteration #" not in line
+        not in line
+        and "Convergence:    q app. |  density,  spin     | eigen (eV) |"
+        not in line
+        and "Begin self-consistency iteration #" not in line
     ):
         try:
             line = next(fd).strip()  # Raises StopIteration on empty file
