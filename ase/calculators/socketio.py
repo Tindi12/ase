@@ -6,10 +6,13 @@ from subprocess import PIPE, Popen
 import numpy as np
 
 import ase.units as units
-from ase.calculators.calculator import (ArgvProfile, Calculator,
-                                        OldShellProfile,
-                                        PropertyNotImplementedError,
-                                        all_changes)
+from ase.calculators.calculator import (
+    Calculator,
+    OldShellProfile,
+    PropertyNotImplementedError,
+    StandardProfile,
+    all_changes,
+)
 from ase.calculators.genericfileio import GenericFileIOCalculator
 from ase.parallel import world
 from ase.stress import full_3x3_to_voigt_6_stress
@@ -231,26 +234,36 @@ class FileIOSocketClientLauncher:
         profile = getattr(self.calc, 'profile', None)
         if isinstance(self.calc, GenericFileIOCalculator):
             # New GenericFileIOCalculator:
+            template = getattr(self.calc, 'template')
 
             self.calc.write_inputfiles(atoms, properties)
             if unixsocket is not None:
-                argv = profile.socketio_argv_unix(socket=unixsocket)
+                argv = template.socketio_argv(
+                    profile, unixsocket=unixsocket, port=None
+                )
             else:
-                argv = profile.socketio_argv_inet(port=port)
+                argv = template.socketio_argv(
+                    profile, unixsocket=None, port=port
+                )
             return Popen(argv, cwd=cwd, env=os.environ)
         else:
             # Old FileIOCalculator:
             self.calc.write_input(atoms, properties=properties,
                                   system_changes=all_changes)
 
+            if isinstance(profile, StandardProfile):
+                return profile.execute_nonblocking(self.calc)
+
             if profile is None:
                 cmd = self.calc.command.replace('PREFIX', self.calc.prefix)
                 cmd = cmd.format(port=port, unixsocket=unixsocket)
             elif isinstance(profile, OldShellProfile):
                 cmd = profile.command.replace("PREFIX", self.calc.prefix)
-                return Popen(cmd, shell=True, cwd=cwd)
-            elif isinstance(profile, ArgvProfile):
-                return profile.execute_nonblocking(self.calc)
+            else:
+                raise TypeError(
+                    f"Profile type {type(profile)} not supported for socketio")
+
+            return Popen(cmd, shell=True, cwd=cwd)
 
 
 class SocketServer(IOContext):

@@ -1,6 +1,8 @@
-from ase.calculators.calculator import (BaseCalculator, CalculatorSetupError,
-                                        PropertyNotImplementedError,
-                                        all_changes)
+from ase.calculators.calculator import (
+    BaseCalculator,
+    CalculatorSetupError,
+    all_changes,
+)
 from ase.stress import full_3x3_to_voigt_6_stress
 
 
@@ -11,11 +13,6 @@ class Mixer:
             *(set(calc.implemented_properties) for calc in calcs)
         )
         self.implemented_properties = list(common_properties)
-        if not self.implemented_properties:
-            raise PropertyNotImplementedError(
-                "The provided Calculators have"
-                " no properties in common!"
-            )
         self.calcs = calcs
         self.weights = weights
 

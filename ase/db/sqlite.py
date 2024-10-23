@@ -26,8 +26,16 @@ import numpy as np
 import ase.io.jsonio
 from ase.calculators.calculator import all_properties
 from ase.data import atomic_numbers
-from ase.db.core import (Database, bytes_to_object, invop, lock, now,
-                         object_to_bytes, ops, parse_selection)
+from ase.db.core import (
+    Database,
+    bytes_to_object,
+    invop,
+    lock,
+    now,
+    object_to_bytes,
+    ops,
+    parse_selection,
+)
 from ase.db.row import AtomsRow
 from ase.parallel import parallel_function
 
@@ -316,8 +324,8 @@ class SQLite3Database(Database):
             if not isinstance(data, (str, bytes)):
                 data = encode(data, binary=self.version >= 9)
 
-            values += (row.get('energy'),
-                       row.get('free_energy'),
+            values += (float_if_not_none(row.get('energy')),
+                       float_if_not_none(row.get('free_energy')),
                        blob(row.get('forces')),
                        blob(row.get('stress')),
                        blob(row.get('dipole')),

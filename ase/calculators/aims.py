@@ -12,9 +12,12 @@ import re
 
 import numpy as np
 
-from ase.calculators.genericfileio import (BaseProfile, CalculatorTemplate,
-                                           GenericFileIOCalculator,
-                                           read_stdout)
+from ase.calculators.genericfileio import (
+    BaseProfile,
+    CalculatorTemplate,
+    GenericFileIOCalculator,
+    read_stdout,
+)
 from ase.io.aims import write_aims, write_control
 
 
@@ -24,16 +27,17 @@ def get_aims_version(string):
 
 
 class AimsProfile(BaseProfile):
-    def __init__(self, binary, default_species_directory=None, **kwargs):
-        super().__init__(**kwargs)
-        self.binary = binary
+    configvars = {'default_species_directory'}
+
+    def __init__(self, command, default_species_directory=None, **kwargs):
+        super().__init__(command, **kwargs)
         self.default_species_directory = default_species_directory
 
     def get_calculator_command(self, inputfile):
-        return [self.binary]
+        return []
 
     def version(self):
-        return get_aims_version(read_stdout(self.binary))
+        return get_aims_version(read_stdout(self._split_command))
 
 
 class AimsTemplate(CalculatorTemplate):
@@ -167,7 +171,7 @@ class AimsTemplate(CalculatorTemplate):
         return AimsProfile.from_config(cfg, self.name, **kwargs)
 
     def socketio_argv(self, profile, unixsocket, port):
-        return [profile.binary]
+        return [profile.command]
 
     def socketio_parameters(self, unixsocket, port):
         if port:
@@ -184,8 +188,6 @@ class Aims(GenericFileIOCalculator):
         self,
         profile=None,
         directory='.',
-        parallel_info=None,
-        parallel=True,
         **kwargs,
     ):
         """Construct the FHI-aims calculator.
@@ -215,8 +217,6 @@ class Aims(GenericFileIOCalculator):
             template=AimsTemplate(),
             profile=profile,
             parameters=kwargs,
-            parallel_info=parallel_info,
-            parallel=parallel,
             directory=directory,
         )
 

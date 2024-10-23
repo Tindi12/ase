@@ -2,9 +2,17 @@ import pytest
 
 from ase.build import bulk
 from ase.calculators.emt import EMT
-from ase.optimize import (BFGS, FIRE, LBFGS, BFGSLineSearch,
-                          GoodOldQuasiNewton, GPMin, LBFGSLineSearch, MDMin,
-                          ODE12r)
+from ase.optimize import (
+    BFGS,
+    FIRE,
+    LBFGS,
+    BFGSLineSearch,
+    GoodOldQuasiNewton,
+    GPMin,
+    LBFGSLineSearch,
+    MDMin,
+    ODE12r,
+)
 from ase.optimize.precon import PreconFIRE, PreconLBFGS, PreconODE12r
 from ase.optimize.sciopt import SciPyFminBFGS, SciPyFminCG
 
@@ -90,6 +98,7 @@ def test_unconverged(optcls, atoms, kwargs):
     with optcls(atoms, **kwargs) as opt:
         opt.run(fmax=fmax, steps=1)  # only one step to not get converged
     assert not opt.converged()
+    assert opt.todict()["fmax"] == 1e-9
 
 
 def test_run_twice(optcls, atoms, kwargs):

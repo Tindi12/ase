@@ -1,11 +1,8 @@
 import datetime
-import sys
 
 import sphinx_rtd_theme
 
-sys.path.append('.')
-
-extensions = ['ext',
+extensions = ['ase.utils.sphinx',
               'sphinx.ext.autodoc',
               'sphinx.ext.doctest',
               'sphinx.ext.extlinks',
@@ -53,7 +50,7 @@ latex_engine = 'xelatex'
 latex_documents = [
     ('index', 'ASE.tex', 'ASE', 'ASE-developers', 'howto', not True)]
 
-intersphinx_mapping = {'gpaw': ('https://wiki.fysik.dtu.dk/gpaw', None),
+intersphinx_mapping = {'gpaw': ('https://gpaw.readthedocs.io', None),
                        'python': ('https://docs.python.org/3.10', None)}
 
 # Avoid GUI windows during doctest:

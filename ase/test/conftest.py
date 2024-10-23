@@ -11,12 +11,16 @@ import pytest
 import ase
 from ase.config import Config, cfg
 from ase.dependencies import all_dependencies
-from ase.test.factories import CalculatorInputs, NoSuchCalculator
+from ase.test.factories import (
+    CalculatorInputs,
+    NoSuchCalculator,
+    factory_classes,
+    get_factories,
+    legacy_factory_calculator_names,
+    make_factory_fixture,
+    parametrize_calculator_tests,
+)
 from ase.test.factories import factory as factory_deco
-from ase.test.factories import (factory_classes, get_factories,
-                                legacy_factory_calculator_names,
-                                make_factory_fixture,
-                                parametrize_calculator_tests)
 from ase.utils import get_python_package_path_description, seterr, workdir
 
 helpful_message = """\
@@ -294,7 +298,18 @@ def factory(request, factories):
     return CalculatorInputs(factory, kwargs)
 
 
+def check_missing_init(module):
+    # We don't like missing __init__.py because pytest imports those
+    # as toplevel modules, which can cause clashes.
+    if not module.__name__.startswith('ase.test.'):
+        raise RuntimeError(
+            f'Test module {module.__name__} at {module.__file__} does not '
+            'start with "ase.test".  Maybe __init__.py is missing?')
+
+
 def pytest_generate_tests(metafunc):
+    check_missing_init(metafunc.module)
+
     parametrize_calculator_tests(metafunc)
 
     if 'seed' in metafunc.fixturenames:
@@ -322,51 +337,51 @@ nprocs = -np
 stdout = --output-filename
 
 [abinit]
-binary = /home/ase/calculators/abinit/bin/abinit
+command = /home/ase/calculators/abinit/bin/abinit
 abipy_mrgddb = /home/ase/calculators/abinit/bin/mrgddb
 abipy_anaddb = /home/ase/calculators/abinit/bin/anaddb
 
 [cp2k]
 cp2k_shell = cp2k_shell
-binary = cp2k
+cp2k_main = cp2k
 
 [dftb]
-binary = /home/ase/calculators/dftbplus/bin/dftb+
+command = /home/ase/calculators/dftbplus/bin/dftb+
 
 [dftd3]
-binary = /home/ase/calculators/dftd3/bin/dftd3
+command = /home/ase/calculators/dftd3/bin/dftd3
 
 [elk]
-binary = /usr/bin/elk-lapw
+command = /usr/bin/elk-lapw
 
 [espresso]
-binary = /home/ase/calculators/espresso/bin/pw.x
+command = /home/ase/calculators/espresso/bin/pw.x
 pseudo_dir = /home/ase/.local/lib/python3.10/site-packages/asetest/\
 datafiles/espresso/gbrv-lda-espresso
 
 [exciting]
-binary = /home/ase/calculators/exciting/bin/exciting
+command = /home/ase/calculators/exciting/bin/exciting
 
 [gromacs]
-binary = gmx
+command = gmx
 
 [lammps]
-binary = /home/ase/calculators/lammps/bin/lammps
+command = /home/ase/calculators/lammps/bin/lammps
 
 [mopac]
-binary = /home/ase/calculators/mopac/bin/mopac
+command = /home/ase/calculators/mopac/bin/mopac
 
 [nwchem]
-binary = /home/ase/calculators/nwchem/bin/nwchem
+command = /home/ase/calculators/nwchem/bin/nwchem
 
 [octopus]
-binary = /home/ase/calculators/octopus/bin/octopus
+command = /home/ase/calculators/octopus/bin/octopus
 
 [openmx]
-# binary = /usr/bin/openmx
+# command = /usr/bin/openmx
 
 [siesta]
-binary = /home/ase/calculators/siesta/bin/siesta
+command = /home/ase/calculators/siesta/bin/siesta
 """
 
     override_config.parser.read_string(dummy_config)
