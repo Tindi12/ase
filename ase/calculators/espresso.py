@@ -114,7 +114,6 @@ class Espresso(GenericFileIOCalculator):
         self,
         *,
         profile=None,
-        template=None,
         command=GenericFileIOCalculator._deprecated,
         label=GenericFileIOCalculator._deprecated,
         directory='.',
