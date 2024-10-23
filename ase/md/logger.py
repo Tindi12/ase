@@ -11,6 +11,7 @@ from ase.utils import IOContext
 
 if TYPE_CHECKING:
     from pathlib import Path
+    from typing import IO, Union
 
     from ase.atoms import Atoms
     from ase.optimize.optimize import Dynamics
@@ -23,12 +24,18 @@ class MDLogger(IOContext):
 
     Attributes
     ----------
-    dynamics
+    dyn
         Reference to the dynamics object.
     atoms
         Reference to the atomic system.
     logfile
         The opened log file object.
+    stress
+        Whether to include stress calculations in the log.
+    peratom
+        Whether to normalize energies by number of atoms.
+    has_extra_fields
+        Whether the dynamics object has extra fields.
     header_format
         Format string for the log header.
     data_format
@@ -46,20 +53,21 @@ class MDLogger(IOContext):
 
     def __init__(
         self,
-        dynamics: Dynamics,
+        dyn: Dynamics,
         atoms: Atoms,
-        logfile: str | Path,
-        log_stress: bool = False,
-        energy_per_atom: bool = False,
-        file_mode: str = 'a',
-        include_header: bool = True,
+        logfile: Union[IO, str, Path],
+        stress: bool = False,
+        peratom: bool = False,
+        mode: str = 'a',
+        header: bool = True,
+        comm: object = world,
     ) -> None:
         """
         Initialize the molecular dynamics logger.
 
         Parameters
         ----------
-        dynamics
+        dyn
             The dynamics object containing simulation state.
             Only a weak reference is maintained.
         atoms
@@ -67,33 +75,32 @@ class MDLogger(IOContext):
         logfile
             File path or open file object for logging.
             Use "-" for standard output.
-        log_stress
+        stress
             Whether to include stress calculations in the log. Default: False.
-        energy_per_atom
+        peratom
             Whether to normalize energies by number of atoms. Default: False.
-        file_mode
+        mode
             File opening mode if logfile is a filename. Default: "a".
-        include_header
+        header
             Whether to write the header line in the log file. Default: True.
+        comm
+            MPI communicator for parallel simulations. Default: world.
         """
-        self.dynamics = (
-            weakref.proxy(dynamics) if hasattr(dynamics, 'get_time') else None
-        )
+        self.dyn = weakref.proxy(dyn) if hasattr(dyn, 'get_time') else None
 
         self.atoms = atoms
-        self.total_atoms = atoms.get_global_number_of_atoms()
-        self.logfile = self.openfile(logfile, comm=world, mode=file_mode)
-        self.log_stress = log_stress
-        self.energy_per_atom = energy_per_atom
+        self.logfile = self.openfile(logfile, mode=mode, comm=comm)
+        self.stress = stress
+        self.peratom = peratom
 
         self.has_extra_fields = (
-            True if hasattr(self.dynamics, 'extra_fields') else False
+            True if hasattr(self.dyn, 'extra_fields') else False
         )
 
         self.header_format = self._create_header_format()
         self.data_format = self._create_data_format()
 
-        if include_header:
+        if header:
             self.logfile.write(f'{self.header_format}\n')
 
     def _create_header_format(self) -> str:
@@ -108,11 +115,11 @@ class MDLogger(IOContext):
         header_parts = []
 
         # Time column if dynamics is available
-        if self.dynamics is not None:
+        if self.dyn is not None:
             header_parts.append('%-9s ' % 'Time[ps]')
 
         # Energy columns
-        energy_suffix = '/N' if self.energy_per_atom else ''
+        energy_suffix = '/N' if self.peratom else ''
         header_parts.extend(
             [
                 f"{f'Etot{energy_suffix}[eV]':>12}",
@@ -124,11 +131,11 @@ class MDLogger(IOContext):
 
         if self.has_extra_fields:
             header_parts.extend(
-                [f"{f'{field}':>10}" for field in self.dynamics.extra_fields]
+                [f"{f'{field}':>10}" for field in self.dyn.extra_fields]
             )
 
         # Stress columns if enabled
-        if self.log_stress:
+        if self.stress:
             header_parts.append(
                 '      ----------------------'
                 ' stress[GPa] -----------------------'
@@ -148,17 +155,19 @@ class MDLogger(IOContext):
         format_parts = []
 
         # Time format if dynamics is available
-        if self.dynamics is not None:
+        if self.dyn is not None:
             format_parts.append('%-10.4f')
+
+        natoms = self.atoms.get_global_number_of_atoms()
 
         # Energy format
         digits = 4
-        if not self.energy_per_atom:
-            if self.total_atoms > 100:
+        if not self.peratom:
+            if natoms > 100:
                 digits = 3
-            if self.total_atoms > 1000:
+            if natoms > 1000:
                 digits = 2
-            if self.total_atoms > 10000:
+            if natoms > 10000:
                 digits = 1
 
         # Energy and temperature columns
@@ -172,10 +181,10 @@ class MDLogger(IOContext):
         )
 
         if self.has_extra_fields:
-            format_parts.extend(['%10.3f'] * len(self.dynamics.extra_fields))
+            format_parts.extend(['%10.3f'] * len(self.dyn.extra_fields))
 
         # Stress format if enabled
-        if self.log_stress:
+        if self.stress:
             format_parts.extend(['%10.3f'] * 6)
 
         format_parts.append('\n')
@@ -192,27 +201,29 @@ class MDLogger(IOContext):
         ekin = self.atoms.get_kinetic_energy()
         temp = self.atoms.get_temperature()
 
-        if self.energy_per_atom:
-            epot /= self.total_atoms
-            ekin /= self.total_atoms
+        natoms = self.atoms.get_global_number_of_atoms()
+
+        if self.peratom:
+            epot /= natoms
+            ekin /= natoms
 
         log_data = []
 
         # Add time if dynamics is available
-        if self.dynamics is not None:
-            time_ps = self.dynamics.get_time() / (1000 * units.fs)
+        if self.dyn is not None:
+            time_ps = self.dyn.get_time() / (1000 * units.fs)
             log_data.append(time_ps)
 
         # Add energy and temperature data
         to_write = [epot + ekin, epot, ekin, temp]
 
         if self.has_extra_fields:
-            to_write.extend(self.dynamics.extra_fields.values())
+            to_write.extend(self.dyn.extra_fields.values())
 
         log_data.extend(to_write)
 
         # Add stress data if enabled
-        if self.log_stress:
+        if self.stress:
             stress_values = (
                 self.atoms.get_stress(include_ideal_gas=True) / units.GPa
             )
