@@ -130,7 +130,7 @@ class MolecularDynamics(Dynamics):
 
         if logfile:
             logger = self.closelater(
-                MDLogger(dyn=self, atoms=atoms, logfile=logfile))
+                MDLogger(dynamics=self, atoms=atoms, logfile=logfile))
             self.attach(logger, loginterval)
 
     def todict(self):

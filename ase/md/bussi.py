@@ -54,18 +54,18 @@ class Bussi(MolecularDynamics):
 
         self.target_kinetic_energy = 0.5 * self.temp * self.ndof
 
-        if np.isclose(
-            self.atoms.get_kinetic_energy(), 0.0, rtol=0, atol=1e-12
-        ):
+        if np.isclose(self.atoms.get_kinetic_energy(), 0.0, rtol=0, atol=1e-12):
             raise ValueError(
-                "Initial kinetic energy is zero. "
-                "Please set the initial velocities before running Bussi NVT."
+                'Initial kinetic energy is zero. '
+                'Please set the initial velocities before running Bussi NVT.'
             )
 
         self._exp_term = math.exp(-self.dt / self.taut)
         self._masses = self.atoms.get_masses()[:, np.newaxis]
 
         self.transferred_energy = 0.0
+
+        self.extra_fields = {'Econs[eV]': 0.0}
 
     def scale_velocities(self):
         """Do the NVT Bussi stochastic velocity scaling."""
@@ -76,6 +76,11 @@ class Bussi(MolecularDynamics):
         self.atoms.set_momenta(alpha * momenta)
 
         self.transferred_energy += (alpha**2 - 1.0) * kinetic_energy
+
+    def log(self):
+        self.extra_fields['Econs[eV]'] = (
+            self.atoms.get_total_energy() - self.transferred_energy
+        )
 
     def calculate_alpha(self, kinetic_energy):
         """Calculate the scaling factor alpha using equation (A7)
@@ -97,9 +102,7 @@ class Bussi(MolecularDynamics):
         return math.sqrt(
             self._exp_term
             + energy_scaling_term * (sum_of_noises + normal_noise**2)
-            + 2
-            * normal_noise
-            * math.sqrt(self._exp_term * energy_scaling_term)
+            + 2 * normal_noise * math.sqrt(self._exp_term * energy_scaling_term)
         )
 
     def step(self, forces=None):
