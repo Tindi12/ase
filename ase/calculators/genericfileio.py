@@ -59,12 +59,9 @@ class BaseProfile(ABC):
         """
 
     def run(
-        self,
-        directory: Path,
-        inputfile: Optional[str],
-        outputfile: str,
-        errorfile: Optional[str] = None,
-        append: bool = False,
+        self, directory: Path, inputfile: Optional[str],
+        outputfile: str, errorfile: Optional[str] = None,
+        append: bool = False
     ) -> None:
         """
         Run the command in the given directory.
@@ -258,9 +255,7 @@ class CalculatorTemplate(ABC):
             )
 
             with open(directory / self.outputname, 'w') as out_fd:
-                return Popen(
-                    argv, stdout=out_fd, cwd=directory, env=os.environ
-                )
+                return Popen(argv, stdout=out_fd, cwd=directory, env=os.environ)
 
         return SocketIOCalculator(
             launch_client=launch, unixsocket=unixsocket, port=port

@@ -49,7 +49,7 @@ class OnetepProfile(BaseProfile):
 class OnetepTemplate(CalculatorTemplate):
     _label = 'onetep'
 
-    def __init__(self, append=False, timeout=None):
+    def __init__(self, append=False):
         super().__init__(
             'ONETEP',
             implemented_properties=[
@@ -61,7 +61,6 @@ class OnetepTemplate(CalculatorTemplate):
         self.outputname = f'{self._label}.out'
         self.errorname = f'{self._label}.err'
         self.append = append
-        self.timeout = timeout
 
     def execute(self, directory, profile):
         profile.run(directory, self.inputname, self.outputname,

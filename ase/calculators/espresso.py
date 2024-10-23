@@ -165,7 +165,7 @@ class Espresso(GenericFileIOCalculator):
         if 'ASE_ESPRESSO_COMMAND' in os.environ and profile is None:
             warnings.warn(compatibility_msg, FutureWarning)
 
-        template = template or EspressoTemplate()
+        template = EspressoTemplate()
         super().__init__(
             profile=profile,
             template=template,
