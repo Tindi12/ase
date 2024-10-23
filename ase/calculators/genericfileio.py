@@ -17,8 +17,9 @@ from ase.config import cfg as _cfg
 class BaseProfile(ABC):
     configvars: Set[str] = set()
 
-    def __init__(self, command):
+    def __init__(self, command, timeout=None):
         self.command = _validate_command(command)
+        self.timeout = timeout
 
     @property
     def _split_command(self):
@@ -64,7 +65,6 @@ class BaseProfile(ABC):
         outputfile: str,
         errorfile: Optional[str] = None,
         append: bool = False,
-        timeout: Optional[int] = None,
     ) -> None:
         """
         Run the command in the given directory.
@@ -81,8 +81,6 @@ class BaseProfile(ABC):
             the stderror file
         append: bool
             if True then use append mode
-        timeout: int
-            timeout in seconds
         """
 
         import os
@@ -105,7 +103,7 @@ class BaseProfile(ABC):
                 stdout=fd_out,
                 stderr=fd_err,
                 env=os.environ,
-                timeout=timeout,
+                timeout=self.timeout,
             )
 
     @abstractmethod

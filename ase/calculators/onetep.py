@@ -64,8 +64,8 @@ class OnetepTemplate(CalculatorTemplate):
         self.timeout = timeout
 
     def execute(self, directory, profile):
-        profile.run(directory, self.input, self.output, self.error,
-                    append=self.append, timeout=self.timeout)
+        profile.run(directory, self.inputname, self.outputname,
+                    self.errorname, append=self.append)
 
     def read_results(self, directory):
         output_path = directory / self.outputname
