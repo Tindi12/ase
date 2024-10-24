@@ -11,7 +11,7 @@ from ase.utils import IOContext
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any, IO, Union
+    from typing import IO, Any, Union
 
     from ase.atoms import Atoms
     from ase.optimize.optimize import Dynamics
