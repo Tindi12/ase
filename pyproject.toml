@@ -87,6 +87,39 @@ src = ["ase"]
 [tool.ruff.format]
 quote-style = "single"
 skip-magic-trailing-comma = false
+exclude = [
+    "ase/build/*.py",
+    "ase/calculators/*.py",
+    "ase/cli/*.py",
+    "ase/cluster/*.py",
+    "ase/collections/*.py",
+    "ase/data/*.py",
+    "ase/db/*.py",
+    "ase/dft/*.py",
+    "ase/ga/*.py",
+    "ase/geometry/*.py",
+    "ase/gui/*.py",
+    "ase/lattice/*.py",
+    "ase/md/*.py",
+    "ase/mep/*.py",
+    "ase/optimize/*.py",
+    "ase/spacegroup/*.py",
+    "ase/spectrum/*.py",
+    "ase/test/*.py",
+    "ase/transport/*.py",
+    "ase/vibrations/*.py",
+    "ase/visualize/*.py",
+    "ase/*.py",
+    "ase/utils/[!p]*.py",
+    "ase/utils/parsematch.py",
+    "ase/utils/plugins.py",
+    "ase/utils/plotting.py",
+    "ase/io/*/*.py",
+    "ase/io/[!a]*.py""
+    "ase/io/abinit*.py",
+    "ase/io/aff*.py",
+    "ase/io/amimation*.py"
+]
 
 [tool.ruff.lint]
 preview = true  # necessary to activate many pycodestyle rules
