@@ -11,7 +11,7 @@ from ase.utils import IOContext
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import IO, Union
+    from typing import Any, IO, Union
 
     from ase.atoms import Atoms
     from ase.optimize.optimize import Dynamics
@@ -60,7 +60,7 @@ class MDLogger(IOContext):
         peratom: bool = False,
         mode: str = 'a',
         header: bool = True,
-        comm: object = world,
+        comm: Any = world,
     ) -> None:
         """
         Initialize the molecular dynamics logger.
