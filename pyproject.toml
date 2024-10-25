@@ -109,16 +109,21 @@ exclude = [
     "ase/transport/*.py",
     "ase/vibrations/*.py",
     "ase/visualize/*.py",
-    "ase/*.py",
+    "ase/[!ui]*.py",
     "ase/utils/[!p]*.py",
-    "ase/utils/parsematch.py",
+    "ase/utils/parsemath.py",
     "ase/utils/plugins.py",
     "ase/utils/plotting.py",
     "ase/io/*/*.py",
-    "ase/io/[!a]*.py""
-    "ase/io/abinit*.py",
-    "ase/io/aff*.py",
-    "ase/io/amimation*.py"
+    "ase/io/[!a]*.py",
+    "ase/io/abinit.py",
+    "ase/io/acemolecule.py",
+    "ase/io/aff.py",
+    "ase/io/amber.py",
+    "ase/io/animation.py",
+    "ase/units.py",
+    "doc/*py",
+    "doc/**/*py",
 ]
 
 [tool.ruff.lint]
