@@ -138,19 +138,20 @@ def bandgap(calc=None, direct=False, spin=_deprecated,
             efermi = calc.get_fermi_level()
 
     efermi = efermi or 0.0
+    eigdim = eigenvalues.ndim
+    if eigdim == 2:
+        eigenvalues = eigenvalues[np.newaxis]  # spinors
 
     gapinfo = GapInfo(eigenvalues - efermi)
 
     e_skn = gapinfo.eigenvalues
-    if eigenvalues.ndim == 2:
-        e_skn = e_skn[np.newaxis]  # spinors
 
     if not np.isfinite(e_skn).all():
         raise ValueError('Bad eigenvalues!')
 
     gap, (s1, k1, n1), (s2, k2, n2) = _bandgap(e_skn, direct)
 
-    if eigenvalues.ndim != 3:
+    if eigdim == 2:
         p1 = (k1, n1)
         p2 = (k2, n2)
     else:
