@@ -5,7 +5,7 @@ from __future__ import annotations
 import weakref
 from typing import TYPE_CHECKING
 
-import ase.units as units
+from ase import units
 from ase.parallel import world
 from ase.utils import IOContext
 
@@ -180,15 +180,14 @@ class MDLogger(IOContext):
             ]
         )
 
-        if self.has_extra_fields:
-            format_parts.extend(['%10.3f'] * len(self.dyn.extra_fields))
-
         # Stress format if enabled
         if self.stress:
             format_parts.extend(['%10.3f'] * 6)
 
-        format_parts.append('\n')
-        return ' '.join(format_parts)
+        if self.has_extra_fields:
+            format_parts.extend(['%10.3f'] * len(self.dyn.extra_fields))
+
+        return ' '.join(format_parts) + '\n'
 
     def __call__(self) -> None:
         """
