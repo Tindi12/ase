@@ -6,7 +6,7 @@ import numpy as np
 from ase import Atoms
 from ase.geometry import cell_to_cellpar
 from ase.optimize import BFGS
-from ase.optimize.optimize import Dynamics
+from ase.runner import Runner
 from ase.units import GPa
 
 

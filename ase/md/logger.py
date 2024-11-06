@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-import weakref
+import time
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 from ase import units
 from ase.parallel import world
@@ -11,13 +13,13 @@ from ase.utils import IOContext
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import IO, Any, Union
+    from typing import IO, Any, Callable, Union
 
-    from ase.atoms import Atoms
-    from ase.optimize.optimize import Dynamics
+    from ase.md.md import MolecularDynamics
+    from ase.optimize.optimize import Optimizer
 
 
-class MDLogger(IOContext):
+class Logger(IOContext):
     r"""
     A logger for molecular dynamics simulations
     that tracks energy and temperature.
@@ -53,13 +55,8 @@ class MDLogger(IOContext):
 
     def __init__(
         self,
-        dyn: Dynamics,
-        atoms: Atoms,
         logfile: Union[IO, str, Path],
-        stress: bool = False,
-        peratom: bool = False,
         mode: str = 'a',
-        header: bool = True,
         comm: Any = world,
     ) -> None:
         """
@@ -86,22 +83,12 @@ class MDLogger(IOContext):
         comm
             MPI communicator for parallel simulations. Default: world.
         """
-        self.dyn = weakref.proxy(dyn) if hasattr(dyn, 'get_time') else None
 
-        self.atoms = atoms
         self.logfile = self.openfile(logfile, mode=mode, comm=comm)
-        self.stress = stress
-        self.peratom = peratom
+        self.fields = {}
 
-        self.has_extra_fields = (
-            True if hasattr(self.dyn, 'extra_fields') else False
-        )
-
-        self.header_format = self._create_header_format()
-        self.data_format = self._create_data_format()
-
-        if header:
-            self.logfile.write(f'{self.header_format}\n')
+        self.names = []
+        self.formats = []
 
     def _create_header_format(self) -> str:
         """
@@ -112,82 +99,10 @@ class MDLogger(IOContext):
         str
             Formatted header string.
         """
-        header_parts = []
-
-        # Time column if dynamics is available
-        if self.dyn is not None:
-            header_parts.append('%-9s ' % 'Time[ps]')
-
-        # Energy columns
-        energy_suffix = '/N' if self.peratom else ''
-        header_parts.extend(
-            [
-                f"{f'Etot{energy_suffix}[eV]':>12}",
-                f"{f'Epot{energy_suffix}[eV]':>12}",
-                f"{f'Ekin{energy_suffix}[eV]':>12}",
-                f"{'T[K]':>8}",
-            ]
+        return ' '.join(
+            f'{name:{fmt}}'
+            for name, fmt in zip(self.names, self.string_formats)
         )
-
-        if self.has_extra_fields:
-            header_parts.extend(
-                [f"{f'{field}':>10}" for field in self.dyn.extra_fields]
-            )
-
-        # Stress columns if enabled
-        if self.stress:
-            header_parts.append(
-                '      ----------------------'
-                ' stress[GPa] -----------------------'
-            )
-
-        return ' '.join(header_parts)
-
-    def _create_data_format(self) -> str:
-        """
-        Create the data format string based on configured options.
-
-        Returns
-        -------
-        str
-            Format string for data entries.
-        """
-        format_parts = []
-
-        # Time format if dynamics is available
-        if self.dyn is not None:
-            format_parts.append('%-10.4f')
-
-        natoms = self.atoms.get_global_number_of_atoms()
-
-        # Energy format
-        digits = 4
-        if not self.peratom:
-            if natoms > 100:
-                digits = 3
-            if natoms > 1000:
-                digits = 2
-            if natoms > 10000:
-                digits = 1
-
-        # Energy and temperature columns
-        format_parts.extend(
-            [
-                f'%12.{digits}f',  # Etot
-                f'%12.{digits}f',  # Epot
-                f'%12.{digits}f',  # Ekin
-                '%8.1f',  # Temperature
-            ]
-        )
-
-        # Stress format if enabled
-        if self.stress:
-            format_parts.extend(['%10.3f'] * 6)
-
-        if self.has_extra_fields:
-            format_parts.extend(['%10.3f'] * len(self.dyn.extra_fields))
-
-        return ' '.join(format_parts) + '\n'
 
     def __call__(self) -> None:
         """
@@ -196,41 +111,75 @@ class MDLogger(IOContext):
         Writes a new line to the log file containing the current values
         of all configured fields (time, energies, temperature, stress).
         """
-        epot = self.atoms.get_potential_energy()
-        ekin = self.atoms.get_kinetic_energy()
-        temp = self.atoms.get_temperature()
+        values = [field[0]() for field in self.fields.values()]
 
-        natoms = self.atoms.get_global_number_of_atoms()
-
-        if self.peratom:
-            epot /= natoms
-            ekin /= natoms
-
-        log_data = []
-
-        # Add time if dynamics is available
-        if self.dyn is not None:
-            time_ps = self.dyn.get_time() / (1000 * units.fs)
-            log_data.append(time_ps)
-
-        # Add energy and temperature data
-        to_write = [epot + ekin, epot, ekin, temp]
-
-        if self.has_extra_fields:
-            to_write.extend(self.dyn.extra_fields.values())
-
-        log_data.extend(to_write)
-
-        # Add stress data if enabled
-        if self.stress:
-            stress_values = (
-                self.atoms.get_stress(include_ideal_gas=True) / units.GPa
-            )
-            log_data.extend(stress_values)
-
-        self.logfile.write(self.data_format % tuple(log_data))
+        self.logfile.write(
+            ' '.join(f'{val:{fmt}}' for val, fmt in zip(values, self.formats))
+            + '\n'
+        )
         self.logfile.flush()
 
     def __del__(self) -> None:
         """Clean up by closing the log file."""
         self.close()
+
+    def add_fields(
+        self, names: str, callables: Callable, formats: str = '10.3f'
+    ) -> None:
+        """
+        Add a custom field to the logger.
+
+        Parameters
+        ----------
+        names
+            Name of the field to add.
+        callables
+            Callable object that returns the value of the field.
+        formats
+            Format string for the field value. Default: "10.3f".
+        """
+
+        if type(names) is not list:
+            names = [names]
+        if type(callables) is not list:
+            callables = [callables]
+        if type(formats) is not list:
+            formats = [formats]
+
+        for name, f, fmt in zip(names, callables, formats):
+            self.fields[name] = (f, fmt)
+
+        self.names = list(self.fields.keys())
+        self.formats = [field[1] for field in self.fields.values()]
+        self.string_formats = [
+            '>' + fmt.split('.')[0] + 's' for fmt in self.formats
+        ]
+
+    def add_md_fields(self, dyn: MolecularDynamics) -> None:
+        names = ['Time[ps]', 'Etot[eV]', 'Epot[eV]', 'Ekin[eV]', 'T[K]']
+        callables = [
+            lambda: dyn.nsteps / (1000 * units.fs),
+            lambda: dyn.atoms.get_total_energy(),
+            lambda: dyn.atoms.get_potential_energy(),
+            lambda: dyn.atoms.get_kinetic_energy(),
+            lambda: dyn.atoms.get_temperature(),
+        ]
+        formats = ['12.4f'] * 4 + ['10.2f']
+
+        self.add_fields(names, callables, formats)
+
+    def add_opt_fields(self, opt: Optimizer) -> None:
+        names = ['Optimizer', 'Step', 'Time', 'Epot[eV]', 'Fmax[eV/A]']
+        callables = [
+            lambda: opt.__class__.__name__,
+            lambda: opt.nsteps,
+            lambda: time.localtime(),
+            lambda: opt.optimizable.get_potential_energy(),
+            lambda: np.linalg.norm(opt.optimizable.get_forces(), axis=1).max(),
+        ]
+        formats = ['10.3f'] * 5
+        self.add_fields(names, callables, formats)
+
+    def write_header(self) -> None:
+        """Write the header line to the log file."""
+        self.logfile.write(f'{self._create_header_format()}\n')

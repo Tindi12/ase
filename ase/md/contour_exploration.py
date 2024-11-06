@@ -3,7 +3,7 @@ from typing import IO, Optional, Union
 import numpy as np
 
 from ase import Atoms
-from ase.optimize.optimize import Dynamics
+from ase.runner import Runner
 
 
 def subtract_projection(a, b):

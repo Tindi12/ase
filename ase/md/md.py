@@ -5,8 +5,8 @@ from typing import IO, Optional, Union
 import numpy as np
 
 from ase import Atoms, units
-from ase.md.logger import MDLogger
-from ase.optimize.optimize import Dynamics
+from ase.md.logger import Logger
+from ase.runner import Runner
 
 
 def process_temperature(
@@ -42,8 +42,10 @@ def process_temperature(
     Return value: Temperature in Kelvin.
     """
     if (temperature is not None) + (temperature_K is not None) != 1:
-        raise TypeError("Exactly one of the parameters 'temperature',"
-                        + " and 'temperature_K', must be given")
+        raise TypeError(
+            "Exactly one of the parameters 'temperature',"
+            + " and 'temperature_K', must be given"
+        )
     if temperature is not None:
         w = "Specify the temperature in K using the 'temperature_K' argument"
         if orig_unit == 'K':
@@ -52,13 +54,13 @@ def process_temperature(
             warnings.warn(FutureWarning(w))
             return temperature / units.kB
         else:
-            raise ValueError("Unknown temperature unit " + orig_unit)
+            raise ValueError('Unknown temperature unit ' + orig_unit)
 
     assert temperature_K is not None
     return temperature_K
 
 
-class MolecularDynamics(Dynamics):
+class MolecularDynamics(Runner):
     """Base-class for all MD classes."""
 
     def __init__(
@@ -100,7 +102,6 @@ class MolecularDynamics(Dynamics):
 
         super().__init__(
             atoms,
-            logfile=None,
             trajectory=trajectory,
             loginterval=loginterval,
             **kwargs,
@@ -119,9 +120,11 @@ class MolecularDynamics(Dynamics):
         self.masses = self.atoms.get_masses()
 
         if 0 in self.masses:
-            warnings.warn('Zero mass encountered in atoms; this will '
-                          'likely lead to errors if the massless atoms '
-                          'are unconstrained.')
+            warnings.warn(
+                'Zero mass encountered in atoms; this will '
+                'likely lead to errors if the massless atoms '
+                'are unconstrained.'
+            )
 
         self.masses.shape = (-1, 1)
 
@@ -129,14 +132,18 @@ class MolecularDynamics(Dynamics):
             self.atoms.set_momenta(np.zeros([len(self.atoms), 3]))
 
         if logfile:
-            logger = self.closelater(
-                MDLogger(dyn=self, atoms=atoms, logfile=logfile))
-            self.attach(logger, loginterval)
+            self.logger = Logger(logfile)
+            self.logger.add_md_fields(self)
+            self.attach(self.closelater(self.logger), loginterval)
+        else:
+            self.logger = None
 
     def todict(self):
-        return {'type': 'molecular-dynamics',
-                'md-type': self.__class__.__name__,
-                'timestep': self.dt}
+        return {
+            'type': 'molecular-dynamics',
+            'md-type': self.__class__.__name__,
+            'timestep': self.dt,
+        }
 
     def irun(self, steps=50):
         """Run molecular dynamics algorithm as a generator.
@@ -151,7 +158,10 @@ class MolecularDynamics(Dynamics):
         converged : bool
             True if the maximum number of steps are reached.
         """
-        return Dynamics.irun(self, steps=steps)
+        if self.logger:
+            self.logger.write_header()
+
+        return Runner.irun(self, steps=steps)
 
     def run(self, steps=50):
         """Run molecular dynamics algorithm.
@@ -166,13 +176,16 @@ class MolecularDynamics(Dynamics):
         converged : bool
             True if the maximum number of steps are reached.
         """
-        return Dynamics.run(self, steps=steps)
+        if self.logger:
+            self.logger.write_header()
+
+        return Runner.run(self, steps=steps)
 
     def get_time(self):
         return self.nsteps * self.dt
 
     def converged(self):
-        """ MD is 'converged' when number of maximum steps is reached. """
+        """MD is 'converged' when number of maximum steps is reached."""
         return self.nsteps >= self.max_steps
 
     def _get_com_velocity(self, velocity):

@@ -5,7 +5,7 @@ import numpy as np
 from ase import Atoms, units
 from ase.io.trajectory import Trajectory
 from ase.optimize.fire import FIRE
-from ase.optimize.optimize import Dynamics, Optimizer
+from ase.runner import Runner, Optimizer
 from ase.parallel import world
 
 
