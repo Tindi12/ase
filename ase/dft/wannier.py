@@ -720,10 +720,6 @@ class Wannier:
         C_kul = wannier_state.C_kul.copy()
         for k in range(self.Nk):
             C_ul = C_kul[k]
-            l1 = self.edf_below_k[k]
-            u1 = self.fixedstates_km[k].start
-            C_ul[:u1, l1:] = 0
-            C_ul[u1:, :l1] = 0
             gram_schmidt(C_ul)
             C_kul[k] = C_ul
         wannier_state.C_kul = C_kul
@@ -1140,7 +1136,52 @@ class Wannier:
             fun = np.sum(a_w) - self.nwannier * np.var(a_w)
             self.log(f'std: {np.sum(a_w):.4f}',
                      f'\tvar: {self.nwannier * np.var(a_w):.4f}')
+        fun = fun - self.projector_cost_function()
         return fun
+
+    def get_edf_projector(self, ks=None):
+        """
+        Project EDF into lower edf subspace (U1)
+        """
+
+        # dimension of space U1 is equal to the index of the first fixed
+        # state. This index we can find using argmin (tho it is a little hacky)
+        if ks is None:
+            ks = np.arange(self.Nk)
+        Nk = len(ks)
+        dim_u1_k = np.argmin(self.nonfixed_kn[ks], axis=1)
+        P_knn = np.zeros((Nk, self.nbands, self.nbands))
+        for k in range(Nk):
+            P_n = np.zeros(self.nbands)
+            dim_u1 = dim_u1_k[k]
+            P_n[:dim_u1] = 1
+            P_knn[k] = np.diag(P_n)
+        return P_knn
+
+    def get_wan_edf_projector(self, ks=None):
+        if ks is None:
+            ks = np.arange(self.Nk)
+        P_knn = self.get_edf_projector(ks)
+        V_knw = self.V_knw[ks]
+        P_kww = V_knw.conj().transpose(0, 2, 1) @ P_knn @ V_knw
+        return P_kww
+
+    def projector_cost_function(self):
+        P_kww = self.get_wan_edf_projector()
+        return np.sum(P_kww - P_kww @ P_kww, axis=0).trace()  # / self.Nk
+
+    def projector_cost_function_gradient(self, k):
+        # ik : k index
+        P_nn = self.get_edf_projector(ks=[k])[0]
+        c_ul = self.C_kul[k]
+        C_nw = np.zeros((self.nbands, self.nwannier), dtype=complex)
+        M = self.fixedstates_k[k]
+        fixed_m = self.fixedstates_km[k]
+        nonfixed_n = self.nonfixed_kn[k]
+        C_nw[fixed_m, :M] = np.eye(M)
+        C_nw[nonfixed_n, M:] = c_ul
+        grad_nw = P_nn @ C_nw - 2 * P_nn @ C_nw @ dag(C_nw) @ P_nn @ C_nw
+        return grad_nw  # / self.Nk
 
     def get_gradients(self):
         # Determine gradient of the spread functional.
@@ -1244,12 +1285,10 @@ class Wannier:
                 # lower-right (Nb-M) x L block
                 nonfixed_n = self.nonfixed_kn[k]
                 Ctemp_ul = Ctemp_nw[nonfixed_n, M:]
-                # make sure that edf below and above the fixed energy window
-                # don't mix
-                U1 = np.argmax(~nonfixed_n)  # find index of first fixed band
-                L1 = self.edf_below_k[k]  # number of wfs below energy window
-                Ctemp_ul[:U1, L1:] = 0
-                Ctemp_ul[U1:, :L1] = 0
+
+                projector_grad_nw = self.projector_cost_function_gradient(k)
+                projector_grad_ul = projector_grad_nw[nonfixed_n, M:]
+                Ctemp_ul = Ctemp_ul - projector_grad_ul
                 G_ul = Ctemp_ul - ((C_ul @ dag(C_ul)) @ Ctemp_ul)
                 dC.append(G_ul.ravel())
 
