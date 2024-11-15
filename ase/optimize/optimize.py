@@ -1,14 +1,14 @@
 """Structure optimization. """
-import time
+
 import warnings
 from collections.abc import Callable
-from math import sqrt
 from os.path import isfile
 from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 from ase import Atoms
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.filters import UnitCellFilter
+from ase.io.logger import Logger
 from ase.parallel import world
 from ase.utils import IOContext, lazyproperty
 from ase.utils.abc import Optimizable
@@ -114,7 +114,6 @@ class Dynamics(IOContext):
         """
         self.atoms = atoms
         self.optimizable = atoms.__ase_optimizable__()
-        self.logfile = self.openfile(file=logfile, comm=comm, mode='a')
         self.observers: List[Tuple[Callable, int, Tuple, Dict[str, Any]]] = []
         self.nsteps = 0
         self.max_steps = 0  # to be updated in run or irun
@@ -134,6 +133,14 @@ class Dynamics(IOContext):
             )
 
         self.trajectory = trajectory
+
+        if logfile:
+            self.default_logger = Logger(logfile)
+            self.attach(self.closelater(self.default_logger), loginterval)
+        else:
+            self.default_logger = None
+
+        #self.logfile = self.openfile(file=logfile, comm=comm, mode='a')
 
     def todict(self) -> Dict[str, Any]:
         raise NotImplementedError
@@ -235,6 +242,9 @@ class Dynamics(IOContext):
         # log the initial step
         if self.nsteps == 0:
             self.log()
+
+            if self.default_logger:
+                self.default_logger.write_header()
 
             # we write a trajectory file if it is None
             if self.trajectory is None:
@@ -359,6 +369,9 @@ class Optimizer(Dynamics):
             self.read()
             self.comm.barrier()
 
+        if self.default_logger:
+            self.default_logger.add_opt_fields(self)
+
     def read(self):
         raise NotImplementedError
 
@@ -418,24 +431,6 @@ class Optimizer(Dynamics):
         if forces is None:
             forces = self.optimizable.get_forces()
         return self.optimizable.converged(forces, self.fmax)
-
-    def log(self, forces=None):
-        if forces is None:
-            forces = self.optimizable.get_forces()
-        fmax = sqrt((forces ** 2).sum(axis=1).max())
-        e = self.optimizable.get_potential_energy()
-        T = time.localtime()
-        if self.logfile is not None:
-            name = self.__class__.__name__
-            if self.nsteps == 0:
-                args = (" " * len(name), "Step", "Time", "Energy", "fmax")
-                msg = "%s  %4s %8s %15s  %12s\n" % args
-                self.logfile.write(msg)
-
-            args = (name, self.nsteps, T[3], T[4], T[5], e, fmax)
-            msg = "%s:  %3d %02d:%02d:%02d %15.6f %15.6f\n" % args
-            self.logfile.write(msg)
-            self.logfile.flush()
 
     def dump(self, data):
         from ase.io.jsonio import write_json

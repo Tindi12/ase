@@ -1,5 +1,6 @@
 from ase.io.bundletrajectory import BundleTrajectory
 from ase.io.formats import iread, read, string2index, write
+from ase.io.logger import Logger
 from ase.io.netcdftrajectory import NetCDFTrajectory
 from ase.io.trajectory import PickleTrajectory, Trajectory
 
@@ -9,6 +10,7 @@ class ParseError(Exception):
 
 
 __all__ = [
-    'Trajectory', 'PickleTrajectory', 'BundleTrajectory', 'NetCDFTrajectory',
+    'Trajectory', 'Logger', 'PickleTrajectory',
+    'BundleTrajectory', 'NetCDFTrajectory',
     'read', 'iread', 'write', 'string2index'
 ]

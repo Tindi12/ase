@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import IO, Any, Callable, Union
 
+    from ase import Atoms
     from ase.md.md import MolecularDynamics
     from ase.optimize.optimize import Optimizer
 
@@ -22,21 +23,21 @@ if TYPE_CHECKING:
 class Logger(IOContext):
     """
     A general purpose logger for atomistic simulations, if created manually,
-    the :meth:`add_fields` method must be called to configure the fields to log.
+    the :meth:`add_field` method must be called to configure the fields to log.
 
     Callable required for each field should return the value to log. These can
     be easily created with lambda functions that return the desired value.
     For example, to log the current energy of an ASE atoms object, use:
 
     ``` python
-    logger.add_fields("Epot[eV]", lambda: atoms.get_potential_energy())
+    logger.add_field("Epot[eV]", lambda: atoms.get_potential_energy())
     ```
 
     The logger can also be configured using convenience methods, such as
     :meth:`add_md_fields` and :meth:`add_opt_fields`, which add commonly used
     fields for molecular dynamics and ASE optimizers, respectively. This will
     be done automatically by the :class:`MolecularDynamics` and
-    :class:`Optimizer` classes.
+    :class:`Optimizer` classes if `logfile` is passed to their constructors.
 
     Parameters
     ----------
@@ -54,11 +55,7 @@ class Logger(IOContext):
         The opened log file object.
     fields
         Dictionary of fields to log. Fields can be added with the
-        :meth:`~Logger.add_fields` method.
-    names
-        List of field names.
-    formats
-        List of field formats.
+        :meth:`~Logger.add_field` method.
     """
 
     def __init__(
@@ -69,7 +66,6 @@ class Logger(IOContext):
     ) -> None:
         """Initialize the molecular dynamics logger."""
         self.fields = {}
-        self.names, self.formats = [], []
         self.logfile = self.openfile(logfile, mode=mode, comm=comm)
 
     def __call__(self) -> None:
@@ -79,12 +75,20 @@ class Logger(IOContext):
         Writes a new line to the log file containing the current values
         of all configured fields (time, energies, temperature, stress).
         """
-        values = [field[0]() for field in self.fields.values()]
+        to_write = []
 
-        self.logfile.write(
-            ' '.join(f'{val:{fmt}}' for val, fmt in zip(values, self.formats))
-            + '\n'
-        )
+        for key in self.fields:
+            value = key()
+            format_ = self.fields[key][1]
+
+            if isinstance(value, (list, tuple, np.ndarray)):
+                to_write.extend(
+                    [f'{val:{fmt}}' for val, fmt in zip(value, format_)]
+                )
+            else:
+                to_write.append(f'{value:{format_}}')
+
+        self.logfile.write(' '.join(to_write) + '\n')
         self.logfile.flush()
 
     def __del__(self) -> None:
@@ -100,53 +104,59 @@ class Logger(IOContext):
         str
             Formatted header string.
         """
-        return ' '.join(
-            f'{name:{fmt}}'
-            for name, fmt in zip(self.names, self.string_formats)
-        )
+        names = [field[0] for field in self.fields.values()]
+        formats = [field[1] for field in self.fields.values()]
 
-    def add_fields(
-        self, names: str, callables: Callable, formats: str = '10.3f'
+        to_write = []
+
+        for name, fmt in zip(names, formats):
+            if isinstance(fmt, (list, tuple, np.ndarray)) and isinstance(
+                name, (list, tuple, np.ndarray)
+            ):
+                to_write.extend(
+                    [
+                        f'{n:{get_auto_header_format(f)}}'
+                        for n, f in zip(name, fmt)
+                    ]
+                )
+            else:
+                to_write.append(f'{name:{get_auto_header_format(fmt)}}')
+
+        return ' '.join(to_write)
+
+    def add_field(
+        self,
+        name: str,
+        function: Callable,
+        fmt: str = '10.3f',
     ) -> None:
         """
-        Add one or multiple field(s) to the logger, which track value(s) that
-        change during the simulation.
+        Add one field to the logger, which track a value that
+        change during the simulation. The callable can return a list of values
+        to log multiple values in a single field. In this case, the format
+        and name should be lists of the same length.
 
         Parameters
         ----------
         names
-            Name of the field(s) to add.
+            Name of the field to add.
         callables
-            Callable object(s) returning the value of the field(s).
+            Callable object returning the value of the field.
         formats
-            Format string(s) for field value(s).
+            Format string for field value.
 
         Examples
         --------
         ``` python
-        logger.add_fields("Epot[eV]", lambda: atoms.get_potential_energy())
-        logger.add_fields(
+        logger.add_field("Epot[eV]", lambda: atoms.get_potential_energy())
+        logger.add_field(
             ["Class", "Step"],
             [lambda: simulation.__class__.__name__, lambda: simulation.nsteps],
             [">12s", ">12d"],
         )
         ```
         """
-        if type(names) is not list:
-            names = [names]
-        if type(callables) is not list:
-            callables = [callables]
-        if type(formats) is not list:
-            formats = [formats]
-
-        for name, f, fmt in zip(names, callables, formats):
-            self.fields[name] = (f, fmt)
-
-        self.names = list(self.fields.keys())
-        self.formats = [field[1] for field in self.fields.values()]
-        self.string_formats = [
-            get_auto_header_format(fmt) for fmt in self.formats
-        ]
+        self.fields[function] = (name, fmt)
 
     def add_md_fields(self, dyn: MolecularDynamics) -> None:
         """
@@ -162,7 +172,7 @@ class Logger(IOContext):
         Parameters
         ----------
         dyn
-            The `MolecularDynamics` object.
+            The :class:~ase.md.md.MolecularDynamics` object.
         """
         names = ['Time[ps]', 'Etot[eV]', 'Epot[eV]', 'Ekin[eV]', 'T[K]']
         callables = [
@@ -174,7 +184,8 @@ class Logger(IOContext):
         ]
         formats = ['<12.4f'] + ['>12.4f'] * 3 + ['>10.2f']
 
-        self.add_fields(names, callables, formats)
+        for name, func, fmt in zip(names, callables, formats):
+            self.add_field(name, func, fmt)
 
     def add_opt_fields(self, opt: Optimizer) -> None:
         """
@@ -202,7 +213,61 @@ class Logger(IOContext):
         ]
 
         formats = ['<20s'] + ['>6d'] + ['>12s'] + ['>12.4f'] * 2
-        self.add_fields(names, callables, formats)
+
+        for name, func, fmt in zip(names, callables, formats):
+            self.add_field(name, func, fmt)
+
+    def add_stress_fields(
+        self,
+        atoms: Atoms,
+        include_ideal_gas: bool = True,
+        mask: list[bool] = None,
+    ) -> None:
+        """
+        Add the stress fields to the logger.
+
+        Parameters
+        ----------
+        atoms
+            The ASE atoms object.
+        include_ideal_gas
+            Whether to include the ideal gas contribution to the stress.
+        """
+        if mask is None:
+            mask = [True] * 6
+
+        def log_stress():
+            stress = atoms.get_stress(include_ideal_gas=include_ideal_gas)
+            stress = tuple(stress / units.GPa)
+            return np.array([s for n, s in enumerate(stress) if mask[n]])
+
+        components = ['xx', 'yy', 'zz', 'yz', 'xz', 'xy']
+
+        names = [
+            f'{component}Stress[GPa]'
+            for n, component in enumerate(components)
+            if mask[n]
+        ]
+
+        format_ = ['>14.3f'] * sum(mask)
+
+        self.add_field(names, log_stress, format_)
+
+    def remove_fields(self, name: str) -> None:
+        """
+        Remove one or multiple field(s) from the logger. Work by finding
+        partial matches of the field name(s) in the current fields. List fields
+        count as a single field, i.e., if a match is found in a list field, the
+        whole list field is removed
+
+        Parameters
+        ----------
+        name
+            Name of the field to remove.
+        """
+        for func, (field_name, _) in list(self.fields.items()):
+            if name in field_name:
+                self.fields.pop(func, None)
 
     def write_header(self) -> None:
         """Write the header line to the log file."""

@@ -67,6 +67,14 @@ class Bussi(MolecularDynamics):
 
         self.transferred_energy = 0.0
 
+        if self.default_logger:
+            self.default_logger.add_field(
+                'Econs[eV]',
+                lambda: self.atoms.get_total_energy() -
+                self.transferred_energy,
+                '>12.4f',
+            )
+
     def scale_velocities(self):
         """Do the NVT Bussi stochastic velocity scaling."""
         kinetic_energy = self.atoms.get_kinetic_energy()

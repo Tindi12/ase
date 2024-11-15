@@ -4,13 +4,14 @@ from typing import IO, Any, Union
 
 from ase import Atoms, units
 from ase.parallel import world
-from ase.utils import IOContext
+from ase.utils import IOContext, deprecated
 
 
 class MDLogger(IOContext):
     """Class for logging molecular dynamics simulations.
 
-    Parameters:
+    Parameters
+    ----------
     dyn:           The dynamics.  Only a weak reference is kept.
 
     atoms:         The atoms.
@@ -24,6 +25,9 @@ class MDLogger(IOContext):
     mode="a":      How the file is opened if logfile is a filename.
     """
 
+    @deprecated(
+        "Please use the Logger class from ase.io.logger instead of MDLogger."
+    )
     def __init__(
         self,
         dyn: Any,  # not fully annotated so far to avoid a circular import
