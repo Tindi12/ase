@@ -1,15 +1,12 @@
 """ This module registers all built-in viewer. """
-
 import sys
 
-from ..register import register_viewer
 
+def ase_register(plugin):
 
-def F(*args, **kwargs):
-    register_viewer(*args, **kwargs, external=False)
+    def F(*args, **kwargs):
+        plugin.register_viewer(*args, **kwargs, external=False)
 
-
-def ase_register():
     F("ase", "View atoms using ase gui.")
     F("ngl", "View atoms using nglview.")
     F("mlab", "View atoms using matplotlib.")

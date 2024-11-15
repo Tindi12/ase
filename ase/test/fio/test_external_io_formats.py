@@ -4,13 +4,14 @@ outside of the ase package
 """
 import copy
 import io
+import sys
 from importlib.metadata import EntryPoint
 
 import pytest
 
 from ase.build import bulk
 from ase.io import formats, read, write
-from ase.plugins.registering.external import define_external_io_format
+from ase.plugins import plugins
 from ase.utils.plugins import ExternalIOFormat
 
 
@@ -38,6 +39,25 @@ def read_dummy(file):
 
 def write_dummy(file, atoms):
     file.write("dummy output")
+
+
+plugin = None
+
+
+def define_external_io_format(entry_point):
+    global plugin
+    if not plugin:
+        plugin = plugins.create_plugin(sys.modules[__name__])
+
+    fmt = entry_point.load()
+    # if entry_point.name in ioformats:
+    #    raise ValueError(f'Format {entry_point.name} already defined')
+    if not isinstance(fmt, ExternalIOFormat):
+        raise TypeError('Wrong type for registering external IO formats '
+                        f'in format {entry_point.name}, expected '
+                        'ExternalIOFormat')
+    plugin.register_io_format(name=entry_point.name, **fmt._asdict(),
+                         external=True)
 
 
 def test_external_ioformat_valid(tmp_path):

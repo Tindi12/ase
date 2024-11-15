@@ -1,11 +1,21 @@
 """ This module registers all built-in io-formats. """
 
-from ..register import define_to_register, register_io_format
 
-F = define_to_register(register_io_format)
+def ase_register(plugin):
 
+    def define_to_register(fce):
+        """ Old registering (define_...) function have its own order
+        of parameters.
+        Not to rewrite the whole list, this function maps from the old
+        to the new order of parameters. """
 
-def ase_register():
+        def register(name, *args, module=None, external=False, **kwargs):
+            return fce(module, *args, name=name, external=external, **kwargs)
+
+        return register
+
+    F = define_to_register(plugin.register_io_format)
+
     # We define all the IO formats below.  Each IO format has a code,
     # such as '1F', which defines some of the format's properties:
     #

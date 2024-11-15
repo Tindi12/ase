@@ -46,45 +46,13 @@ To register a plugin, see a docstring of
 """
 
 import warnings
-from contextlib import contextmanager
+from typing import List, Optional, Tuple, Union
+
+import numpy as np
 
 from ase.utils import lazyproperty
 
 from .listing import Listing
-
-_current_plugin = None
-
-
-@contextmanager
-def within_the_plugin(plugin):
-    """ When a plugin register() function is called,
-    the registered plugin would have to say which plugin
-    am I.
-    This can lead to errors, so importing of the plugin
-    is enclosed by this helper, due to the
-    :func:get_currently_registered_plugin
-    can say, which plugin is currently imported.
-    """
-
-    global _current_plugin
-    ocp = _current_plugin
-    _current_plugin = plugin
-    yield
-    _current_plugin = ocp
-
-
-def get_currently_registered_plugin():
-    """
-    Which plugin is imported and so to which plugin
-    belongs currently imported Pluggables
-
-    See the :func:within_the_plugin
-    """
-    plugin = _current_plugin
-    if not plugin:
-        import ase.plugins as ase_plugins
-        plugin = ase_plugins.plugins['external']
-    return plugin
 
 
 class Plugins(Listing):
@@ -167,8 +135,7 @@ class Plugin:
         if not self.registered:
             try:
                 if hasattr(self.package, 'ase_register'):
-                    with within_the_plugin(self):
-                        self.package.ase_register()
+                    self.package.ase_register(self)
             except Exception as e:
                 self.broken = True
                 warnings.warn(f"Can not register plugin {self} because of {e}")
@@ -196,3 +163,69 @@ class Plugin:
 
     def __repr__(self):
         return f"<ASE plugin: {self.package}>"
+
+    def _register_pluggable(self, pluggable_type: str, cls: str, name=None):
+        """ Register a calculator or other pluggable exposed by a plugin.
+        The name can be derived from the cls name
+
+        Parameters
+        ----------
+        pluggable_type
+          Which to register. E.g. 'calculators', 'io_formats' and so on.
+          However, io_formats have its old routine to register, so they
+          do not use this mechanism.
+
+        cls: str
+          Which class implements the pluggable (e.g.
+          ``ase.plugins.emt.EMTCalculator``)
+          The class goes by its name only to avoid importing too myuch stuff.
+        """
+        if not name:
+            name = cls.rsplit(".", 1)[-1]
+        p_cls = self.plugins.pluggables_of(pluggable_type).item_type
+        pluggable = p_cls(pluggable_type, name, cls)
+        pluggable.register(self)
+
+    def register_calculator(self, cls: str, name=None):
+        """ Register a calculator exposed by a plugin.
+        The name can be derived from the cls name
+        """
+        self._register_pluggable('calculators', cls, name)
+
+    def register_io_format(self, module, desc, code, *, name=None, ext=None,
+                           glob=None, magic=None, encoding=None,
+                           magic_regex=None, external=True,
+                           allowed_pbc: Optional[List[
+                               Union[str, bytes, np.ndarray, List, Tuple]
+                           ]] = None):
+        """ Use this method to define and register an input/output format,
+        instead of old :func:`ioformats.define_io_format`.
+        The order of parameters is however slightly different here,
+        to be as much as possible similiar to the :func:`register_calculator`
+
+        If not external is set, define_io_format add ase.io to the module.
+        """
+        if not name:
+            name = module.rsplit(".", 1)[-1]
+        fmt = formats.define_io_format(name, desc, code,
+                                       module=module,
+                                       ext=ext,
+                                       glob=glob,
+                                       magic=magic,
+                                       encoding=encoding,
+                                       magic_regex=magic_regex,
+                                       external=external,
+                                       allowed_pbc=allowed_pbc
+                                       )
+        fmt.register(self)
+
+    def register_viewer(self, name, desc, *, module=None, cli=False, fmt=None,
+                        argv=None, external=True):
+        """ Register a new viewer """
+        viewer = viewers.define_viewer(name, desc, module=module, cli=cli,
+                                     fmt=fmt, argv=argv, external=external)
+        viewer.register(self)
+
+
+import ase.io.formats as formats  # NOQA
+import ase.visualize.viewers as viewers        # NOQA

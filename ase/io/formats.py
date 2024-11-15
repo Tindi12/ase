@@ -40,7 +40,6 @@ from ase.atoms import Atoms
 from ase.parallel import parallel_function, parallel_generator
 from ase.plugins.listing import ListingView
 from ase.plugins.pluggables import BasePluggable, Pluggables
-from ase.plugins.register import register_function
 from ase.utils import lazyproperty, string2index
 
 PEEK_BYTES = 50000
@@ -370,13 +369,17 @@ class IOFormatPluggables(Pluggables):
 format2modulename = {}  # Left for compatibility only.
 
 
-@register_function
 def define_io_format(name, desc, code, *, module=None, ext=None,
                      glob=None, magic=None, encoding=None,
                      magic_regex=None, external=False,
                      allowed_pbc: Optional[
                          List[Union[str, bytes, np.ndarray, List, Tuple]]
                      ] = None):
+    """
+    Deprecated function for defining a new input/output format.
+    Please, Use the new plugin mechanism and `plugin.register_io_format`
+    instead.
+    """
     if module is None:
         module = name.replace('-', '_')
         format2modulename[name] = module

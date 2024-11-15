@@ -3,8 +3,8 @@ In this plugins, external calculators/viewers/formats
 (either the old long known by ASE, or the ones registered using entry-points)
 are present. This way of registering calculators/... is deprecated.
 
-Formerly, view plugins could be registered through the entrypoint system,
-in with the following in a module, such as a `viewer.py` file:
+Formerly, view plugins could be registered through the entrypoint system in
+with the following in a module, such as a `viewer.py` file:
 
 ```python3
 VIEWER_ENTRYPOINT = ExternalViewer(
@@ -30,15 +30,13 @@ forwarded to `my_package.viewer.view_my_viewer` function.
 import warnings
 from importlib.metadata import entry_points
 
-from ase.io.formats import define_io_format
-from ase.plugins import register_calculator
 from ase.utils.plugins import ExternalIOFormat, ExternalViewer
-from ase.visualize.viewers import define_viewer
 
 plugin_name = 'external'
 
 
-def define_external_io_format(entry_point):
+def register_external_io_format(plugin, entry_point):
+    """ Used in test """
 
     fmt = entry_point.load()
     # if entry_point.name in ioformats:
@@ -47,10 +45,12 @@ def define_external_io_format(entry_point):
         raise TypeError('Wrong type for registering external IO formats '
                         f'in format {entry_point.name}, expected '
                         'ExternalIOFormat')
-    return define_io_format(entry_point.name, **fmt._asdict(), external=True)
+    return plugin.register_io_format(name=entry_point.name, **fmt._asdict(),
+                                     external=True)
 
 
-def register_external_io_formats(group):
+def _register_external_io_formats(plugin, group):
+
     if hasattr(entry_points(), 'select'):
         fmt_entry_points = entry_points().select(group=group)
     else:
@@ -58,7 +58,7 @@ def register_external_io_formats(group):
 
     for entry_point in fmt_entry_points:
         try:
-            define_external_io_format(entry_point)
+            register_external_io_format(plugin, entry_point)
         except Exception as exc:
             warnings.warn(
                 'Failed to register external '
@@ -66,23 +66,24 @@ def register_external_io_formats(group):
             )
 
 
-def define_external_viewer(entry_point):
-    """Define external viewer"""
+def _register_external_viewer_formats(plugin, group):
 
-    viewer_def = entry_point.load()
-    # if entry_point.name in VIEWERS:
-    #    raise ValueError(f"Format {entry_point.name} already defined")
-    if not isinstance(viewer_def, ExternalViewer):
-        raise TypeError(
-            "Wrong type for registering external IO formats "
-            f"in format {entry_point.name}, expected "
-            "ExternalViewer"
-        )
-    return define_viewer(entry_point.name, **viewer_def._asdict(),
-                         external=True)
+    def define_external_viewer(entry_point):
+        """Define external viewer"""
 
+        viewer_def = entry_point.load()
+        # if entry_point.name in VIEWERS:
+        #    raise ValueError(f"Format {entry_point.name} already defined")
+        if not isinstance(viewer_def, ExternalViewer):
+            raise TypeError(
+                "Wrong type for registering external Viewer"
+                f"in format {entry_point.name}, expected "
+                "ExternalViewer"
+            )
+        return plugin.register_viewer(name=entry_point.name,
+                                      **viewer_def._asdict(),
+                                      external=True)
 
-def register_external_viewer_formats(group):
     if hasattr(entry_points(), "select"):
         viewer_entry_points = entry_points().select(group=group)
     else:
@@ -98,11 +99,11 @@ def register_external_viewer_formats(group):
             )
 
 
-def ase_register():
-    register_calculator("asap3.EMT", name='asap')
-    register_calculator("gpaw.GPAW")
-    register_calculator("hotbit.Calculator", name='hotbit')
+def ase_register(plugin):
+    plugin.register_calculator("asap3.EMT", 'asap')
+    plugin.register_calculator("gpaw.GPAW")
+    plugin.register_calculator("hotbit.Calculator", name='hotbit')
 
     # Register IO formats exposed through the ase.ioformats entry point
-    register_external_io_formats('ase.ioformats')
-    register_external_viewer_formats("ase.visualize")
+    _register_external_io_formats(plugin, 'ase.ioformats')
+    _register_external_viewer_formats(plugin, 'ase.visualize')

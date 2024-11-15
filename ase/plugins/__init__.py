@@ -5,9 +5,10 @@ new formats, calculators and/or viewers.
 To create a plugin, please, add ``ase.plugins`` entry point (e.g. to
 pyproject.toml file) to your package. The entry point should have the name of
 the plugin, and the value the module, that contains a ``ase_register``
-function. This function should call ``register_io_format``,
+function, that accepts plugin as argument.
+This function should call ``register_io_format``,
 ``register_calculator`` and/or ``register_viewer``
-to register the new calculators/viewers/... E.g.
+plugin method to register the new calculators/viewers/... E.g.
 
 ```toml
 [project.entry-points."ase.plugins"]
@@ -31,11 +32,6 @@ from ase.visualize import viewers as _viewers
 
 from .pluggables import CalculatorPluggables
 from .plugin import Plugins
-from .register import (  # NOQA
-    register_calculator,
-    register_io_format,
-    register_viewer,
-)
 from .registering import register_plugins  # NOQA
 
 plugins = Plugins({
@@ -68,7 +64,4 @@ __all__ = [
     'calculators',
     'io_formats',
     'viewers',
-    'register_viewer',
-    'register_io_format',
-    'register_calculator'
 ]

@@ -7,9 +7,8 @@ Now the preffered way how to define a viewer is to create plugin,
 see the docs of ase.plugins.
 
 ::
-  import register_viewer from ase.plugins
-  def ase_register():
-      register_viewer(...)
+  def ase_register(plugin):
+      plugin.register_viewer(CliViewer(...))
 """
 
 import pickle
@@ -24,7 +23,6 @@ from pathlib import Path
 import ase.io
 from ase.plugins.listing import LazyListing
 from ase.plugins.pluggables import BasePluggable, Pluggables
-from ase.plugins.register import register_function
 from ase.utils import lazyproperty
 
 
@@ -176,7 +174,6 @@ def _pipe_to_ase_gui(atoms, repeat, **kwargs):
     return proc
 
 
-@register_function
 def define_viewer(
     name, desc, *, module=None, cli=False, fmt=None, argv=None, external=False
 ):
