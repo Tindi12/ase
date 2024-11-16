@@ -67,6 +67,9 @@ class Logger(IOContext):
         """Initialize the molecular dynamics logger."""
         self.fields = {}
         self.logfile = self.openfile(logfile, mode=mode, comm=comm)
+        
+        self._cache = {}
+        self._field_is_list = {}
 
     def __call__(self) -> None:
         """
@@ -75,20 +78,26 @@ class Logger(IOContext):
         Writes a new line to the log file containing the current values
         of all configured fields (time, energies, temperature, stress).
         """
-        to_write = []
+        parts = []
 
         for key in self.fields:
             value = key()
-            format_ = self.fields[key][1]
 
-            if isinstance(value, (list, tuple, np.ndarray)):
-                to_write.extend(
-                    [f'{val:{fmt}}' for val, fmt in zip(value, format_)]
-                )
+            if key not in self._cache:
+                fmt = self.fields[key][1]
+                if isinstance(value, (list, tuple, np.ndarray)):
+                    self._cache[key] = ' '.join(f'{{:{f}}}' for f in fmt)
+                    self._field_is_list[key] = True
+                else:
+                    self._cache[key] = f'{{:{fmt}}}'
+                    self._field_is_list[key] = False
+
+            if self._field_is_list[key]:
+                parts.append(self._cache[key].format(*value))
             else:
-                to_write.append(f'{value:{format_}}')
+                parts.append(self._cache[key].format(value))
 
-        self.logfile.write(' '.join(to_write) + '\n')
+        self.logfile.write(' '.join(parts) + '\n')
         self.logfile.flush()
 
     def __del__(self) -> None:
@@ -176,7 +185,7 @@ class Logger(IOContext):
         """
         names = ['Time[ps]', 'Etot[eV]', 'Epot[eV]', 'Ekin[eV]', 'T[K]']
         callables = [
-            lambda: dyn.nsteps / (1000 * units.fs),
+            lambda: dyn.get_time() / (1000 * units.fs),
             dyn.atoms.get_total_energy,
             dyn.atoms.get_potential_energy,
             dyn.atoms.get_kinetic_energy,
