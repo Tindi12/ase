@@ -177,10 +177,10 @@ class Logger(IOContext):
         names = ['Time[ps]', 'Etot[eV]', 'Epot[eV]', 'Ekin[eV]', 'T[K]']
         callables = [
             lambda: dyn.nsteps / (1000 * units.fs),
-            lambda: dyn.atoms.get_total_energy(),
-            lambda: dyn.atoms.get_potential_energy(),
-            lambda: dyn.atoms.get_kinetic_energy(),
-            lambda: dyn.atoms.get_temperature(),
+            dyn.atoms.get_total_energy,
+            dyn.atoms.get_potential_energy,
+            dyn.atoms.get_kinetic_energy,
+            dyn.atoms.get_temperature,
         ]
         formats = ['<12.4f'] + ['>12.4f'] * 3 + ['>10.2f']
 
@@ -208,7 +208,7 @@ class Logger(IOContext):
             lambda: opt.__class__.__name__,
             lambda: opt.nsteps,
             lambda: '{:02d}:{:02d}:{:02d}'.format(*time.localtime()[3:6]),
-            lambda: opt.optimizable.get_potential_energy(),
+            opt.optimizable.get_potential_energy,
             lambda: np.linalg.norm(opt.optimizable.get_forces(), axis=1).max(),
         ]
 
