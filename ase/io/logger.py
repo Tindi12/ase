@@ -67,7 +67,7 @@ class Logger(IOContext):
         """Initialize the molecular dynamics logger."""
         self.fields = {}
         self.logfile = self.openfile(logfile, mode=mode, comm=comm)
-        
+
         self._cache = {}
         self._field_is_list = {}
 
