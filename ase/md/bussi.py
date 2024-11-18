@@ -54,12 +54,10 @@ class Bussi(MolecularDynamics):
 
         self.target_kinetic_energy = 0.5 * self.temp * self.ndof
 
-        if np.isclose(
-            self.atoms.get_kinetic_energy(), 0.0, rtol=0, atol=1e-12
-        ):
+        if np.isclose(self.atoms.get_kinetic_energy(), 0.0, rtol=0, atol=1e-12):
             raise ValueError(
-                "Initial kinetic energy is zero. "
-                "Please set the initial velocities before running Bussi NVT."
+                'Initial kinetic energy is zero. '
+                'Please set the initial velocities before running Bussi NVT.'
             )
 
         self._exp_term = math.exp(-self.dt / self.taut)
@@ -97,9 +95,7 @@ class Bussi(MolecularDynamics):
         return math.sqrt(
             self._exp_term
             + energy_scaling_term * (sum_of_noises + normal_noise**2)
-            + 2
-            * normal_noise
-            * math.sqrt(self._exp_term * energy_scaling_term)
+            + 2 * normal_noise * math.sqrt(self._exp_term * energy_scaling_term)
         )
 
     def step(self, forces=None):
@@ -121,5 +117,88 @@ class Bussi(MolecularDynamics):
         forces = self.atoms.get_forces(md=True)
 
         self.atoms.set_momenta(momenta + 0.5 * self.dt * forces)
+
+        return forces
+
+
+class BussiParinello(MolecularDynamics):
+    """Bussi-Parinello (NVT) langevin-based dynamics.
+    Based on the paper from Bussi et al. (https://arxiv.org/abs/0803.4083)"""
+
+    def __init__(
+        self,
+        atoms,
+        timestep,
+        temperature_K,
+        friction,
+        rng=np.random,
+        **md_kwargs,
+    ):
+        super().__init__(
+            atoms,
+            timestep,
+            **md_kwargs,
+        )
+
+        self.temp = temperature_K * units.kB
+        self.friction = friction
+        self.communicator = world
+        self.rng = rng
+
+        self.ndof = self.atoms.get_number_of_degrees_of_freedom()
+
+        self.target_kinetic_energy = 0.5 * self.temp * self.ndof
+
+        self._masses = self.atoms.get_masses()[:, np.newaxis]
+
+        self.coefficient_1 = np.exp(-self.friction * self.dt / 2)
+        self.coefficient_2 = np.sqrt(
+            (1 - self.coefficient_1**2) * self._masses * self.temp
+        )
+
+        self.size = (len(self.atoms), 3)
+
+    def thermostat_half_step(self):
+        """Move one half timestep forward using Bussi-Parinello
+        NVT molecular dynamics."""
+        self.atoms.set_momenta(
+            self.coefficient_1 * self.atoms.get_momenta()
+            + self.coefficient_2 * self.rng.normal(size=self.size)
+        )
+
+    def verlet_step(self, forces=None):
+        """Move one timestep forward using Bussi-Parinello
+        NVT molecular dynamics."""
+        if forces is None:
+            forces = self.atoms.get_forces(md=True)
+
+        self.atoms.set_momenta(
+            self.atoms.get_momenta() + 0.5 * self.dt * forces
+        )
+
+        momenta = self.atoms.get_momenta()
+        self.atoms.set_positions(
+            self.atoms.positions + self.dt * momenta / self._masses
+        )
+
+        forces = self.atoms.get_forces(md=True)
+        self.atoms.set_momenta(momenta + 0.5 * self.dt * forces)
+
+        return forces
+
+    def last_thermostat_half_step(self):
+        """Move one half timestep forward using Bussi-Parinello
+        NVT molecular dynamics."""
+        self.atoms.set_momenta(
+            self.coefficient_1 * self.atoms.get_momenta()
+            + self.coefficient_2 * self.rng.normal(size=self.size)
+        )
+
+    def step(self, forces=None):
+        """Move one timestep forward using Bussi-Parinello
+        NVT molecular dynamics."""
+        self.thermostat_half_step()
+        forces = self.verlet_step(forces)
+        self.last_thermostat_half_step()
 
         return forces

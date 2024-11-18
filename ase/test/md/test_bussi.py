@@ -4,7 +4,7 @@ import pytest
 from ase import units
 from ase.build import bulk
 from ase.calculators.emt import EMT
-from ase.md.bussi import Bussi
+from ase.md.bussi import Bussi, BussiParinello
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 
 
@@ -128,4 +128,29 @@ def test_bussi_paranoia_check2():
         for _ in dyn.irun(1000):
             temperatures.append(dyn.atoms.get_temperature())
 
+    assert np.mean(temperatures) == pytest.approx(300, abs=5.0)
+
+
+def test_bussi_parinello():
+    atoms = bulk("Cu") * (4, 4, 4)
+
+    atoms.calc = EMT()
+
+    #MaxwellBoltzmannDistribution(
+    #    atoms, temperature_K=300, rng=np.random.default_rng(seed=42)
+    #)
+    
+    temperatures = []
+
+    with BussiParinello(
+        atoms,
+        1.0 * units.fs,
+        300,
+        10,
+        logfile="-",
+        rng=np.random.default_rng(seed=42),
+    ) as dyn:
+        for _ in dyn.irun(200):
+            temperatures.append(dyn.atoms.get_temperature())
+    print(np.mean(temperatures))
     assert np.mean(temperatures) == pytest.approx(300, abs=5.0)
