@@ -1,10 +1,8 @@
-import time
 from typing import IO, Optional, Union
 
 import numpy as np
 
 from ase import Atoms
-from ase.geometry import cell_to_cellpar
 from ase.optimize import BFGS
 from ase.optimize.optimize import Dynamics
 from ase.units import GPa
@@ -105,36 +103,3 @@ class CellAwareBFGS(BFGS):
         if steps is not None:
             self.max_steps = steps
         return Dynamics.run(self)
-
-    def log(self, forces=None):
-        if forces is None:
-            forces = self.atoms.atoms.get_forces()
-        fmax = (forces ** 2).sum(axis=1).max() ** 0.5
-        e = self.optimizable.get_potential_energy()
-        T = time.localtime()
-        smax = abs(self.atoms.atoms.get_stress()).max()
-        volume = self.atoms.atoms.cell.volume
-        if self.logfile is not None:
-            name = self.__class__.__name__
-            if self.nsteps == 0:
-                args = (" " * len(name),
-                        "Step", "Time", "Energy", "fmax", "smax", "volume")
-                msg = "\n%s  %4s %8s %15s  %15s %15s %15s" % args
-                if self.long_output:
-                    msg += ("%8s %8s %8s %8s %8s %8s" %
-                            ('A', 'B', 'C', 'α', 'β', 'γ'))
-                msg += '\n'
-                self.logfile.write(msg)
-
-            ast = ''
-            args = (name, self.nsteps, T[3], T[4], T[5], e, ast, fmax, smax,
-                    volume)
-            msg = ("%s:  %3d %02d:%02d:%02d %15.6f%1s %15.6f %15.6f %15.6f" %
-                   args)
-            if self.long_output:
-                msg += ("%8.3f %8.3f %8.3f %8.3f %8.3f %8.3f" %
-                        tuple(cell_to_cellpar(self.atoms.atoms.cell)))
-            msg += '\n'
-            self.logfile.write(msg)
-
-            self.logfile.flush()

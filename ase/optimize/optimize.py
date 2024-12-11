@@ -140,8 +140,6 @@ class Dynamics(IOContext):
         else:
             self.default_logger = None
 
-        #self.logfile = self.openfile(file=logfile, comm=comm, mode='a')
-
     def todict(self) -> Dict[str, Any]:
         raise NotImplementedError
 

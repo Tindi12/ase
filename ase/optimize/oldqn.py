@@ -180,9 +180,9 @@ class GoodOldQuasiNewton(Optimizer):
         pass
 
     def write_log(self, text):
-        if self.logfile is not None:
-            self.logfile.write(text + '\n')
-            self.logfile.flush()
+        if self.default_logger.logfile is not None:
+            self.default_logger.logfile.write(text + '\n')
+            self.default_logger.logfile.flush()
 
     def set_hessian(self, hessian):
         self.hessian = hessian

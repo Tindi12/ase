@@ -1,5 +1,3 @@
-import time
-
 import numpy as np
 
 from ase.filters import UnitCellFilter
@@ -169,32 +167,3 @@ class PreconFIRE(Optimizer):
         else:
             fmax_sq = (forces**2).sum(axis=1).max()
             return fmax_sq < self.fmax**2
-
-    def log(self, forces=None):
-        if forces is None:
-            forces = self._actual_atoms.get_forces()
-        if isinstance(self._actual_atoms, UnitCellFilter):
-            natoms = len(self._actual_atoms.atoms)
-            forces, stress = forces[:natoms], self._actual_atoms.stress
-            fmax = np.sqrt((forces**2).sum(axis=1).max())
-            smax = np.sqrt((stress**2).max())
-        else:
-            fmax = np.sqrt((forces**2).sum(axis=1).max())
-        if self.e1 is not None:
-            # reuse energy at end of line search to avoid extra call
-            e = self.e1
-        else:
-            e = self._actual_atoms.get_potential_energy()
-        T = time.localtime()
-        if self.logfile is not None:
-            name = self.__class__.__name__
-            if isinstance(self._actual_atoms, UnitCellFilter):
-                self.logfile.write(
-                    '%s: %3d  %02d:%02d:%02d %15.6f %12.4f %12.4f\n' %
-                    (name, self.nsteps, T[3], T[4], T[5], e, fmax, smax))
-
-            else:
-                self.logfile.write(
-                    '%s: %3d  %02d:%02d:%02d %15.6f %12.4f\n' %
-                    (name, self.nsteps, T[3], T[4], T[5], e, fmax))
-            self.logfile.flush()
