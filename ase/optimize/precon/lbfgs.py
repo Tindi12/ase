@@ -383,18 +383,18 @@ class PreconLBFGS(Optimizer):
         else:
             e = self._actual_atoms.get_potential_energy()
         T = time.localtime()
-        if self.logfile is not None:
+        if self.default_logger is not None:
             name = self.__class__.__name__
             if isinstance(self._actual_atoms, UnitCellFilter):
-                self.logfile.write(
+                self.default_logger.logfile.write(
                     '%s: %3d  %02d:%02d:%02d %15.6f %12.4f %12.4f\n' %
                     (name, self.nsteps, T[3], T[4], T[5], e, fmax, smax))
 
             else:
-                self.logfile.write(
+                self.default_logger.logfile.write(
                     '%s: %3d  %02d:%02d:%02d %15.6f %12.4f\n' %
                     (name, self.nsteps, T[3], T[4], T[5], e, fmax))
-            self.logfile.flush()
+            self.default_logger.logfile.flush()
 
     def converged(self, forces=None):
         """Did the optimization converge?"""
