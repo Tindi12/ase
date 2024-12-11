@@ -5,11 +5,10 @@
 # guarantee implied provided you keep this notice in all copies.
 # *****END NOTICE************
 
-import time
 from typing import IO, Optional, Union
 
 import numpy as np
-from numpy import absolute, eye, isinf, sqrt
+from numpy import absolute, eye, isinf
 
 from ase import Atoms
 from ase.optimize.optimize import Optimizer
@@ -207,24 +206,6 @@ class BFGSLineSearch(Optimizer):
                 g0 = g.copy()
             self.r0 = r0
             self.g0 = g0
-
-    def log(self, forces=None):
-        if self.logfile is None:
-            return
-        if forces is None:
-            forces = self.optimizable.get_forces()
-        fmax = sqrt((forces**2).sum(axis=1).max())
-        e = self.optimizable.get_potential_energy()
-        T = time.localtime()
-        name = self.__class__.__name__
-        w = self.logfile.write
-        if self.nsteps == 0:
-            w('%s  %4s[%3s] %8s %15s  %12s\n' %
-              (' ' * len(name), 'Step', 'FC', 'Time', 'Energy', 'fmax'))
-        w('%s:  %3d[%3d] %02d:%02d:%02d %15.6f %12.4f\n'
-            % (name, self.nsteps, self.force_calls, T[3], T[4], T[5], e,
-               fmax))
-        self.logfile.flush()
 
 
 def wrap_function(function, args):
