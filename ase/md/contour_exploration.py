@@ -199,6 +199,28 @@ class ContourExploration(Dynamics):
             # we have to pass dimension since atoms are not yet stored
             atoms.set_velocities(self.rand_vect())
 
+        if self.default_logger:
+            self.default_logger.add_field(
+                'Step', lambda: self.nsteps, fmt='6d'
+            )
+            self.default_logger.add_field(
+                'Etarget', self.energy_target, fmt='15.6f'
+            )
+            self.default_logger.add_field(
+                'Epot', self._actual_atoms.get_potential_energy, fmt='15.6f'
+            )
+            self.default_logger.add_field(
+                'Curv', lambda: self.curvature, fmt='12.6f'
+            )
+            self.default_logger.add_field(
+                'StepSize', lambda: self.step_size, fmt='12.6f'
+            )
+            self.default_logger.add_field('EnergyDev', lambda: (
+                self._actual_atoms.get_potential_energy(force_consistent=True) -
+                self.energy_target) / len(self._actual_atoms),
+                fmt='24.9f'
+            )
+
     # Required stuff for Dynamics
     def todict(self):
         return {'type': 'contour-exploration',
@@ -208,33 +230,6 @@ class ContourExploration(Dynamics):
     def run(self, steps=50):
         """ Call Dynamics.run and adjust max_steps """
         return Dynamics.run(self, steps=steps)
-
-    def log(self):
-        if self.logfile is not None:
-            # name = self.__class__.__name__
-            if self.nsteps == 0:
-                args = (
-                    "Step",
-                    "Energy_Target",
-                    "Energy",
-                    "Curvature",
-                    "Step_Size",
-                    "Energy_Deviation_per_atom")
-                msg = "# %4s %15s %15s %12s %12s %15s\n" % args
-                self.logfile.write(msg)
-            e = self._actual_atoms.get_potential_energy(force_consistent=True)
-            dev_per_atom = (e - self.energy_target) / len(self._actual_atoms)
-            args = (
-                self.nsteps,
-                self.energy_target,
-                e,
-                self.curvature,
-                self.step_size,
-                dev_per_atom)
-            msg = "%6d %15.6f %15.6f %12.6f %12.6f %24.9f\n" % args
-            self.logfile.write(msg)
-
-            self.logfile.flush()
 
     def rand_vect(self):
         '''Returns a random (Natoms,3) vector'''

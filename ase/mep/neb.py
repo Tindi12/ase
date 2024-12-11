@@ -892,23 +892,7 @@ class NEBOptimizer(Optimizer):
     def get_residual(self, F=None, X=None):
         return self.neb.get_residual()
 
-    def log(self):
-        fmax = self.get_residual()
-        T = time.localtime()
-        if self.logfile is not None:
-            name = f'{self.__class__.__name__}[{self.method}]'
-            if self.nsteps == 0:
-                args = (" " * len(name), "Step", "Time", "fmax")
-                msg = "%s  %4s %8s %12s\n" % args
-                self.logfile.write(msg)
-
-            args = (name, self.nsteps, T[3], T[4], T[5], fmax)
-            msg = "%s:  %3d %02d:%02d:%02d %12.4f\n" % args
-            self.logfile.write(msg)
-            self.logfile.flush()
-
     def callback(self, X, F=None):
-        self.log()
         self.call_observers()
         self.nsteps += 1
 

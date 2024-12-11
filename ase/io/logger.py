@@ -258,9 +258,9 @@ class Logger(IOContext):
             if mask[n]
         ]
 
-        format_ = ['>14.3f'] * sum(mask)
+        formats = ['>14.3f'] * sum(mask)
 
-        self.add_field(names, log_stress, format_)
+        self.add_field(names, log_stress, formats)
 
     def remove_fields(self, name: str) -> None:
         """
