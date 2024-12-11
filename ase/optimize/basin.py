@@ -105,12 +105,13 @@ class BasinHopping(Dynamics):
                 Eo = En
 
     def log(self, step, En, Emin):
-        if self.logfile is None:
+        if self.default_logger is None:
             return
         name = self.__class__.__name__
-        self.logfile.write('%s: step %d, energy %15.6f, emin %15.6f\n'
-                           % (name, step, En, Emin))
-        self.logfile.flush()
+        self.default_logger.logfile.write(
+            '%s: step %d, energy %15.6f, emin %15.6f\n' % (name, step, En, Emin)
+        )
+        self.default_logger.logfile.flush()
 
     def _atoms(self):
         from ase.optimize.optimize import OptimizableAtoms
