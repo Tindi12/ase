@@ -145,9 +145,7 @@ class BussiParinello(MolecularDynamics):
         self.communicator = world
         self.rng = rng
 
-        self.ndof = self.atoms.get_number_of_degrees_of_freedom()
-
-        self.target_kinetic_energy = 0.5 * self.temp * self.ndof
+        self.target_kinetic_energy = 0.5 * self.temp * self.atoms.get_number_of_degrees_of_freedom()
 
         self._masses = self.atoms.get_masses()[:, np.newaxis]
 
