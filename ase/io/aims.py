@@ -4,12 +4,16 @@
 import os
 import time
 import warnings
-
 from pathlib import Path
-
-from typing import Any, TextIO, Iterable
+from typing import Any, Iterable, TextIO
 
 import numpy as np
+from pyfhiaims.control.control import AimsControlIn
+from pyfhiaims.geometry.atom import FHIAimsAtom
+from pyfhiaims.geometry.geometry import AimsGeometry
+from pyfhiaims.output_parser.aims_outputs import AimsOutput
+from pyfhiaims.species_defaults.species import SpeciesDefaults
+
 from ase import Atoms
 from ase.calculators.calculator import kpts2mp
 from ase.calculators.singlepoint import SinglePointDFTCalculator
@@ -20,16 +24,8 @@ from ase.constraints import (
     FixScaledParametricRelations,
 )
 from ase.data import atomic_numbers
-from ase.io import ParseError
 from ase.units import Ang, fs
 from ase.utils import deprecated, reader, writer
-
-from pyfhiaims.control.control import AimsControlIn
-from pyfhiaims.geometry.atom import FHIAimsAtom
-from pyfhiaims.geometry.geometry import AimsGeometry
-from pyfhiaims.output_parser.aims_outputs import AimsOutput
-from pyfhiaims.species_defaults.species import SpeciesDefaults
-
 
 v_unit = Ang / (1000.0 * fs)
 
@@ -42,6 +38,7 @@ class AimsParseError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
+
 
 def singular(key: str) -> str:
     """Returns the singular form of a string."""
@@ -57,6 +54,7 @@ def singular(key: str) -> str:
         return key[:-1]
 
     return key
+
 
 def atoms2aimsgeo(atoms: Atoms) -> AimsGeometry:
     """
@@ -88,29 +86,39 @@ def atoms2aimsgeo(atoms: Atoms) -> AimsGeometry:
             symmetry_params[0] = const.params
             symmetry_lv = const.expressions
         elif isinstance(const, FixAtoms):
-            cart_const.update({ind: (True, True, True) for ind in const.get_indices()})
+            cart_const.update(
+                {
+                    ind: (True, True, True) for ind in const.get_indices()
+                }
+            )
         elif isinstance(const, FixCartesian):
             for ind in const.index:
                 cart_const[ind] = tuple(mm for mm in const.mask)
 
-    atomic_props["velocities"] = [v if any(v) else None for v in atoms.get_velocities()]
+    atomic_props["velocities"] = [
+        v if any(v) else None for v in atoms.get_velocities()
+    ]
     aims_atoms = []
     for i_at, atom in enumerate(atoms):
-        atom_props = {singular(k): v[i_at] for k, v in atomic_props.items()}
+        atom_props = {
+            singular(k): v[i_at] for k, v in atomic_props.items()
+        }
         const = atom_props.pop("nuclear_constraint", None)
         aims_atoms.append(FHIAimsAtom(
             symbol=atom.symbol,
             position=atom.position,
             initial_charge=atom.charge,
             initial_moment=atom.magmom,
-            constraints = cart_const.get(i_at),
+            constraints=cart_const.get(i_at),
             **atom_props
             )
         )
 
     if symmetry_lv is not None or symmetry_frac is not None:
         if symmetry_lv is None or symmetry_frac is None:
-            raise ValueError("Both symmetry_lv and symmetry_frac must be defined")
+            raise ValueError(
+                "Both symmetry_lv and symmetry_frac must be defined"
+            )
         symmetry_n_params = (
             len(symmetry_params[0]),
             len(symmetry_params[1]),
@@ -130,6 +138,7 @@ def atoms2aimsgeo(atoms: Atoms) -> AimsGeometry:
         **geometry_props
     )
 
+
 def aimsgeo2atoms(geo_in: AimsGeometry) -> Atoms:
     """
     Convert from AimsGeometry to Atoms
@@ -142,7 +151,11 @@ def aimsgeo2atoms(geo_in: AimsGeometry) -> Atoms:
 
     """
     info_entries = [p for p in geo_in._get_property_names()
-                    if p not in ("atoms", "lattice_vectors", "species_dict")] + \
+                    if p not in (
+                        "atoms",
+                        "lattice_vectors",
+                        "species_dict"
+                    )] + \
                     [p for p in geo_in._get_property_names(atomic=True)
                     if p not in (
                         "symbols",
@@ -157,7 +170,12 @@ def aimsgeo2atoms(geo_in: AimsGeometry) -> Atoms:
                         "masses",
                         "nuclear_charges")
                     ]
-    atoms =  Atoms(
+
+    if geo_in.lattice_vectors is not None:
+        cell = geo_in.lattice_vectors
+    else:
+        cell = (0, 0, 0)
+    atoms = Atoms(
         numbers=geo_in.numbers,
         positions=geo_in.positions,
         velocities=[v if v is not None else [0, 0, 0]
@@ -165,12 +183,15 @@ def aimsgeo2atoms(geo_in: AimsGeometry) -> Atoms:
         magmoms=geo_in.magnetic_moments,
         charges=geo_in.initial_charges,
         pbc=geo_in.lattice_vectors is not None,
-        cell=geo_in.lattice_vectors if geo_in.lattice_vectors is not None else (0, 0, 0),
+        cell=cell,
         info={e: getattr(geo_in, e) for e in info_entries},
     )
 
     fix_params = []
-    if (geo_in.symmetry_n_params is not None) and (np.sum(geo_in.symmetry_n_params) > 0):
+    if (
+        (geo_in.symmetry_n_params is not None) and
+        (np.sum(geo_in.symmetry_n_params) > 0)
+    ):
         fix_params.append(
             FixCartesianParametricRelations.from_expressions(
                 list(range(3)),
@@ -206,6 +227,7 @@ def aimsgeo2atoms(geo_in: AimsGeometry) -> Atoms:
 
     return atoms
 
+
 # Read aims geometry files
 @reader
 def read_aims(fd: TextIO | str | Path, apply_constraints=True) -> Atoms:
@@ -223,7 +245,8 @@ def read_aims(fd: TextIO | str | Path, apply_constraints=True) -> Atoms:
         atoms.set_positions(atoms.get_positions())
     return atoms
 
-def get_aims_header()->str:
+
+def get_aims_header() -> str:
     """Returns the header for aims input files"""
     lines = ["#" + "=" * 79]
     for line in [
@@ -258,13 +281,13 @@ def _write_velocities_alias(args: list, kwargs: dict[str, Any]) -> bool:
 def write_aims(
     fd: TextIO | str | Path,
     atoms: Atoms,
-    scaled: bool=False,
-    geo_constrain: bool=False,
-    write_velocities: bool=False,
-    velocities: bool=False,
-    ghosts: None | Iterable[int]=None,
-    info_str: None | str=None,
-    wrap: bool=False,
+    scaled: bool = False,
+    geo_constrain: bool = False,
+    write_velocities: bool = False,
+    velocities: bool = False,
+    ghosts: None | Iterable[int] = None,
+    info_str: None | str = None,
+    wrap: bool = False,
 ):
     """
     Method to write FHI-aims geometry files.
@@ -349,7 +372,7 @@ def write_aims(
     fd.write(geometry.to_string())
 
 
-def get_species_directory(species_dir: str | Path | None =None):
+def get_species_directory(species_dir: str | Path | None = None):
     """Get the directory where the basis set information is stored
 
     If the requested directory does not exist then raise an Error
@@ -390,7 +413,12 @@ def get_species_directory(species_dir: str | Path | None =None):
 
 # Write aims control.in files
 @writer
-def write_control(fd: TextIO | str | Path, atoms: Atoms, parameters:dict[str, Any], verbose_header:bool=False):
+def write_control(
+    fd: TextIO | str | Path,
+    atoms: Atoms,
+    parameters: dict[str, Any],
+    verbose_header: bool = False
+):
     """
     Write the control.in file for FHI-aims
 
@@ -417,7 +445,7 @@ def write_control(fd: TextIO | str | Path, atoms: Atoms, parameters:dict[str, An
         dk = 0.5 - 0.5 / np.array(mp)
         parameters["k_grid"] = tuple(mp)
         parameters["k_offset"] = tuple(dk)
-    
+
     species_dir = get_species_directory(parameters.pop("species_dir"))
     tiers = parameters.pop("tier", None)
     plus_u = parameters.pop("plus_u", None)
@@ -436,7 +464,8 @@ def write_control(fd: TextIO | str | Path, atoms: Atoms, parameters:dict[str, An
         assert all([sym in tiers for sym in np.unique(geometry.symbols)])
 
     for sym in np.unique(geometry.symbols):
-        species = SpeciesDefaults.from_file(f"{species_dir}/{atomic_numbers[sym]:02}_{sym}_default")
+        sf = f"{species_dir}/{atomic_numbers[sym]:02}_{sym}_default"
+        species = SpeciesDefaults.from_file(sf)
         if tiers is not None:
             end_activate = min(tiers[sym], species.basis_set.n_tiers) + 1
             for tt in range(1, end_activate):
@@ -454,13 +483,13 @@ def write_control(fd: TextIO | str | Path, atoms: Atoms, parameters:dict[str, An
 
 @reader
 def read_aims_output(
-    fd: TextIO | str | Path, 
-    index: int | slice=-1, 
-    non_convergence_ok:bool=False
+    fd: TextIO | str | Path,
+    index: int | slice = -1,
+    non_convergence_ok: bool = False
 ) -> Atoms | list[Atoms]:
     """
     Import FHI-aims output files with all data available
-    
+
     Parameters
     ----------
     fd: TextIO | str | Path
@@ -469,13 +498,13 @@ def read_aims_output(
         The images to return
     non_convergence_ok: bool
         True if a non-converged result is okay
-    
+
     Returns
     -------
     Atoms | list[Atoms]
         The requested Atoms objects
     """
-    lines = [line.strip() for line in fd.readlines()]   
+    lines = [line.strip() for line in fd.readlines()]
     output = AimsOutput.from_aims_out_content(lines)
 
     if isinstance(index, int):
@@ -511,13 +540,13 @@ def read_aims_output(
 
 @reader
 def read_aims_results(
-    fd: TextIO | str | Path, 
-    index: int | slice=-1, 
-    non_convergence_ok:bool=False
+    fd: TextIO | str | Path,
+    index: int | slice = -1,
+    non_convergence_ok: bool = False
 ) -> dict[str, Any] | list[dict[str, Any]]:
     """
     Import FHI-aims output files with all data available as a dict
-    
+
     Parameters
     ----------
     fd: TextIO | str | Path
@@ -526,7 +555,7 @@ def read_aims_results(
         The images to return
     non_convergence_ok: bool
         True if a non-converged result is okay
-    
+
     Returns
     -------
     dict[str, Any] | list[dict[str, Any]]
@@ -547,7 +576,7 @@ def read_aims_results(
         if not non_convergence_ok and (not image.converged):
             raise AimsParseError("The calculation did not converge properly.")
         results.append(image._results)
-    
+
     if isinstance(index, int):
         return results[0]
 

@@ -2,7 +2,6 @@ import warnings
 
 import numpy as np
 import pytest
-from pytest import approx
 
 from ase.atoms import Atoms
 from ase.build import bulk
@@ -178,4 +177,3 @@ def test_info_str(H2O):
         print("".join(geometry_lines))
         assert "# Additional information:" in geometry_lines[3]
         assert "# TEST INFO STR" in geometry_lines[4]
-

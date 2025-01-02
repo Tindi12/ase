@@ -103,7 +103,7 @@ def test_parse_results(testdir):
         "direct_gap": 5.89977761,
     }
     assert len(traj) == 2
-    
+
     for key, val in results_0.items():
         assert np.allclose(val, traj[0][key])
         assert np.allclose(val, image_0[key])

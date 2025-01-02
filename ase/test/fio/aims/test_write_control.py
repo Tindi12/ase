@@ -10,12 +10,12 @@ import re
 
 # Third party imports.
 import pytest
+from pyfhiaims.control.cube import AimsCube
 
 import ase.build
 import ase.calculators.aims
 import ase.io.aims
 
-from pyfhiaims.control.cube import AimsCube
 
 @pytest.fixture()
 def parameters_dict():
@@ -222,27 +222,28 @@ def aims_species_dir_light(tmp_path):
     path_cl.write_text(AIMS_CL_SPECIES_LIGHT)
     return species_dir_light
 
+
 @pytest.mark.parametrize(
     "tier,expected_basisset_expr",
     [
         (
-            None, 
+            None,
             [
-                "             ionic      6  p  auto", 
-                "#            hydro      6  h  12.8", 
-                "#            hydro      5  g  10.4", 
+                "             ionic      6  p  auto",
+                "#            hydro      6  h  12.8",
+                "#            hydro      5  g  10.4",
                 "             ionic      3  d  auto"
             ]
-        ), 
+        ),
         (
-            0, 
+            0,
             [
-                "#            ionic      6  p  auto", 
+                "#            ionic      6  p  auto",
                 "#            ionic      3  d  auto"
             ],
         ),
         (
-            {"Au": 1, "Cl": 3}, 
+            {"Au": 1, "Cl": 3},
             [
                 "             hydro      6  h  12.8",
                 "#            hydro      5  f  14.8",
@@ -253,7 +254,13 @@ def aims_species_dir_light(tmp_path):
         ),
     ]
 )
-def test_control(bulk_aucl, parameters_dict, aims_species_dir_light, tier, expected_basisset_expr):
+def test_control(
+    bulk_aucl,
+    parameters_dict,
+    aims_species_dir_light,
+    tier,
+    expected_basisset_expr
+):
     """Tests that control.in for a Gold bulk system works.
 
     This test tests several things simulationeously, much of
@@ -288,14 +295,27 @@ def test_control(bulk_aucl, parameters_dict, aims_species_dir_light, tier, expec
     assert contains(r"plus_u\s+1 0 0.25", control_file_as_string)
     assert contains(r"plus_u\s+3 1 0.35", control_file_as_string)
 
-    assert "    cube origin  0.000000000000e+00  0.000000000000e+00  0.000000000000e+00" in control_file_as_string
-    assert "    cube edge 50  1.000000000000e-01  0.000000000000e+00  0.000000000000e+00" in control_file_as_string
-    assert "    cube edge 50  0.000000000000e+00  1.000000000000e-01  0.000000000000e+00" in control_file_as_string
-    assert "    cube edge 50  0.000000000000e+00  0.000000000000e+00  1.000000000000e-01" in control_file_as_string
+    assert contains(
+        r"cube origin  0.0{12}e\+00  0.0{12}e\+00  0.0{12}e\+00",
+        control_file_as_string,
+    )
+    assert contains(
+        r"cube edge 50  1.0{12}e-01  0.0{12}e\+00  0.0{12}e\+00",
+        control_file_as_string,
+    )
+    assert contains(
+        r"cube edge 50  0.0{12}e\+00  1.0{12}e-01  0.0{12}e\+00",
+        control_file_as_string,
+    )
+    assert contains(
+        r"cube edge 50  0.0{12}e\+00  0.0{12}e\+00  1.0{12}e-01",
+        control_file_as_string,
+    )
 
     print(control_file_as_string)
     for expr in expected_basisset_expr:
         assert expr in control_file_as_string
+
 
 @pytest.mark.parametrize(
     "functional,expected_functional_expression",
