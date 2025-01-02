@@ -15,6 +15,7 @@ import ase.build
 import ase.calculators.aims
 import ase.io.aims
 
+from pyfhiaims.control.cube import AimsCube
 
 @pytest.fixture()
 def parameters_dict():
@@ -28,7 +29,9 @@ def parameters_dict():
         "vdw_correction_hirshfeld": True,
         "compute_forces": True,
         "output_level": "MD_light",
-        "charge": 0.0}
+        "charge": 0.0,
+        "plus_u": {"Au": [(1, 0, 0.25), (3, 1, 0.35)]},
+    }
 
 
 def contains(pattern, txt):
@@ -47,8 +50,7 @@ def write_control_to_string(ase_atoms_obj, parameters):
             aims executable how the simulation should be run.
     """
     string_output = io.StringIO()
-    ase.io.aims.write_control(
-        string_output, ase_atoms_obj, parameters)
+    ase.io.aims.write_control(string_output, ase_atoms_obj, parameters)
     return string_output.getvalue()
 
 
@@ -146,6 +148,28 @@ AIMS_AU_SPECIES_LIGHT = """\
 
 # removed part of text that is not relevant to basis functions.
 AIMS_CL_SPECIES_LIGHT = """\
+  species        Cl
+#     global species definitions
+    nucleus             17
+    mass                35.453
+#
+    l_hartree           4
+#
+    cut_pot             3.5          1.5  1.0
+    basis_dep_cutoff    1e-4
+#
+    radial_base         45 5.0
+    radial_multiplier   1
+    angular_grids       specified
+      division   0.4412  110
+      division   0.5489  194
+      division   0.6734  302
+#      division   0.7794  434
+#      division   0.9402  590
+#      division   1.0779  770
+#      division   1.1792  974
+#      outer_grid  974
+      outer_grid  302
 ################################################################################
 #
 #  Definition of "minimal" basis
@@ -198,90 +222,38 @@ def aims_species_dir_light(tmp_path):
     path_cl.write_text(AIMS_CL_SPECIES_LIGHT)
     return species_dir_light
 
-
 @pytest.mark.parametrize(
-    "tier, expected_basis_functions",
+    "tier,expected_basisset_expr",
     [
-        (None, ["    ion_occ     4  f   14.", "#     hydro 5 f 14.8"]),
-        (0, ["    ion_occ     4  f   14.", "#     ionic 6 p auto"]),
-        (1, ["     hydro 6 h 12.8", "#     hydro 5 f 14.8"]),
-        pytest.param("1", [None, None], marks=pytest.mark.xfail)])
-def test_manipulate_tiers(tier, expected_basis_functions):
-    """Test manipulating the basis functions using manipulate_tiers."""
-    output_basis_functions = ase.io.aims.manipulate_tiers(
-        AIMS_AU_SPECIES_LIGHT, tier=tier)
-    for basis_function_line in expected_basis_functions:
-        assert contains(basis_function_line, output_basis_functions)
-
-
-def test_parse_species_path(aims_species_dir_light):
-    """Test parsing the species file for all species."""
-    species_array = ["Cl", "Au"]
-    tier_array = [1, 0]
-    basis_function_dict = ase.io.aims.parse_species_path(
-        species_array=species_array,
-        tier_array=tier_array,
-        species_dir=aims_species_dir_light)
-    assert "Cl" in basis_function_dict
-    assert "Au" in basis_function_dict
-    # First tier basis function should now be uncommented.
-    assert "\n     hydro 5 g 10.4" in basis_function_dict["Cl"]
-    # First tier basis function should be commented for Au.
-    assert "#     ionic 6 s auto" in basis_function_dict["Au"]
-
-
-def test_write_species(aims_species_dir_light):
-    """Test writing species file."""
-    parameters = {}
-    file_handle = io.StringIO()
-    basis_function_dict = {'Au': "#     ionic 6 p auto"}
-    ase.io.aims.write_species(
-        file_handle, basis_function_dict, parameters)
-    assert contains("#     ionic 6 p auto", file_handle.getvalue())
-
-
-@pytest.mark.parametrize(
-    "output_level,tier,expected_basis_set_re", [
-        ("tight", [0, 1],
-         "#     hydro 4 f 7.4.*^     ionic 3 d auto\n     hydro 2 p 1.9"),
-        ("tight", [1, 0],
-         "ionic 6 p auto\n     hydro 4 f 7.4.*^#     ionic 3 d auto")])
-def test_control_tier(
-        aims_species_dir_light,
-        bulk_aucl,
-        parameters_dict,
-        output_level: str, tier: int,
-        expected_basis_set_re: str):
-    """Test that the correct basis set functions are included.
-
-    For a specific numerical settings (output_level) and basis set size (tier)
-    we expect specific basis functions to be included for a species in the
-    control.in file. We check that these functions are correctly commented
-    for these combinations.
-
-    Args:
-        bulk_aucl: PyTest fixture to create a test AuCl bulk ase
-            Atoms object that we can use to write out the control.in file.
-        output_level: The numerical settings (e.g. light, tight, really_tight).
-        tier: The basis set size (either None for standard, 0 for minimal, 1
-            for tier1, etc...)
-        expected_basis_set_re: Expression we expect to find in the control.in.
-            We expect lines to be either commented or uncommented which
-            indicate whether a basis set function is included or not in the
-            calcuation.
-    """
-    parameters = parameters_dict
-    parameters["output_level"] = output_level
-    parameters["species_dir"] = aims_species_dir_light
-    parameters['tier'] = tier
-
-    control_file_as_string = write_control_to_string(bulk_aucl, parameters)
-
-    assert contains(r"output_level\s+" + "", control_file_as_string)
-    assert contains(expected_basis_set_re, control_file_as_string)
-
-
-def test_control(bulk_au, parameters_dict, aims_species_dir_light):
+        (
+            None, 
+            [
+                "             ionic      6  p  auto", 
+                "#            hydro      6  h  12.8", 
+                "#            hydro      5  g  10.4", 
+                "             ionic      3  d  auto"
+            ]
+        ), 
+        (
+            0, 
+            [
+                "#            ionic      6  p  auto", 
+                "#            ionic      3  d  auto"
+            ],
+        ),
+        (
+            {"Au": 1, "Cl": 3}, 
+            [
+                "             hydro      6  h  12.8",
+                "#            hydro      5  f  14.8",
+                "             hydro      5  g  10.4",
+                "             hydro      3  d  3.3",
+                "             hydro      4  d  12.8",
+            ]
+        ),
+    ]
+)
+def test_control(bulk_aucl, parameters_dict, aims_species_dir_light, tier, expected_basisset_expr):
     """Tests that control.in for a Gold bulk system works.
 
     This test tests several things simulationeously, much of
@@ -292,16 +264,17 @@ def test_control(bulk_au, parameters_dict, aims_species_dir_light):
     # parameters.
     parameters = parameters_dict
     parameters['species_dir'] = aims_species_dir_light
+
     # Add AimsCube to the parameter dictionary.
-    parameters["cubes"] = ase.calculators.aims.AimsCube(
-        plots=("delta_density",))
+    parameters["cubes"] = [AimsCube(type="delta_density", points=[50, 50, 50])]
+    parameters["tier"] = tier
     # Write control.in file to a string which we can directly access for
     # testing.
-    control_file_as_string = write_control_to_string(bulk_au, parameters)
+    control_file_as_string = write_control_to_string(bulk_aucl, parameters)
 
     assert contains(r"k_grid\s+2 2 2", control_file_as_string)
     assert contains(
-        r"k_offset\s+0.250000 0.250000 0.250000", control_file_as_string)
+        r"k_offset\s+0.25 0.25 0.25", control_file_as_string)
     assert contains(r"occupation_type\s+gaussian 0.1", control_file_as_string)
     assert contains(r"output\s+dos 0.0 10.0 101 0.05", control_file_as_string)
     assert contains(r"output\s+hirshfeld", control_file_as_string)
@@ -311,11 +284,18 @@ def test_control(bulk_au, parameters_dict, aims_species_dir_light):
     assert contains(r"output_level\s+MD_light", control_file_as_string)
     assert contains(r"charge\s+0.0", control_file_as_string)
     assert contains("output cube delta_density", control_file_as_string)
-    assert contains("   cube origin 0 0 0 ", control_file_as_string)
-    assert contains("   cube edge 50 0.1 0.0 0.0 ", control_file_as_string)
-    assert contains("   cube edge 50 0.0 0.1 0.0", control_file_as_string)
-    assert contains("   cube edge 50 0.0 0.0 0.1", control_file_as_string)
 
+    assert contains(r"plus_u\s+1 0 0.25", control_file_as_string)
+    assert contains(r"plus_u\s+3 1 0.35", control_file_as_string)
+
+    assert "    cube origin  0.000000000000e+00  0.000000000000e+00  0.000000000000e+00" in control_file_as_string
+    assert "    cube edge 50  1.000000000000e-01  0.000000000000e+00  0.000000000000e+00" in control_file_as_string
+    assert "    cube edge 50  0.000000000000e+00  1.000000000000e-01  0.000000000000e+00" in control_file_as_string
+    assert "    cube edge 50  0.000000000000e+00  0.000000000000e+00  1.000000000000e-01" in control_file_as_string
+
+    print(control_file_as_string)
+    for expr in expected_basisset_expr:
+        assert expr in control_file_as_string
 
 @pytest.mark.parametrize(
     "functional,expected_functional_expression",
