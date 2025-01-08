@@ -484,8 +484,8 @@ class BaseCalculator(GetPropertiesMixin):
             parameters = {}
 
         self.parameters = dict(parameters)
-        self.atoms = None
-        self.results = {}
+        self.atoms = None  # copy of atoms object from last calculation
+        self.results = {}  # calculated properties (energy, forces, ...)
         self.use_cache = use_cache
 
     def get_default_parameters(self):
@@ -642,8 +642,10 @@ class Calculator(BaseCalculator):
             attached.  When restarting, atoms will get its positions and
             unit-cell updated from file.
         """
-        self.atoms = None  # copy of atoms object from last calculation
-        self.results = {}  # calculated properties (energy, forces, ...)
+        # For historical reasons we have a particular caching protocol.
+        # We disable the superclass' optional cache.
+        super().__init__(use_cache=False)
+
         self.parameters = None  # calculational parameters
         self._directory = None  # Initialize
 
@@ -708,11 +710,6 @@ class Calculator(BaseCalculator):
 
         if not hasattr(self, 'get_spin_polarized'):
             self.get_spin_polarized = self._deprecated_get_spin_polarized
-        # XXX We are very naughty and do not call super constructor!
-
-        # For historical reasons we have a particular caching protocol.
-        # We disable the superclass' optional cache.
-        self.use_cache = False
 
     @property
     def directory(self) -> str:
