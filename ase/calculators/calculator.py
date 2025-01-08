@@ -491,6 +491,19 @@ class BaseCalculator(GetPropertiesMixin):
     def get_default_parameters(self):
         return Parameters(copy.deepcopy(self.default_parameters))
 
+    def todict(self, skip_default=True):
+        defaults = self.get_default_parameters()
+        dct = {}
+        for key, value in self.parameters.items():
+            if hasattr(value, 'todict'):
+                value = value.todict()
+            if skip_default:
+                default = defaults.get(key, '_no_default_')
+                if default != '_no_default_' and equal(value, default):
+                    continue
+            dct[key] = value
+        return dct
+
     def calculate_properties(self, atoms, properties):
         """This method is experimental; currently for internal use."""
         for name in properties:
@@ -753,19 +766,6 @@ class Calculator(BaseCalculator):
         * label=None: (directory='.', prefix=None)
         """
         self.label = label
-
-    def todict(self, skip_default=True):
-        defaults = self.get_default_parameters()
-        dct = {}
-        for key, value in self.parameters.items():
-            if hasattr(value, 'todict'):
-                value = value.todict()
-            if skip_default:
-                default = defaults.get(key, '_no_default_')
-                if default != '_no_default_' and equal(value, default):
-                    continue
-            dct[key] = value
-        return dct
 
     def reset(self):
         """Clear all information from old calculation."""
