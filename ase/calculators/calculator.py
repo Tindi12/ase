@@ -468,6 +468,9 @@ class Parameters(dict):
 
 
 class BaseCalculator(GetPropertiesMixin):
+    default_parameters: Dict[str, Any] = {}
+    'Default parameters'
+
     implemented_properties: List[str] = []
     'Properties calculator can handle (energy, forces, ...)'
 
@@ -484,6 +487,9 @@ class BaseCalculator(GetPropertiesMixin):
         self.atoms = None
         self.results = {}
         self.use_cache = use_cache
+
+    def get_default_parameters(self):
+        return Parameters(copy.deepcopy(self.default_parameters))
 
     def calculate_properties(self, atoms, properties):
         """This method is experimental; currently for internal use."""
@@ -582,9 +588,6 @@ class Calculator(BaseCalculator):
     properties: 'energy', 'forces', 'stress', 'dipole', 'charges',
     'magmom' and 'magmoms'.
     """
-
-    default_parameters: Dict[str, Any] = {}
-    'Default parameters'
 
     ignored_changes: Set[str] = set()
     'Properties of Atoms which we ignore for the purposes of cache '
@@ -750,9 +753,6 @@ class Calculator(BaseCalculator):
         * label=None: (directory='.', prefix=None)
         """
         self.label = label
-
-    def get_default_parameters(self):
-        return Parameters(copy.deepcopy(self.default_parameters))
 
     def todict(self, skip_default=True):
         defaults = self.get_default_parameters()
