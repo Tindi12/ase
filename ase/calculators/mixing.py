@@ -35,6 +35,7 @@ def make_stress_voigt(stresses):
 
 class LinearCombinationCalculator(BaseCalculator):
     """Weighted summation of multiple calculators."""
+    default_parameters = {'calcs': [], 'weights': []}
 
     def __init__(self, calcs, weights):
         """Implementation of sum of calculators.
@@ -44,14 +45,20 @@ class LinearCombinationCalculator(BaseCalculator):
         weights: list of float
             Weights for each calculator in the list.
         """
-        super().__init__()
-        _check_input(calcs, weights)
+        super().__init__(parameters={'calcs': calcs, 'weights': weights})
+        _check_input(self.calcs, self.weights)
         common_properties = set.intersection(
-            *(set(calc.implemented_properties) for calc in calcs)
+            *(set(calc.implemented_properties) for calc in self.calcs)
         )
         self.implemented_properties = list(common_properties)
-        self.calcs = calcs
-        self.weights = weights
+
+    @property
+    def calcs(self):
+        return self.parameters['calcs']
+
+    @property
+    def weights(self):
+        return self.parameters['weights']
 
     def _get_properties(self, properties, atoms):
         results = {}
