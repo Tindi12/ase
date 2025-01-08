@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ase.build import fcc111
+from ase.build import bulk, fcc111
 from ase.calculators.calculator import CalculatorSetupError
 from ase.calculators.emt import EMT
 from ase.calculators.mixing import (
@@ -92,3 +92,13 @@ def test_mixingcalc():
     E1, E2 = calc1.get_energy_contributions(atoms1)
     assert np.isclose(E1, E_tot)
     assert np.isclose(E2, E_tot)
+
+
+def test_to_dict():
+    """Test if the `todict` method is available."""
+    atoms = bulk('Cu')
+    calcs = [EMT(), EMT()]
+    weights = [0.25, 0.75]
+    atoms.calc = LinearCombinationCalculator(calcs=calcs, weights=weights)
+    dct = atoms.calc.todict()
+    np.testing.assert_allclose(dct['weights'], weights)
