@@ -6,6 +6,16 @@ from ase.calculators.calculator import (
 from ase.stress import full_3x3_to_voigt_6_stress
 
 
+def _check_input(calcs, weights):
+    if len(calcs) == 0:
+        raise CalculatorSetupError("Please provide a list of Calculators")
+    if len(weights) != len(calcs):
+        raise ValueError(
+            "The length of the weights must be the same as"
+            " the number of Calculators!"
+        )
+
+
 def make_stress_voigt(stresses):
     new_contribs = []
     for contrib in stresses:
@@ -23,9 +33,19 @@ def make_stress_voigt(stresses):
     return new_contribs
 
 
-class Mixer:
+class LinearCombinationCalculator(BaseCalculator):
+    """Weighted summation of multiple calculators."""
+
     def __init__(self, calcs, weights):
-        self.check_input(calcs, weights)
+        """Implementation of sum of calculators.
+
+        calcs: list
+            List of an arbitrary number of :mod:`ase.calculators` objects.
+        weights: list of float
+            Weights for each calculator in the list.
+        """
+        super().__init__()
+        _check_input(calcs, weights)
         common_properties = set.intersection(
             *(set(calc.implemented_properties) for calc in calcs)
         )
@@ -33,17 +53,7 @@ class Mixer:
         self.calcs = calcs
         self.weights = weights
 
-    @staticmethod
-    def check_input(calcs, weights):
-        if len(calcs) == 0:
-            raise CalculatorSetupError("Please provide a list of Calculators")
-        if len(weights) != len(calcs):
-            raise ValueError(
-                "The length of the weights must be the same as"
-                " the number of Calculators!"
-            )
-
-    def get_properties(self, properties, atoms):
+    def _get_properties(self, properties, atoms):
         results = {}
 
         def get_property(prop):
@@ -72,34 +82,16 @@ class Mixer:
                 get_property(prop)
         return results
 
-
-class LinearCombinationCalculator(BaseCalculator):
-    """Weighted summation of multiple calculators."""
-
-    def __init__(self, calcs, weights):
-        """Implementation of sum of calculators.
-
-        calcs: list
-            List of an arbitrary number of :mod:`ase.calculators` objects.
-        weights: list of float
-            Weights for each calculator in the list.
-        """
-        super().__init__()
-        self.mixer = Mixer(calcs, weights)
-        self.implemented_properties = self.mixer.implemented_properties
-
     def calculate(self, atoms, properties, system_changes):
         """Calculates all the specific property for each calculator and
         returns with the summed value.
 
         """
         self.atoms = atoms.copy()  # for caching of results
-        self.results = self.mixer.get_properties(properties, atoms)
+        self.results = self._get_properties(properties, atoms)
 
     def __str__(self):
-        calculators = ", ".join(
-            calc.__class__.__name__ for calc in self.mixer.calcs
-        )
+        calculators = ", ".join(calc.__class__.__name__ for calc in self.calcs)
         return f"{self.__class__.__name__}({calculators})"
 
 
@@ -125,8 +117,8 @@ class MixedCalculator(LinearCombinationCalculator):
         super().__init__([calc1, calc2], [weight1, weight2])
 
     def set_weights(self, w1, w2):
-        self.mixer.weights[0] = w1
-        self.mixer.weights[1] = w2
+        self.weights[0] = w1
+        self.weights[1] = w2
 
     def get_energy_contributions(self, atoms=None):
         """Return the potential energy from calc1 and calc2 respectively"""
