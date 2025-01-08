@@ -8,8 +8,8 @@ from ase.calculators.mixing import (
     AverageCalculator,
     LinearCombinationCalculator,
     MixedCalculator,
-    Mixer,
     SumCalculator,
+    make_stress_voigt,
 )
 from ase.constraints import FixAtoms
 
@@ -31,10 +31,10 @@ def test_mixingcalc():
     voigt_stress = atoms.get_stress()
     stress_tensor = atoms.get_stress(voigt=False)
 
-    # Mixer: check that stresses of different shapes are handled correctly
+    # check that stresses of different shapes are handled correctly
     stresses = [voigt_stress, stress_tensor]
-    reshape_stress = Mixer.make_stress_voigt(stresses)
-    assert np.isclose(reshape_stress[0], reshape_stress[1]).all()
+    stresses_reshaped = make_stress_voigt(stresses)
+    assert np.isclose(stresses_reshaped[0], stresses_reshaped[1]).all()
 
     # SumCalculator: Only one way to associate a calculator with an atoms
     # object.

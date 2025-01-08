@@ -6,6 +6,23 @@ from ase.calculators.calculator import (
 from ase.stress import full_3x3_to_voigt_6_stress
 
 
+def make_stress_voigt(stresses):
+    new_contribs = []
+    for contrib in stresses:
+        if contrib.shape == (6,):
+            new_contribs.append(contrib)
+        elif contrib.shape == (3, 3):
+            new_cont = full_3x3_to_voigt_6_stress(contrib)
+            new_contribs.append(new_cont)
+        else:
+            raise ValueError(
+                "The shapes of the stress"
+                " property are not the same"
+                " from all calculators"
+            )
+    return new_contribs
+
+
 class Mixer:
     def __init__(self, calcs, weights):
         self.check_input(calcs, weights)
@@ -36,7 +53,7 @@ class Mixer:
                 shapes = [contrib.shape for contrib in contribs]
                 if not all(shape == shapes[0] for shape in shapes):
                     if prop == "stress":
-                        contribs = self.make_stress_voigt(contribs)
+                        contribs = make_stress_voigt(contribs)
                     else:
                         raise ValueError(
                             f"The shapes of the property {prop}"
@@ -54,23 +71,6 @@ class Mixer:
             if all(prop in calc.results for calc in self.calcs):
                 get_property(prop)
         return results
-
-    @staticmethod
-    def make_stress_voigt(stresses):
-        new_contribs = []
-        for contrib in stresses:
-            if contrib.shape == (6,):
-                new_contribs.append(contrib)
-            elif contrib.shape == (3, 3):
-                new_cont = full_3x3_to_voigt_6_stress(contrib)
-                new_contribs.append(new_cont)
-            else:
-                raise ValueError(
-                    "The shapes of the stress"
-                    " property are not the same"
-                    " from all calculators"
-                )
-        return new_contribs
 
 
 class LinearCombinationCalculator(BaseCalculator):
