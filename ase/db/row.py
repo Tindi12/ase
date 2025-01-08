@@ -54,7 +54,7 @@ def atoms2dict(atoms):
         dct['constraints'] = [c.todict() for c in atoms.constraints]
     if atoms.calc is not None:
         dct['calculator'] = atoms.calc.name.lower()
-        dct['calculator_parameters'] = atoms.calc.todict()
+        dct['calculator_parameters'] = atoms.calc.parameter
         if len(atoms.calc.check_state(atoms)) == 0:
             for prop in all_properties:
                 try:
