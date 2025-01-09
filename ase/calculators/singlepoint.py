@@ -26,16 +26,16 @@ class SinglePointCalculator(Calculator):
         """Save energy, forces, stress, ... for the current configuration."""
         Calculator.__init__(self)
         self.results = {}
-        for property, value in results.items():
-            if property not in all_properties:
-                warnings.warn(f'The property "{property}" is not stored.')
+        for name, value in results.items():
+            if name not in all_properties:
+                warnings.warn(f'The property "{name}" is not stored.')
                 continue
             if value is None:
                 continue
-            if property in ['energy', 'magmom', 'free_energy']:
-                self.results[property] = value
+            if name in ['energy', 'magmom', 'free_energy']:
+                self.results[name] = value
             else:
-                self.results[property] = np.array(value, float)
+                self.results[name] = np.array(value, float)
         self.atoms = atoms.copy()
 
     def __str__(self):
