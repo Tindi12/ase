@@ -1,3 +1,4 @@
+import warnings
 from functools import cached_property
 
 import numpy as np
@@ -26,7 +27,9 @@ class SinglePointCalculator(Calculator):
         Calculator.__init__(self)
         self.results = {}
         for property, value in results.items():
-            assert property in all_properties, property
+            if property not in all_properties:
+                warnings.warn(f'The property "{property}" is not stored.')
+                continue
             if value is None:
                 continue
             if property in ['energy', 'magmom', 'free_energy']:
