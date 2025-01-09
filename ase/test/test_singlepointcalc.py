@@ -1,10 +1,13 @@
-from ase.build import fcc111
+import pytest
+
+from ase.build import bulk, fcc111
 from ase.calculators.emt import EMT
+from ase.calculators.singlepoint import SinglePointCalculator
 from ase.constraints import FixAtoms
 from ase.io import read
 
 
-def test_singlepointcalc(testdir):
+def test_forces(testdir):
     """This test makes sure that the forces returned from a
     SinglePointCalculator are immutable. Previously, successive calls to
     atoms.get_forces(apply_constraint=x), with x alternating between True and
@@ -41,3 +44,12 @@ def test_singlepointcalc(testdir):
     forces[0, 0] = 42.
     forces = atoms.get_forces(apply_constraint=False)
     assert forces[0, 0] == f
+
+
+def test_results():
+    """Test if `results` with non-standard properties do not raise an error."""
+    atoms = bulk('Cu')
+    atoms.calc = EMT()
+    atoms.calc.results['nbands'] = 0
+    with pytest.raises(UserWarning):
+        SinglePointCalculator(atoms, **atoms.calc.results)
