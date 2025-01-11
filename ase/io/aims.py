@@ -11,7 +11,7 @@ import numpy as np
 from pyfhiaims.control.control import AimsControlIn
 from pyfhiaims.geometry.atom import FHIAimsAtom
 from pyfhiaims.geometry.geometry import AimsGeometry
-from pyfhiaims.output_parser.aims_outputs import AimsOutput
+from pyfhiaims.outputs.stdout import AimsStdout
 from pyfhiaims.species_defaults.species import SpeciesDefaults
 
 from ase import Atoms
@@ -504,8 +504,7 @@ def read_aims_output(
     Atoms | list[Atoms]
         The requested Atoms objects
     """
-    lines = [line.strip() for line in fd.readlines()]
-    output = AimsOutput.from_aims_out_content(lines)
+    output = AimsStdout(fd)
 
     if isinstance(index, int):
         loop_inds = [index]
@@ -515,21 +514,21 @@ def read_aims_output(
 
     atoms_list = []
     for ind in loop_inds:
-        image = output.get_image(ind)
+        image = output[ind]
         if not non_convergence_ok and (not image.converged):
             raise AimsParseError("The calculation did not converge properly.")
         atoms = aimsgeo2atoms(image.geometry)
         atoms.calc = SinglePointDFTCalculator(
             atoms,
-            energy=image["energy"],
-            free_energy=image["free_energy"],
-            forces=image["forces"],
-            stress=image["stress"],
-            stresses=image["stresses"],
-            magmom=image["magmom"],
-            dipole=image["dipole"],
-            dielectric_tensor=image["dielectric_tensor"],
-            polarization=image["polarization"],
+            energy=image.total_energy,
+            free_energy=image.free_energy,
+            forces=image.forces,
+            stress=image.stress,
+            stresses=image.stresses,
+            magmom=image.magmom,
+            dipole=image.dipole,
+            dielectric_tensor=image.dielectric_tensor,
+            polarization=image.polarization,
         )
         atoms_list.append(atoms)
     if isinstance(index, int):
@@ -561,8 +560,7 @@ def read_aims_results(
     dict[str, Any] | list[dict[str, Any]]
         The requested results Dictionaries
     """
-    lines = [line.strip() for line in fd.readlines()]
-    output = AimsOutput.from_aims_out_content(lines)
+    output = AimsStdout(fd)
 
     if isinstance(index, int):
         loop_inds = [index]
@@ -572,7 +570,7 @@ def read_aims_results(
 
     results = []
     for ind in loop_inds:
-        image = output.get_image(ind)
+        image = output[ind]
         if not non_convergence_ok and (not image.converged):
             raise AimsParseError("The calculation did not converge properly.")
         results.append(image._results)

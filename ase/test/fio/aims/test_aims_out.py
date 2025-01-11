@@ -59,6 +59,7 @@ def test_parse_out(testdir):
         [1.78172069, 0.000, 1.78172069],
         [1.78172069, 1.78172069, 0.000],
     ]
+
     assert np.allclose(traj[0].get_cell(), cell_0)
     assert np.allclose(image_0.get_cell(), cell_0)
 
@@ -79,10 +80,10 @@ def test_parse_results(testdir):
                 [0.0, 0.0, 0.02056358],
             ]
         ),
-        "energy": -0.207521252194984E+04,
+        "total_energy": -0.207521252194984E+04,
         "free_energy": -0.207521252194984E+04,
-        "homo": -8.00379929,
-        "lumo": -3.54596603,
+        "vbm": -8.00379929,
+        "cbm": -3.54596603,
         "gap": 4.45783326,
         "direct_gap": 5.87908857,
     }
@@ -95,10 +96,10 @@ def test_parse_results(testdir):
                 [0.0, 0.0, 0.00029342],
             ]
         ),
-        "energy": -0.207521411853867E+04,
+        "total_energy": -0.207521411853867E+04,
         "free_energy": -0.207521411853867E+04,
-        "homo": -8.02644353,
-        "lumo": -3.55243630,
+        "vbm": -8.02644353,
+        "cbm": -3.55243630,
         "gap": 4.47400723,
         "direct_gap": 5.89977761,
     }
