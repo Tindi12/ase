@@ -9,20 +9,12 @@ from typing import Any, Iterable, TextIO
 
 import numpy as np
 from pyfhiaims.control.control import AimsControlIn
-from pyfhiaims.geometry.atom import FHIAimsAtom
 from pyfhiaims.geometry.geometry import AimsGeometry
-from pyfhiaims.outputs.stdout import AimsStdout
-from pyfhiaims.species_defaults.species import SpeciesDefaults
+from pyfhiaims.outputs.stdout import AimsStdout, AimsParseError
 
 from ase import Atoms
 from ase.calculators.calculator import kpts2mp
 from ase.calculators.singlepoint import SinglePointDFTCalculator
-from ase.constraints import (
-    FixAtoms,
-    FixCartesian,
-    FixCartesianParametricRelations,
-    FixScaledParametricRelations,
-)
 from ase.data import atomic_numbers
 from ase.units import Ang, fs
 from ase.utils import deprecated, reader, writer
@@ -30,14 +22,6 @@ from ase.utils import deprecated, reader, writer
 v_unit = Ang / (1000.0 * fs)
 
 LINE_NOT_FOUND = object()
-
-
-class AimsParseError(Exception):
-    """Exception raised if an error occurs when parsing an Aims output file"""
-
-    def __init__(self, message):
-        self.message = message
-        super().__init__(self.message)
 
 
 def singular(key: str) -> str:
@@ -56,178 +40,6 @@ def singular(key: str) -> str:
     return key
 
 
-def atoms2aimsgeo(atoms: Atoms) -> AimsGeometry:
-    """
-    Convert from Atoms to AimsGeometry
-
-    Args:
-        atoms (Atoms): The Atoms object to convert
-
-    Returns:
-        AimsGeometry: The corresponing AimsGeometry
-
-    """
-    geometry_props = {k: v for k, v in atoms.info.items()
-                        if k in AimsGeometry._get_property_names()}
-
-    atomic_props = {k: v for k, v in atoms.info.items()
-                    if k in AimsGeometry._get_property_names(atomic=True)}
-
-    symmetry_params = [[], []]
-    symmetry_n_params = None
-    symmetry_lv = None
-    symmetry_frac = None
-    cart_const = {}
-    for const in atoms.constraints:
-        if isinstance(const, FixScaledParametricRelations):
-            symmetry_params[1] = const.params
-            symmetry_frac = const.expressions
-        elif isinstance(const, FixCartesianParametricRelations):
-            symmetry_params[0] = const.params
-            symmetry_lv = const.expressions
-        elif isinstance(const, FixAtoms):
-            cart_const.update(
-                {
-                    ind: (True, True, True) for ind in const.get_indices()
-                }
-            )
-        elif isinstance(const, FixCartesian):
-            for ind in const.index:
-                cart_const[ind] = tuple(mm for mm in const.mask)
-
-    atomic_props["velocities"] = [
-        v if any(v) else None for v in atoms.get_velocities()
-    ]
-    aims_atoms = []
-    for i_at, atom in enumerate(atoms):
-        atom_props = {
-            singular(k): v[i_at] for k, v in atomic_props.items()
-        }
-        const = atom_props.pop("nuclear_constraint", None)
-        aims_atoms.append(FHIAimsAtom(
-            symbol=atom.symbol,
-            position=atom.position,
-            initial_charge=atom.charge,
-            initial_moment=atom.magmom,
-            constraints=cart_const.get(i_at),
-            **atom_props
-            )
-        )
-
-    if symmetry_lv is not None or symmetry_frac is not None:
-        if symmetry_lv is None or symmetry_frac is None:
-            raise ValueError(
-                "Both symmetry_lv and symmetry_frac must be defined"
-            )
-        symmetry_n_params = (
-            len(symmetry_params[0]),
-            len(symmetry_params[1]),
-            len(symmetry_params[0]) + len(symmetry_params[1])
-        )
-        symmetry_params = symmetry_params[0] + symmetry_params[1]
-    else:
-        symmetry_params = None
-
-    return AimsGeometry(
-        atoms=aims_atoms,
-        lattice_vectors=None if atoms.cell.rank < 3 else atoms.cell,
-        symmetry_n_params=symmetry_n_params,
-        symmetry_params=symmetry_params,
-        symmetry_lv=symmetry_lv,
-        symmetry_frac=symmetry_frac,
-        **geometry_props
-    )
-
-
-def aimsgeo2atoms(geo_in: AimsGeometry) -> Atoms:
-    """
-    Convert from AimsGeometry to Atoms
-
-    Args:
-        geo_in (AimsGeometry): geometry object to convert
-
-    Returns:
-        Atoms: The correponding Atoms object
-
-    """
-    info_entries = [p for p in geo_in._get_property_names()
-                    if p not in (
-                        "atoms",
-                        "lattice_vectors",
-                        "species_dict"
-                    )] + \
-                    [p for p in geo_in._get_property_names(atomic=True)
-                    if p not in (
-                        "symbols",
-                        "numbers",
-                        "positions",
-                        "fractional_positions",
-                        "velocities",
-                        "initial_charges",
-                        "initial_moments",
-                        "species_block",
-                        "n_atoms",
-                        "masses",
-                        "nuclear_charges")
-                    ]
-
-    if geo_in.lattice_vectors is not None:
-        cell = geo_in.lattice_vectors
-    else:
-        cell = (0, 0, 0)
-    atoms = Atoms(
-        numbers=geo_in.numbers,
-        positions=geo_in.positions,
-        velocities=[v if v is not None else [0, 0, 0]
-                    for v in geo_in.velocities],
-        magmoms=geo_in.magnetic_moments,
-        charges=geo_in.initial_charges,
-        pbc=geo_in.lattice_vectors is not None,
-        cell=cell,
-        info={e: getattr(geo_in, e) for e in info_entries},
-    )
-
-    fix_params = []
-    if (
-        (geo_in.symmetry_n_params is not None) and
-        (np.sum(geo_in.symmetry_n_params) > 0)
-    ):
-        fix_params.append(
-            FixCartesianParametricRelations.from_expressions(
-                list(range(3)),
-                geo_in.symmetry_params[:geo_in.symmetry_n_params[0]],
-                [expr for exprs in geo_in.symmetry_lv for expr in exprs],
-                use_cell=True,
-            )
-        )
-
-        fix_params.append(
-            FixScaledParametricRelations.from_expressions(
-                list(range(len(atoms))),
-                geo_in.symmetry_params[geo_in.symmetry_n_params[0]:],
-                [expr for exprs in geo_in.symmetry_frac for expr in exprs],
-            )
-        )
-
-    fix_cart_const = []
-    fixed_atoms = []
-    for index, constraint in enumerate(geo_in.nuclear_constraints):
-        if constraint is None:
-            continue
-
-        if all(constraint):
-            fixed_atoms.append(index)
-        elif any(constraint):
-            fix_cart_const.append(FixCartesian(index, constraint))
-
-    if len(fixed_atoms) > 0:
-        fix_cart_const.insert(0, FixAtoms(fixed_atoms))
-
-    atoms.set_constraint(fix_cart_const + fix_params)
-
-    return atoms
-
-
 # Read aims geometry files
 @reader
 def read_aims(fd: TextIO | str | Path, apply_constraints=True) -> Atoms:
@@ -239,7 +51,7 @@ def read_aims(fd: TextIO | str | Path, apply_constraints=True) -> Atoms:
     """
     lines = [line for line in fd.readlines()]
     geometry = AimsGeometry.from_strings(lines)
-    atoms = aimsgeo2atoms(geometry)
+    atoms = geometry.ase_atoms
 
     if apply_constraints:
         atoms.set_positions(atoms.get_positions())
@@ -318,7 +130,7 @@ def write_aims(
         Use of ``velocities`` is deprecated, please use ``write_velocities``.
 
     """
-    geometry = atoms2aimsgeo(atoms)
+    geometry = AimsGeometry.from_atoms(atoms)
     if scaled and not np.all(atoms.pbc):
         raise ValueError(
             "Requesting scaled for a calculation where scaled=True, but "
@@ -457,25 +269,28 @@ def write_control(
         outputs=outputs,
     )
 
-    geometry = atoms2aimsgeo(atoms)
+    geometry = AimsGeometry.from_atoms(atoms)
     if isinstance(tiers, int):
         tiers = {sym: tiers for sym in np.unique(geometry.symbols)}
     elif tiers is not None:
         assert all([sym in tiers for sym in np.unique(geometry.symbols)])
 
+    geometry.load_species(species_directory=species_dir)
     for sym in np.unique(geometry.symbols):
-        sf = f"{species_dir}/{atomic_numbers[sym]:02}_{sym}_default"
-        species = SpeciesDefaults.from_file(sf)
         if tiers is not None:
-            end_activate = min(tiers[sym], species.basis_set.n_tiers) + 1
+            end_activate = 1 + min(
+                tiers[sym], geometry.species_dict[sym].basis_set.n_tiers
+            )
             for tt in range(1, end_activate):
-                species.basis_set.activate_tier(tt)
-            for tt in range(end_activate, species.basis_set.n_tiers + 1):
-                species.basis_set.deactivate_tier(tt)
+                geometry.species_dict[sym].basis_set.activate_tier(tt)
+
+            for tt in range(
+                end_activate, geometry.species_dict[sym].basis_set.n_tiers + 1
+            ):
+                geometry.species_dict[sym].basis_set.deactivate_tier(tt)
 
         if plus_u is not None:
-            species.plus_u = plus_u.get(sym)
-        geometry.set_species(sym, species)
+            geometry.species_dict[sym].plus_u = plus_u.get(sym)
 
     fd.write(get_aims_header())
     fd.write(control_in.get_content(geometry, verbose_header))
@@ -517,10 +332,10 @@ def read_aims_output(
         image = output[ind]
         if not non_convergence_ok and (not image.converged):
             raise AimsParseError("The calculation did not converge properly.")
-        atoms = aimsgeo2atoms(image.geometry)
+        atoms = image.geometry.ase_atoms
         atoms.calc = SinglePointDFTCalculator(
             atoms,
-            energy=image.total_energy,
+            energy=image.free_energy, # TARP: This is the force-consistent energy
             free_energy=image.free_energy,
             forces=image.forces,
             stress=image.stress,
@@ -574,6 +389,7 @@ def read_aims_results(
         if not non_convergence_ok and (not image.converged):
             raise AimsParseError("The calculation did not converge properly.")
         results.append(image._results)
+        results[-1]["energy"] = image.free_energy
 
     if isinstance(index, int):
         return results[0]
