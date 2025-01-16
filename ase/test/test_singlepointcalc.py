@@ -51,5 +51,7 @@ def test_results():
     atoms = bulk('Cu')
     atoms.calc = EMT()
     atoms.calc.results['nbands'] = 0
+    SinglePointCalculator(atoms, **atoms.calc.results)
+    atoms.calc.results[''] = None  # non-standard property
     with pytest.raises(UserWarning):
         SinglePointCalculator(atoms, **atoms.calc.results)

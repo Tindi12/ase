@@ -7,9 +7,8 @@ from ase.calculators.calculator import (
     Calculator,
     PropertyNotImplementedError,
     PropertyNotPresent,
-    all_properties,
 )
-from ase.outputs import Properties
+from ase.outputs import Properties, all_outputs
 
 
 class SinglePointCalculator(Calculator):
@@ -27,7 +26,7 @@ class SinglePointCalculator(Calculator):
         Calculator.__init__(self)
         self.results = {}
         for name, value in results.items():
-            if name not in all_properties:
+            if name not in all_outputs:
                 warnings.warn(f'The property "{name}" is not stored.')
                 continue
             if value is None:
