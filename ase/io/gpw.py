@@ -1,10 +1,10 @@
 """Read gpw-file from GPAW."""
 import ase.io.ulm as ulm
 from ase import Atoms
+from ase.calculators.calculator import all_properties
 from ase.calculators.singlepoint import (
     SinglePointDFTCalculator,
     SinglePointKPoint,
-    all_properties,
 )
 from ase.io.trajectory import read_atoms
 from ase.units import Bohr, Hartree

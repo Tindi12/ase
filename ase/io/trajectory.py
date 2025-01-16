@@ -8,8 +8,11 @@ import numpy as np
 
 from ase import __version__
 from ase.atoms import Atoms
-from ase.calculators.calculator import PropertyNotImplementedError
-from ase.calculators.singlepoint import SinglePointCalculator, all_properties
+from ase.calculators.calculator import (
+    PropertyNotImplementedError,
+    all_properties,
+)
+from ase.calculators.singlepoint import SinglePointCalculator
 from ase.io.formats import is_compressed
 from ase.io.jsonio import decode, encode
 from ase.io.pickletrajectory import PickleTrajectory
