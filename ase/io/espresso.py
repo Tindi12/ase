@@ -18,8 +18,10 @@ import warnings
 from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
+from typing import IO, List
 
 import numpy as np
+from numpy.typing import NDArray
 
 from ase.atoms import Atoms
 from ase.calculators.calculator import kpts2ndarray, kpts2sizeandoffsets
@@ -29,43 +31,54 @@ from ase.calculators.singlepoint import (
 )
 from ase.constraints import FixAtoms, FixCartesian
 from ase.data import chemical_symbols
-from ase.dft.kpoints import kpoint_convert
 from ase.io.espresso_namelist.keys import pw_keys
 from ase.io.espresso_namelist.namelist import Namelist
 from ase.units import create_units
 from ase.utils import deprecated, reader, writer
 
-# Quantum ESPRESSO uses CODATA 2006 internally
-units = create_units('2006')
+# Quantum ESPRESSO uses CODATA 2018 internally
+units = create_units('2018')
 
-# Section identifiers
-_PW_START = 'Program PWSCF'
-_PW_END = 'End of self-consistent calculation'
-_PW_CELL = 'CELL_PARAMETERS'
-_PW_POS = 'ATOMIC_POSITIONS'
-_PW_MAGMOM = 'Magnetic moment per site'
-_PW_FORCE = 'Forces acting on atoms'
-_PW_TOTEN = '!    total energy'
-_PW_STRESS = 'total   stress'
-_PW_FERMI = 'the Fermi energy is'
-_PW_HIGHEST_OCCUPIED = 'highest occupied level'
-_PW_HIGHEST_OCCUPIED_LOWEST_FREE = 'highest occupied, lowest unoccupied level'
-_PW_KPTS = 'number of k points='
-_PW_BANDS = _PW_END
-_PW_BANDSTRUCTURE = 'End of band structure calculation'
-_PW_DIPOLE = "Debye"
-_PW_DIPOLE_DIRECTION = "Computed dipole along edir"
+float_regex = re.compile(r'-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?')
 
-# ibrav error message
 ibrav_error_message = (
     'ASE does not support ibrav != 0. Note that with ibrav '
     '== 0, Quantum ESPRESSO will still detect the symmetries '
     'of your system because the CELL_PARAMETERS are defined '
-    'to a high level of precision.')
+    'to a high level of precision.'
+)
+
+# Section identifiers
+PW_NUMBER_OF_ATOMS = 'number of atoms/cell'
+PW_ALAT = 'lattice parameter (alat)'
+PW_FIRST_CELL = 'crystal axes:'
+PW_CELL = 'CELL_PARAMETERS'
+PW_FIRST_POSITIONS = 'site n.     atom'
+PW_POSITIONS = 'ATOMIC_POSITIONS'
+PW_FORCES = 'Forces acting on atoms'
+PW_STRESS = 'total stress'
+PW_MAGMOM = 'Magnetic moment per site'
+PW_DIPOLE = 'Debye'
+PW_DIPOLE_DIRECTION = 'Computed dipole along edir'
+PW_FERMI = 'the Fermi energy is'
+PW_HIGHEST_OCCUPIED = 'highest occupied level'
+PW_HIGHEST_OCCUPIED_LOWEST_FREE = 'highest occupied, lowest unoccupied level'
+PW_KPTS = 'number of k points='
+PW_NUMBER_OF_BANDS = 'number of Kohn-Sham states'
+PW_BANDS = 'bands (ev):'
+PW_BANDSTRUCTURE = 'End of band structure calculation'
+PW_BLOCK_START = 'Program PWSCF'
+PW_BLOCK_END = ' scf cycles '
+PW_TOTEN = '!    total energy'
+PW_VERBOSITY = "set verbosity='high'"
 
 
-@reader
-def read_espresso_out(fileobj, index=slice(None), results_required=True):
+def read_espresso_out(
+    fileobj: IO,
+    index: int = -1,
+    results_required: bool = True,
+    ignore_errors: bool = False,
+):
     """Reads Quantum ESPRESSO output files.
 
     The atomistic configurations as well as results (energy, force, stress,
@@ -92,416 +105,392 @@ def read_espresso_out(fileobj, index=slice(None), results_required=True):
         The next structure from the index slice. The Atoms has a
         SinglePointCalculator attached with any results parsed from
         the file.
-
-
     """
-    # work with a copy in memory for faster random access
-    pwo_lines = fileobj.readlines()
+    output_lines = fileobj.readlines()
+    len_output_lines = len(output_lines)
 
-    # TODO: index -1 special case?
-    # Index all the interesting points
-    indexes = {
-        _PW_START: [],
-        _PW_END: [],
-        _PW_CELL: [],
-        _PW_POS: [],
-        _PW_MAGMOM: [],
-        _PW_FORCE: [],
-        _PW_TOTEN: [],
-        _PW_STRESS: [],
-        _PW_FERMI: [],
-        _PW_HIGHEST_OCCUPIED: [],
-        _PW_HIGHEST_OCCUPIED_LOWEST_FREE: [],
-        _PW_KPTS: [],
-        _PW_BANDS: [],
-        _PW_BANDSTRUCTURE: [],
-        _PW_DIPOLE: [],
-        _PW_DIPOLE_DIRECTION: [],
+    def conversion_to_crystal_sg_error(_) -> None:
+        raise NotImplementedError('crystal_sg positions are not implemented')
+
+    def handle_error(message: str) -> None:
+        if ignore_errors:
+            warnings.warn(message)
+        else:
+            raise ValueError(message)
+
+    positions_convertions = {
+        'alat': lambda x: x * alat,
+        'bohr': lambda x: x * units['Bohr'],
+        'angstrom': lambda x: x,
+        'crystal': lambda x: np.dot(x, cell),
+        'crystal_sg': conversion_to_crystal_sg_error,
     }
 
-    for idx, line in enumerate(pwo_lines):
+    indexes = {
+        PW_NUMBER_OF_ATOMS: [],
+        PW_ALAT: [],
+        PW_FIRST_CELL: [],
+        PW_CELL: [],
+        PW_FIRST_POSITIONS: [],
+        PW_POSITIONS: [],
+        PW_FORCES: [],
+        PW_STRESS: [],
+        PW_MAGMOM: [],
+        PW_DIPOLE: [],
+        PW_DIPOLE_DIRECTION: [],
+        PW_FERMI: [],
+        PW_HIGHEST_OCCUPIED: [],
+        PW_HIGHEST_OCCUPIED_LOWEST_FREE: [],
+        PW_KPTS: [],
+        PW_NUMBER_OF_BANDS: [],
+        PW_BANDS: [],
+        PW_BANDSTRUCTURE: [],
+        PW_BLOCK_START: [],
+        PW_BLOCK_END: [],
+        PW_TOTEN: [],
+    }
+
+    for idx, line in enumerate(output_lines):
         for identifier in indexes:
             if identifier in line:
                 indexes[identifier].append(idx)
 
-    # Configurations are either at the start, or defined in ATOMIC_POSITIONS
-    # in a subsequent step. Can deal with concatenated output files.
-    all_config_indexes = sorted(indexes[_PW_START] +
-                                indexes[_PW_POS])
+    for identifier in indexes:
+        indexes[identifier] = np.array(indexes[identifier])
 
-    # Slice only requested indexes
-    # setting results_required argument stops configuration-only
-    # structures from being returned. This ensures the [-1] structure
-    # is one that has results. Two cases:
-    # - SCF of last configuration is not converged, job terminated
-    #   abnormally.
-    # - 'relax' and 'vc-relax' re-prints the final configuration but
-    #   only 'vc-relax' recalculates.
-    if results_required:
-        results_indexes = sorted(indexes[_PW_TOTEN] + indexes[_PW_FORCE] +
-                                 indexes[_PW_STRESS] + indexes[_PW_MAGMOM] +
-                                 indexes[_PW_BANDS] +
-                                 indexes[_PW_BANDSTRUCTURE])
+    indices_block = np.sort(
+        np.hstack((indexes[PW_BLOCK_START], indexes[PW_BLOCK_END]))
+    )
+    indices_block = indices_block[index]
+    indices_block = np.append(indices_block, len_output_lines)
 
-        # Prune to only configurations with results data before the next
-        # configuration
-        results_config_indexes = []
-        for config_index, config_index_next in zip(
-                all_config_indexes,
-                all_config_indexes[1:] + [len(pwo_lines)]):
-            if any(config_index < results_index < config_index_next
-                    for results_index in results_indexes):
-                results_config_indexes.append(config_index)
+    def parse_number_of_atoms(index: int) -> int:
+        return int(re.findall(r'\d+', output_lines[index])[0])
 
-        # slice from the subset
-        image_indexes = results_config_indexes[index]
-    else:
-        image_indexes = all_config_indexes[index]
+    def parse_alat(index: int) -> float:
+        return (
+            float(re.findall(float_regex, output_lines[index])[0])
+            * units['Bohr']
+        )
 
-    # Extract initialisation information each time PWSCF starts
-    # to add to subsequent configurations. Use None so slices know
-    # when to fill in the blanks.
-    pwscf_start_info = {idx: None for idx in indexes[_PW_START]}
+    def parse_first_cell(index: int) -> NDArray:
+        cell = np.loadtxt(
+            output_lines[index + 1 : index + 4], usecols=(3, 4, 5)
+        )
+        return cell * alat
 
-    for image_index in image_indexes:
-        # Find the nearest calculation start to parse info. Needed in,
-        # for example, relaxation where cell is only printed at the
-        # start.
-        if image_index in indexes[_PW_START]:
-            prev_start_index = image_index
-        else:
-            # The greatest start index before this structure
-            prev_start_index = [idx for idx in indexes[_PW_START]
-                                if idx < image_index][-1]
+    def parse_cell(index: int) -> NDArray:
+        cell = np.loadtxt(
+            output_lines[index + 1 : index + 4], usecols=(0, 1, 2)
+        )
+        return cell * alat
 
-        # add structure to reference if not there
-        if pwscf_start_info[prev_start_index] is None:
-            pwscf_start_info[prev_start_index] = parse_pwo_start(
-                pwo_lines, prev_start_index)
+    def parse_first_positions(index: int):
+        positions = np.loadtxt(
+            output_lines[index + 1 : index + 1 + n_atoms], usecols=(6, 7, 8)
+        )
+        symbols = np.loadtxt(
+            output_lines[index + 1 : index + 1 + n_atoms],
+            usecols=1,
+            converters=label_to_symbol,
+            dtype=str,
+        )
+        return positions, symbols
 
-        # Get the bounds for information for this structure. Any associated
-        # values will be between the image_index and the following one,
-        # EXCEPT for cell, which will be 4 lines before if it exists.
-        for next_index in all_config_indexes:
-            if next_index > image_index:
-                break
-        else:
-            # right to the end of the file
-            next_index = len(pwo_lines)
+    def parse_positions(index: int) -> NDArray:
+        conversion = (
+            output_lines[index].split()[1].replace('(', '').replace(')', '')
+        )
+        positions = np.loadtxt(
+            output_lines[index + 1 : index + 1 + n_atoms],
+            usecols=(1, 2, 3),
+            converters=positions_convertions[conversion],
+        )
+        symbols = np.loadtxt(
+            output_lines[index + 1 : index + 1 + n_atoms],
+            usecols=0,
+            converters=label_to_symbol,
+            dtype=str,
+        )
+        return positions, symbols
 
-        # Get the structure
-        # Use this for any missing data
-        prev_structure = pwscf_start_info[prev_start_index]['atoms']
-        cell_alat = pwscf_start_info[prev_start_index]['alat']
-        if image_index in indexes[_PW_START]:
-            structure = prev_structure.copy()  # parsed from start info
-        else:
-            if _PW_CELL in pwo_lines[image_index - 5]:
-                # CELL_PARAMETERS would be just before positions if present
-                cell, cell_alat = get_cell_parameters(
-                    pwo_lines[image_index - 5:image_index])
-            else:
-                cell = prev_structure.cell
-                cell_alat = pwscf_start_info[prev_start_index]['alat']
+    def parse_energy(index: int) -> float:
+        return (
+            float(re.findall(float_regex, output_lines[index])[0]) * units['Ry']
+        )
 
-            # give at least enough lines to parse the positions
-            # should be same format as input card
-            n_atoms = len(prev_structure)
-            positions_card = get_atomic_positions(
-                pwo_lines[image_index:image_index + n_atoms + 1],
-                n_atoms=n_atoms, cell=cell, alat=cell_alat)
+    def parse_forces(index: int) -> NDArray:
+        offset = 4 if 'negative rho' in output_lines[index + 2] else 2
+        forces = np.loadtxt(
+            output_lines[index + offset : index + offset + len(atoms)],
+            usecols=(6, 7, 8),
+        )
+        return forces * units['Ry'] / units['Bohr']
 
-            # convert to Atoms object
-            symbols = [label_to_symbol(position[0]) for position in
-                       positions_card]
-            positions = [position[1] for position in positions_card]
-            structure = Atoms(symbols=symbols, positions=positions, cell=cell,
-                              pbc=True)
+    def parse_stress(index: int) -> NDArray:
+        stress = np.loadtxt(output_lines[index + 1 : index + 4])
+        return stress * units['Ry'] / (units['Bohr'] ** 3)
 
-        # Extract calculation results
-        # Energy
-        energy = None
-        for energy_index in indexes[_PW_TOTEN]:
-            if image_index < energy_index < next_index:
-                energy = float(
-                    pwo_lines[energy_index].split()[-2]) * units['Ry']
+    def parse_magmom(index: int) -> NDArray:
+        magmoms = np.loadtxt(
+            output_lines[index + 1 : index + 1 + len(atoms)], usecols=-1
+        )
+        return magmoms
 
-        # Forces
-        forces = None
-        for force_index in indexes[_PW_FORCE]:
-            if image_index < force_index < next_index:
-                # Before QE 5.3 'negative rho' added 2 lines before forces
-                # Use exact lines to stop before 'non-local' forces
-                # in high verbosity
-                if not pwo_lines[force_index + 2].strip():
-                    force_index += 4
+    def parse_dipole(index: int) -> float:
+        return (
+            float(re.findall(float_regex, output_lines[index])[-1])
+            * units['Debye']
+        )
+
+    def parse_fermi(index: int) -> float:
+        return float(re.findall(float_regex, output_lines[index])[0])
+
+    def parse_hol_lul(index: int) -> tuple[float, float]:
+        hol, lul = re.findall(float_regex, output_lines[index])
+        return float(hol), float(lul)
+
+    def parse_kpts_and_weights(index: int) -> tuple[NDArray, NDArray]:
+        len_kpts = int(re.findall(float_regex, output_lines[index])[0])
+
+        kpts_and_weights = np.loadtxt(
+            output_lines[index + 2 : index + 2 + len_kpts],
+            converters=lambda x: float(x[:-2].strip(')')),
+            usecols=(4, 5, 6, -1),
+        )
+
+        kpts_coord = kpts_and_weights[:, :3]
+        kpts_weights = kpts_and_weights[:, -1]
+
+        # QE prints the k-points in units of 2*pi/alat, we return it in
+        # cartesian by multiplying with the inverse of the reciprocal cell
+        return np.dot(kpts_coord / alat, cell.T), kpts_weights
+
+    def parse_number_of_bands(index: int) -> int:
+        return int(re.findall(r'\d+', output_lines[index])[0])
+
+    def parse_dipole_direction(index: int) -> int:
+        return int(re.findall(r'\d+', output_lines[index])[0]) - 1
+
+    def parse_bands(index: int) -> list[SinglePointKPoint]:
+        offset = 1 if n_bands % 8 == 0 else 2
+        bands = [
+            re.findall(float_regex, line)
+            for line in output_lines[
+                index + 1 : index + 1 + n_bands // 8 + offset
+            ]
+        ]
+
+        return np.hstack(bands).astype(float)
+
+    properties = list(indexes.keys())
+
+    base_properties = [
+        PW_NUMBER_OF_ATOMS,
+        PW_ALAT,
+    ]
+    results_properties = (
+        [
+            PW_TOTEN,
+            PW_FORCES,
+        ]
+        if results_required
+        else []
+    )
+    required_properties = base_properties + results_properties
+
+    property_only_at_start = [
+        PW_NUMBER_OF_ATOMS,
+        PW_NUMBER_OF_BANDS,
+        PW_ALAT,
+        PW_CELL,
+        PW_KPTS,
+    ]
+
+    # We treat each block (calculations) separately
+    for num_block, (past, future) in enumerate(
+        zip(indices_block[:-1], indices_block[1:])
+    ):
+        current_indices = {}
+
+        for property_ in properties:
+            is_property = np.logical_and(
+                past <= indexes[property_], indexes[property_] < future
+            )
+            current_indices[property_] = indexes[property_][is_property]
+
+            if len(current_indices[property_]) == 1:
+                current_indices[property_] = indexes[property_][is_property][0]
+            elif len(current_indices[property_]) == 0:
+                current_indices[property_] = None
+
+        if not (
+            current_indices.get(PW_POSITIONS)
+            or current_indices.get(PW_FIRST_POSITIONS)
+        ):
+            handle_error(
+                'No positions found in the `pw.x` output file at requested'
+                f'block {num_block} starting at line {past}.'
+            )
+            continue
+
+        # If alat is None, we are not at the start of a calculation and we need
+        # to find the alat printed at the last start
+        def seek_last_property(property_):
+            past_property = indexes[property_][indexes[property_] < future]
+            past_starts = indexes[PW_BLOCK_START][
+                indexes[PW_BLOCK_START] < future
+            ]
+
+            # Ensure that the property is from the same calculation,
+            # and that it exists
+            assert np.abs(future - past_property[-1]) < np.abs(
+                future - past_starts[-1]
+            )
+
+            return past_property[-1]
+
+        for property_ in property_only_at_start:
+            if current_indices.get(property_) is None:
+                # PW_CELL is a special case, it can be the first cell or the
+                # cell printed after the positions in case of vc-relax
+                if property_ == PW_CELL:
+                    current_indices[PW_FIRST_CELL] = seek_last_property(
+                        PW_FIRST_CELL
+                    )
                 else:
-                    force_index += 2
-                # assume contiguous
-                forces = [
-                    [float(x) for x in force_line.split()[-3:]] for force_line
-                    in pwo_lines[force_index:force_index + len(structure)]]
-                forces = np.array(forces) * units['Ry'] / units['Bohr']
+                    current_indices[property_] = seek_last_property(property_)
 
-        # Stress
-        stress = None
-        for stress_index in indexes[_PW_STRESS]:
-            if image_index < stress_index < next_index:
-                sxx, sxy, sxz = pwo_lines[stress_index + 1].split()[:3]
-                _, syy, syz = pwo_lines[stress_index + 2].split()[:3]
-                _, _, szz = pwo_lines[stress_index + 3].split()[:3]
-                stress = np.array([sxx, syy, szz, syz, sxz, sxy], dtype=float)
-                # sign convention is opposite of ase
-                stress *= -1 * units['Ry'] / (units['Bohr'] ** 3)
+        # We work under the assumption that alat != celldm(1), see PR ...
+        n_atoms = parse_number_of_atoms(current_indices[PW_NUMBER_OF_ATOMS])
+        n_bands = parse_number_of_bands(current_indices[PW_NUMBER_OF_BANDS])
+        alat = (
+            parse_alat(current_indices[PW_ALAT])
+            if current_indices[PW_ALAT] is not None
+            else None
+        )
 
-        # Magmoms
-        magmoms = None
-        for magmoms_index in indexes[_PW_MAGMOM]:
-            if image_index < magmoms_index < next_index:
-                magmoms = [
-                    float(mag_line.split()[-1]) for mag_line
-                    in pwo_lines[magmoms_index + 1:
-                                 magmoms_index + 1 + len(structure)]]
+        if not (
+            current_indices.get(PW_FIRST_CELL) or current_indices.get(PW_CELL)
+        ):
+            handle_error(
+                'No cell found in the `pw.x` output file at '
+                f'requested block {num_block} starting at line {past}.'
+            )
+            continue
 
-        # Dipole moment
-        dipole = None
-        if indexes[_PW_DIPOLE]:
-            for dipole_index in indexes[_PW_DIPOLE]:
-                if image_index < dipole_index < next_index:
-                    _dipole = float(pwo_lines[dipole_index].split()[-2])
-
-            for dipole_index in indexes[_PW_DIPOLE_DIRECTION]:
-                if image_index < dipole_index < next_index:
-                    _direction = pwo_lines[dipole_index].strip()
-                    prefix = 'Computed dipole along edir('
-                    _direction = _direction[len(prefix):]
-                    _direction = int(_direction[0])
-
-            dipole = np.eye(3)[_direction - 1] * _dipole * units['Debye']
-
-        # Fermi level / highest occupied level
-        efermi = None
-        for fermi_index in indexes[_PW_FERMI]:
-            if image_index < fermi_index < next_index:
-                efermi = float(pwo_lines[fermi_index].split()[-2])
-
-        if efermi is None:
-            for ho_index in indexes[_PW_HIGHEST_OCCUPIED]:
-                if image_index < ho_index < next_index:
-                    efermi = float(pwo_lines[ho_index].split()[-1])
-
-        if efermi is None:
-            for holf_index in indexes[_PW_HIGHEST_OCCUPIED_LOWEST_FREE]:
-                if image_index < holf_index < next_index:
-                    efermi = float(pwo_lines[holf_index].split()[-2])
-
-        # K-points
-        ibzkpts = None
-        weights = None
-        kpoints_warning = "Number of k-points >= 100: " + \
-                          "set verbosity='high' to print them."
-
-        for kpts_index in indexes[_PW_KPTS]:
-            nkpts = int(re.findall(r'\b\d+\b', pwo_lines[kpts_index])[0])
-            kpts_index += 2
-
-            if pwo_lines[kpts_index].strip() == kpoints_warning:
+        if current_indices.get(PW_FIRST_CELL):
+            if alat is None:
+                handle_error(
+                    'No alat found in the `pw.x` output file at block'
+                    f'{num_block} starting at line {past}.'
+                    'Something is wrong with the output file.'
+                )
                 continue
 
-            # QE prints the k-points in units of 2*pi/alat
-            cell = structure.get_cell()
-            ibzkpts = []
-            weights = []
-            for i in range(nkpts):
-                L = pwo_lines[kpts_index + i].split()
-                weights.append(float(L[-1]))
-                coord = np.array([L[-6], L[-5], L[-4].strip('),')],
-                                 dtype=float)
-                coord *= 2 * np.pi / cell_alat
-                coord = kpoint_convert(cell, ckpts_kv=coord)
-                ibzkpts.append(coord)
-            ibzkpts = np.array(ibzkpts)
-            weights = np.array(weights)
+            cell = parse_first_cell(current_indices[PW_FIRST_CELL])
+            current_indices[PW_CELL] = current_indices[PW_FIRST_CELL]
+        else:
+            cell = parse_cell(current_indices[PW_CELL])
 
-        # Bands
-        kpts = None
-        kpoints_warning = "Number of k-points >= 100: " + \
-                          "set verbosity='high' to print the bands."
+        if current_indices.get(PW_FIRST_POSITIONS):
+            positions, symbols = parse_first_positions(
+                current_indices[PW_FIRST_POSITIONS]
+            )
+            current_indices[PW_POSITIONS] = current_indices[PW_FIRST_POSITIONS]
+        else:
+            positions, symbols = parse_positions(current_indices[PW_POSITIONS])
 
-        for bands_index in indexes[_PW_BANDS] + indexes[_PW_BANDSTRUCTURE]:
-            if image_index < bands_index < next_index:
-                bands_index += 1
-                # skip over the lines with DFT+U occupation matrices
-                if 'enter write_ns' in pwo_lines[bands_index]:
-                    while 'exit write_ns' not in pwo_lines[bands_index]:
-                        bands_index += 1
-                bands_index += 1
+        has_error = False
+        for property_ in required_properties:
+            if current_indices.get(property_) is None:
+                handle_error(
+                    'Required properties are missing from the output file:'
+                    f'{property_} at requested block {num_block}, starting at'
+                    'line {past}.'
+                )
+                has_error = True
 
-                if pwo_lines[bands_index].strip() == kpoints_warning:
-                    continue
+        if has_error:
+            continue
 
-                assert ibzkpts is not None
-                spin, bands, eigenvalues = 0, [], [[], []]
+        atoms = Atoms(
+            symbols=symbols,
+            positions=positions,
+            cell=cell,
+            pbc=True,
+        )
 
-                while True:
-                    L = pwo_lines[bands_index].replace('-', ' -').split()
-                    if len(L) == 0:
-                        if len(bands) > 0:
-                            eigenvalues[spin].append(bands)
-                            bands = []
-                    elif L == ['occupation', 'numbers']:
-                        # Skip the lines with the occupation numbers
-                        bands_index += len(eigenvalues[spin][0]) // 8 + 1
-                    elif L[0] == 'k' and L[1].startswith('='):
-                        pass
-                    elif 'SPIN' in L:
-                        if 'DOWN' in L:
-                            spin += 1
-                    else:
-                        try:
-                            bands.extend(map(float, L))
-                        except ValueError:
-                            break
-                    bands_index += 1
+        if current_indices.get(PW_HIGHEST_OCCUPIED):
+            current_indices[PW_FERMI] = current_indices[PW_HIGHEST_OCCUPIED]
 
-                if spin == 1:
-                    assert len(eigenvalues[0]) == len(eigenvalues[1])
-                assert len(eigenvalues[0]) == len(ibzkpts), \
-                    (np.shape(eigenvalues), len(ibzkpts))
+        if current_indices.get(PW_FERMI):
+            fermi = parse_fermi(current_indices[PW_FERMI])
+        elif current_indices.get(PW_HIGHEST_OCCUPIED_LOWEST_FREE):
+            fermi, _ = parse_hol_lul(
+                current_indices[PW_HIGHEST_OCCUPIED_LOWEST_FREE]
+            )
+        else:
+            fermi = None
 
-                kpts = []
-                for s in range(spin + 1):
-                    for w, k, e in zip(weights, ibzkpts, eigenvalues[s]):
-                        kpt = SinglePointKPoint(w, s, k, eps_n=e)
-                        kpts.append(kpt)
+        ibzkpts, weights = parse_kpts_and_weights(current_indices[PW_KPTS])
 
-        # Put everything together
-        #
-        # In PW the forces are consistent with the "total energy"; that's why
-        # its value must be assigned to free_energy.
-        # PW doesn't compute the extrapolation of the energy to 0K smearing
-        # the closer thing to this is again the total energy that contains
-        # the correct (i.e. variational) form of the band energy is
-        #   Eband = \int e N(e) de   for e<Ef , where N(e) is the DOS
-        # This differs by the term (-TS)  from the sum of KS eigenvalues:
-        #    Eks = \sum wg(n,k) et(n,k)
-        # which is non variational. When a Fermi-Dirac function is used
-        # for a given T, the variational energy is REALLY the free energy F,
-        # and F = E - TS , with E = non variational energy.
-        #
-        calc = SinglePointDFTCalculator(structure, energy=energy,
-                                        free_energy=energy,
-                                        forces=forces, stress=stress,
-                                        magmoms=magmoms, efermi=efermi,
-                                        ibzkpts=ibzkpts, dipole=dipole)
-        calc.kpts = kpts
-        structure.calc = calc
+        kpts = []
+        if current_indices.get(PW_VERBOSITY) is None:
+            for kpt_index, idx in enumerate(current_indices.get(PW_BANDS, [])):
+                spin = kpt_index // len(ibzkpts)
+                ibzkpts_index = kpt_index % len(ibzkpts)
+                eigenvalues = parse_bands(idx)
+                kpts.append(
+                    SinglePointKPoint(
+                        weights[ibzkpts_index],
+                        spin,
+                        ibzkpts[ibzkpts_index],
+                        eps_n=eigenvalues,
+                    )
+                )
 
-        yield structure
+        if current_indices.get(PW_DIPOLE):
+            dipole_direction = parse_dipole_direction(
+                current_indices[PW_DIPOLE_DIRECTION]
+            )
+            dipole = (
+                parse_dipole(current_indices[PW_DIPOLE])
+                * np.eye(3)[dipole_direction, dipole_direction]
+            )
+        else:
+            dipole = None
 
+        properties_left_to_parse = {
+            PW_TOTEN: parse_energy,
+            PW_FORCES: parse_forces,
+            PW_STRESS: parse_stress,
+            PW_MAGMOM: parse_magmom,
+        }
 
-def parse_pwo_start(lines, index=0):
-    """Parse Quantum ESPRESSO calculation info from lines,
-    starting from index. Return a dictionary containing extracted
-    information.
+        computed_properties = {}
 
-    - `celldm(1)`: lattice parameters (alat)
-    - `cell`: unit cell in Angstrom
-    - `symbols`: element symbols for the structure
-    - `positions`: cartesian coordinates of atoms in Angstrom
-    - `atoms`: an `ase.Atoms` object constructed from the extracted data
+        for property_ in properties_left_to_parse:
+            if current_indices.get(property_):
+                computed_properties[property_] = properties_left_to_parse[
+                    property_
+                ](current_indices[property_])
 
-    Parameters
-    ----------
-    lines : list[str]
-        Contents of PWSCF output file.
-    index : int
-        Line number to begin parsing. Only first calculation will
-        be read.
+        calc = SinglePointDFTCalculator(
+            atoms,
+            energy=computed_properties.get(PW_TOTEN),
+            free_energy=computed_properties.get(PW_TOTEN),
+            forces=computed_properties.get(PW_FORCES),
+            stress=computed_properties.get(PW_STRESS),
+            magmoms=computed_properties.get(PW_MAGMOM),
+            efermi=fermi,
+            kpts=kpts,
+            ibzkpts=ibzkpts,
+            dipole=dipole,
+        )
+        atoms.calc = calc
 
-    Returns
-    -------
-    info : dict
-        Dictionary of calculation parameters, including `celldm(1)`, `cell`,
-        `symbols`, `positions`, `atoms`.
-
-    Raises
-    ------
-    KeyError
-        If interdependent values cannot be found (especially celldm(1))
-        an error will be raised as other quantities cannot then be
-        calculated (e.g. cell and positions).
-    """
-    # TODO: extend with extra DFT info?
-
-    info = {}
-
-    for idx, line in enumerate(lines[index:], start=index):
-        if 'celldm(1)' in line:
-            # celldm(1) has more digits than alat!!
-            info['celldm(1)'] = float(line.split()[1]) * units['Bohr']
-            info['alat'] = info['celldm(1)']
-        elif 'number of atoms/cell' in line:
-            info['nat'] = int(line.split()[-1])
-        elif 'number of atomic types' in line:
-            info['ntyp'] = int(line.split()[-1])
-        elif 'crystal axes:' in line:
-            info['cell'] = info['celldm(1)'] * np.array([
-                [float(x) for x in lines[idx + 1].split()[3:6]],
-                [float(x) for x in lines[idx + 2].split()[3:6]],
-                [float(x) for x in lines[idx + 3].split()[3:6]]])
-        elif 'positions (alat units)' in line:
-            info['symbols'], info['positions'] = [], []
-
-            for at_line in lines[idx + 1:idx + 1 + info['nat']]:
-                sym, x, y, z = parse_position_line(at_line)
-                info['symbols'].append(label_to_symbol(sym))
-                info['positions'].append([x * info['celldm(1)'],
-                                          y * info['celldm(1)'],
-                                          z * info['celldm(1)']])
-            # This should be the end of interesting info.
-            # Break here to avoid dealing with large lists of kpoints.
-            # Will need to be extended for DFTCalculator info.
-            break
-
-    # Make atoms for convenience
-    info['atoms'] = Atoms(symbols=info['symbols'],
-                          positions=info['positions'],
-                          cell=info['cell'], pbc=True)
-
-    return info
-
-
-def parse_position_line(line):
-    """Parse a single line from a pw.x output file.
-
-    The line must contain information about the atomic symbol and the position,
-    e.g.
-
-    995           Sb  tau( 995) = (   1.4212023   0.7037863   0.1242640  )
-
-    Parameters
-    ----------
-    line : str
-        Line to be parsed.
-
-    Returns
-    -------
-    sym : str
-        Atomic symbol.
-    x : float
-        x-position.
-    y : float
-        y-position.
-    z : float
-        z-position.
-    """
-    pat = re.compile(r'\s*\d+\s*(\S+)\s*tau\(\s*\d+\)\s*='
-                     r'\s*\(\s*(\S+)\s+(\S+)\s+(\S+)\s*\)')
-    match = pat.match(line)
-    assert match is not None
-    sym, x, y, z = match.group(1, 2, 3, 4)
-    return sym, float(x), float(y), float(z)
+        yield atoms
 
 
 @reader
@@ -551,29 +540,39 @@ def read_espresso_in(fileobj):
 
     # species_info holds some info for each element
     species_card = get_atomic_species(
-        card_lines, n_species=data['system']['ntyp'])
+        card_lines, n_species=data['system']['ntyp']
+    )
     species_info = {}
     for ispec, (label, weight, pseudo) in enumerate(species_card):
         symbol = label_to_symbol(label)
 
         # starting_magnetization is in fractions of valence electrons
-        magnet_key = f"starting_magnetization({ispec + 1})"
-        magmom = data["system"].get(magnet_key, 0.0)
-        species_info[symbol] = {"weight": weight, "pseudo": pseudo,
-                                "magmom": magmom}
+        magnet_key = f'starting_magnetization({ispec + 1})'
+        magmom = data['system'].get(magnet_key, 0.0)
+        species_info[symbol] = {
+            'weight': weight,
+            'pseudo': pseudo,
+            'magmom': magmom,
+        }
 
     positions_card = get_atomic_positions(
-        card_lines, n_atoms=data['system']['nat'], cell=cell, alat=alat)
+        card_lines, n_atoms=data['system']['nat'], cell=cell, alat=alat
+    )
 
     symbols = [label_to_symbol(position[0]) for position in positions_card]
     positions = [position[1] for position in positions_card]
     constraint_flags = [position[2] for position in positions_card]
-    magmoms = [species_info[symbol]["magmom"] for symbol in symbols]
+    magmoms = [species_info[symbol]['magmom'] for symbol in symbols]
 
     # TODO: put more info into the atoms object
     # e.g magmom, forces.
-    atoms = Atoms(symbols=symbols, positions=positions, cell=cell, pbc=True,
-                  magmoms=magmoms)
+    atoms = Atoms(
+        symbols=symbols,
+        positions=positions,
+        cell=cell,
+        pbc=True,
+        magmoms=magmoms,
+    )
     atoms.set_constraint(convert_constraint_flags(constraint_flags))
 
     return atoms
@@ -628,8 +627,9 @@ def get_atomic_positions(lines, n_atoms, cell=None, alat=None):
             #     cell = np.identity(3) * alat
             else:
                 if alat is None:
-                    raise ValueError('Set lattice parameter in &SYSTEM for '
-                                     'alat coordinates')
+                    raise ValueError(
+                        'Set lattice parameter in &SYSTEM for alat coordinates'
+                    )
                 # Always the default, will be DEPRECATED as mandatory
                 # in future
                 cell = np.identity(3) * alat
@@ -638,9 +638,14 @@ def get_atomic_positions(lines, n_atoms, cell=None, alat=None):
             for _ in range(n_atoms):
                 split_line = next(trimmed_lines).split()
                 # These can be fractions and other expressions
-                position = np.dot((infix_float(split_line[1]),
-                                   infix_float(split_line[2]),
-                                   infix_float(split_line[3])), cell)
+                position = np.dot(
+                    (
+                        infix_float(split_line[1]),
+                        infix_float(split_line[2]),
+                        infix_float(split_line[3]),
+                    ),
+                    cell,
+                )
                 if len(split_line) > 4:
                     force_mult = tuple(int(split_line[i]) for i in (4, 5, 6))
                 else:
@@ -673,8 +678,11 @@ def get_atomic_species(lines, n_species):
 
     species = None
     # no blanks or comment lines, can the consume n_atoms lines for positions
-    trimmed_lines = (line.strip() for line in lines
-                     if line.strip() and not line.startswith('#'))
+    trimmed_lines = (
+        line.strip()
+        for line in lines
+        if line.strip() and not line.startswith('#')
+    )
 
     for line in trimmed_lines:
         if line.startswith('ATOMIC_SPECIES'):
@@ -684,9 +692,13 @@ def get_atomic_species(lines, n_species):
             species = []
             for _dummy in range(n_species):
                 label_weight_pseudo = next(trimmed_lines).split()
-                species.append((label_weight_pseudo[0],
-                                float(label_weight_pseudo[1]),
-                                label_weight_pseudo[2]))
+                species.append(
+                    (
+                        label_weight_pseudo[0],
+                        float(label_weight_pseudo[1]),
+                        label_weight_pseudo[2],
+                    )
+                )
 
     return species
 
@@ -733,15 +745,19 @@ def get_cell_parameters(lines, alat=None):
             # Priority and behaviour tested with QE 5.3
             if 'bohr' in line.lower():
                 if alat is not None:
-                    raise ValueError('Lattice parameters given in '
-                                     '&SYSTEM celldm/A and CELL_PARAMETERS '
-                                     'bohr')
+                    raise ValueError(
+                        'Lattice parameters given in '
+                        '&SYSTEM celldm/A and CELL_PARAMETERS '
+                        'bohr'
+                    )
                 cell_units = units['Bohr']
             elif 'angstrom' in line.lower():
                 if alat is not None:
-                    raise ValueError('Lattice parameters given in '
-                                     '&SYSTEM celldm/A and CELL_PARAMETERS '
-                                     'angstrom')
+                    raise ValueError(
+                        'Lattice parameters given in '
+                        '&SYSTEM celldm/A and CELL_PARAMETERS '
+                        'angstrom'
+                    )
                 cell_units = 1.0
             elif 'alat' in line.lower():
                 # Output file has (alat = value) (in Bohrs)
@@ -749,8 +765,10 @@ def get_cell_parameters(lines, alat=None):
                     alat = float(line.strip(') \n').split()[-1]) * units['Bohr']
                     cell_alat = alat
                 elif alat is None:
-                    raise ValueError('Lattice parameters must be set in '
-                                     '&SYSTEM for alat units')
+                    raise ValueError(
+                        'Lattice parameters must be set in '
+                        '&SYSTEM for alat units'
+                    )
                 cell_units = alat
             elif alat is None:
                 # may be DEPRECATED in future
@@ -759,9 +777,11 @@ def get_cell_parameters(lines, alat=None):
                 # may be DEPRECATED in future
                 cell_units = alat
             # Grab the parameters; blank lines have been removed
-            cell = [[ffloat(x) for x in next(trimmed_lines).split()[:3]],
-                    [ffloat(x) for x in next(trimmed_lines).split()[:3]],
-                    [ffloat(x) for x in next(trimmed_lines).split()[:3]]]
+            cell = [
+                [ffloat(x) for x in next(trimmed_lines).split()[:3]],
+                [ffloat(x) for x in next(trimmed_lines).split()[:3]],
+                [ffloat(x) for x in next(trimmed_lines).split()[:3]],
+            ]
             cell = np.array(cell) * cell_units
 
     return cell, cell_alat
@@ -911,7 +931,7 @@ def read_fortran_namelist(fileobj):
             if section in data:
                 # Repeated sections are completely ignored.
                 # (Note that repeated keys overwrite within a section)
-                section = "_ignored"
+                section = '_ignored'
             data[section] = {}
             in_namelist = True
         if not in_namelist and line:
@@ -927,7 +947,8 @@ def read_fortran_namelist(fileobj):
                 if character == ',' and value is not None and not in_quotes:
                     # finished value:
                     data[section][''.join(key).strip()] = str_to_value(
-                        ''.join(value).strip())
+                        ''.join(value).strip()
+                    )
                     key = []
                     value = None
                 elif character == '=' and value is None and not in_quotes:
@@ -948,7 +969,8 @@ def read_fortran_namelist(fileobj):
                     key.append(character)
             if value is not None:
                 data[section][''.join(key).strip()] = str_to_value(
-                    ''.join(value).strip())
+                    ''.join(value).strip()
+                )
 
     return Namelist(data), card_lines
 
@@ -984,47 +1006,68 @@ def ffloat(string):
         return float(string.lower().replace('d', 'e'))
 
 
-def label_to_symbol(label):
-    """Convert a valid espresso ATOMIC_SPECIES label to a
-    chemical symbol.
+def label_to_symbol(label: str) -> str:
+    """Convert a valid espresso ATOMIC_SPECIES label to a chemical symbol.
 
     Parameters
     ----------
     label : str
-        chemical symbol X (1 or 2 characters, case-insensitive)
+        Chemical symbol X (1 or 2 characters, case-insensitive)
         or chemical symbol plus a number or a letter, as in
-        "Xn" (e.g. Fe1) or "X_*" or "X-*" (e.g. C1, C_h;
-        max total length cannot exceed 3 characters).
+        "Xn" (e.g. Fe1) or "X_*" or "X-*" (e.g. C1, C_h).
+        Max total length cannot exceed 3 characters.
 
     Returns
     -------
-    symbol : str
-        The best matching species from ase.utils.chemical_symbols
+    str
+        The best matching chemical symbol from ase.utils.chemical_symbols
 
     Raises
     ------
-    KeyError
-        Couldn't find an appropriate species.
+    ValueError
+        If label is empty, too long (>3 chars), or no matching symbol found
 
-    Notes
-    -----
-        It's impossible to tell whether e.g. He is helium
-        or hydrogen labelled 'e'.
+    Examples
+    --------
+    >>> label_to_symbol('Fe')
+    'Fe'
+    >>> label_to_symbol('fe1')
+    'Fe'
+    >>> label_to_symbol('C_h')
+    'C'
     """
+    if not label:
+        raise ValueError('Label cannot be empty')
 
-    # possibly a two character species
-    # ase Atoms need proper case of chemical symbols.
-    if len(label) >= 2:
-        test_symbol = label[0].upper() + label[1].lower()
-        if test_symbol in chemical_symbols:
-            return test_symbol
-    # finally try with one character
-    test_symbol = label[0].upper()
-    if test_symbol in chemical_symbols:
-        return test_symbol
-    else:
-        raise KeyError('Could not parse species from label {}.'
-                       ''.format(label))
+    if len(label) > 3:
+        raise ValueError(
+            f"Label '{label}' exceeds maximum length of 3 characters"
+        )
+
+    # Extract potential chemical symbol using regex
+    # Matches: Single char, or two chars, ignoring any trailing numbers/characters
+    match = re.match(r'^([A-Za-z]{1,2})', label)
+    if not match:
+        raise ValueError(
+            f"Label '{label}' does not start with valid chemical symbol characters"
+        )
+
+    potential_symbol = match.group(1)
+
+    # Try two-character symbol first (if available)
+    if len(potential_symbol) == 2:
+        symbol = potential_symbol[0].upper() + potential_symbol[1].lower()
+        if symbol in chemical_symbols:
+            return symbol
+
+    # Try single-character symbol
+    symbol = potential_symbol[0].upper()
+    if symbol in chemical_symbols:
+        return symbol
+
+    raise ValueError(
+        f"Could not find matching chemical symbol for label '{label}'"
+    )
 
 
 def infix_float(text):
@@ -1052,7 +1095,7 @@ def infix_float(text):
     def middle_brackets(full_text):
         """Extract text from innermost brackets."""
         start, end = 0, len(full_text)
-        for (idx, char) in enumerate(full_text):
+        for idx, char in enumerate(full_text):
             if char == '(':
                 start = idx
             if char == ')':
@@ -1062,8 +1105,7 @@ def infix_float(text):
 
     def eval_no_bracket_expr(full_text):
         """Calculate value of a mathematical expression, no brackets."""
-        exprs = [('+', op.add), ('*', op.mul),
-                 ('/', op.truediv), ('^', op.pow)]
+        exprs = [('+', op.add), ('*', op.mul), ('/', op.truediv), ('^', op.pow)]
         full_text = full_text.lstrip('(').rstrip(')')
         try:
             return float(full_text)
@@ -1071,8 +1113,9 @@ def infix_float(text):
             for symbol, func in exprs:
                 if symbol in full_text:
                     left, right = full_text.split(symbol, 1)  # single split
-                    return func(eval_no_bracket_expr(left),
-                                eval_no_bracket_expr(right))
+                    return func(
+                        eval_no_bracket_expr(left), eval_no_bracket_expr(right)
+                    )
 
     while '(' in text:
         middle = middle_brackets(text)
@@ -1086,13 +1129,93 @@ def infix_float(text):
 # calculating initial magetization values which are given as a fraction
 # of valence electrons.
 SSSP_VALENCE = [
-    0, 1.0, 2.0, 3.0, 4.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 3.0, 4.0,
-    5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0,
-    18.0, 19.0, 20.0, 13.0, 14.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
-    13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 12.0, 13.0, 14.0, 15.0, 6.0,
-    7.0, 18.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0,
-    19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0, 36.0, 27.0, 14.0, 15.0, 30.0,
-    15.0, 32.0, 19.0, 12.0, 13.0, 14.0, 15.0, 16.0, 18.0]
+    0,
+    1.0,
+    2.0,
+    3.0,
+    4.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0,
+    10.0,
+    3.0,
+    4.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0,
+    10.0,
+    11.0,
+    12.0,
+    13.0,
+    14.0,
+    15.0,
+    16.0,
+    17.0,
+    18.0,
+    19.0,
+    20.0,
+    13.0,
+    14.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    9.0,
+    10.0,
+    11.0,
+    12.0,
+    13.0,
+    14.0,
+    15.0,
+    16.0,
+    17.0,
+    18.0,
+    19.0,
+    12.0,
+    13.0,
+    14.0,
+    15.0,
+    6.0,
+    7.0,
+    18.0,
+    9.0,
+    10.0,
+    11.0,
+    12.0,
+    13.0,
+    14.0,
+    15.0,
+    16.0,
+    17.0,
+    18.0,
+    19.0,
+    20.0,
+    21.0,
+    22.0,
+    23.0,
+    24.0,
+    25.0,
+    36.0,
+    27.0,
+    14.0,
+    15.0,
+    30.0,
+    15.0,
+    32.0,
+    19.0,
+    12.0,
+    13.0,
+    14.0,
+    15.0,
+    16.0,
+    18.0,
+]
 
 
 def kspacing_to_grid(atoms, spacing, calculated_spacing=None):
@@ -1122,18 +1245,22 @@ def kspacing_to_grid(atoms, spacing, calculated_spacing=None):
     # reciprocal dimensions
     r_x, r_y, r_z = np.linalg.norm(atoms.cell.reciprocal(), axis=1)
 
-    kpoint_grid = [int(r_x / spacing) + 1,
-                   int(r_y / spacing) + 1,
-                   int(r_z / spacing) + 1]
+    kpoint_grid = [
+        int(r_x / spacing) + 1,
+        int(r_y / spacing) + 1,
+        int(r_z / spacing) + 1,
+    ]
 
     for i, _ in enumerate(kpoint_grid):
         if not atoms.pbc[i]:
             kpoint_grid[i] = 1
 
     if calculated_spacing is not None:
-        calculated_spacing[:] = [r_x / kpoint_grid[0],
-                                 r_y / kpoint_grid[1],
-                                 r_z / kpoint_grid[2]]
+        calculated_spacing[:] = [
+            r_x / kpoint_grid[0],
+            r_y / kpoint_grid[1],
+            r_z / kpoint_grid[2],
+        ]
 
     return kpoint_grid
 
@@ -1172,19 +1299,27 @@ def format_atom_position(atom, crystal_coordinates, mask='', tidx=None):
     inps = dict(atom=atom)
     if tidx is not None:
         line_fmt += '{tidx}'
-        inps["tidx"] = tidx
+        inps['tidx'] = tidx
     line_fmt += ' {coords[0]:.10f} {coords[1]:.10f} {coords[2]:.10f} '
-    inps["coords"] = coords
+    inps['coords'] = coords
     line_fmt += ' ' + mask + '\n'
     astr = line_fmt.format(**inps)
     return astr
 
 
 @writer
-def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
-                      kspacing=None, kpts=None, koffset=(0, 0, 0),
-                      crystal_coordinates=False, additional_cards=None,
-                      **kwargs):
+def write_espresso_in(
+    fd,
+    atoms,
+    input_data=None,
+    pseudopotentials=None,
+    kspacing=None,
+    kpts=None,
+    koffset=(0, 0, 0),
+    crystal_coordinates=False,
+    additional_cards=None,
+    **kwargs,
+):
     """
     Create an input file for pw.x.
 
@@ -1317,7 +1452,8 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
     if nspin == 2 or noncolin:
         # Magnetic calculation on
         for atom, mask, magmom in zip(
-                atoms, masks, atoms.get_initial_magnetic_moments()):
+            atoms, masks, atoms.get_initial_magnetic_moments()
+        ):
             if (atom.symbol, magmom) not in atomic_species:
                 # for qe version 7.2 or older magmon must be rescale by
                 # about a factor 10 to assume sensible values
@@ -1329,17 +1465,19 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
                 tidx = sum(atom.symbol == x[0] for x in atomic_species) or ' '
                 atomic_species[(atom.symbol, magmom)] = (sidx, tidx)
                 # Add magnetization to the input file
-                mag_str = f"starting_magnetization({sidx})"
+                mag_str = f'starting_magnetization({sidx})'
                 input_parameters['system'][mag_str] = fspin
                 species_pseudo = species_info[atom.symbol]['pseudo']
                 atomic_species_str.append(
-                    f"{atom.symbol}{tidx} {atom.mass} {species_pseudo}\n")
+                    f'{atom.symbol}{tidx} {atom.mass} {species_pseudo}\n'
+                )
             # lookup tidx to append to name
             sidx, tidx = atomic_species[(atom.symbol, magmom)]
             # construct line for atomic positions
             atomic_positions_str.append(
                 format_atom_position(
-                    atom, crystal_coordinates, mask=mask, tidx=tidx)
+                    atom, crystal_coordinates, mask=mask, tidx=tidx
+                )
             )
     else:
         # Do nothing about magnetisation
@@ -1348,7 +1486,8 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
                 atomic_species[atom.symbol] = True  # just a placeholder
                 species_pseudo = species_info[atom.symbol]['pseudo']
                 atomic_species_str.append(
-                    f"{atom.symbol} {atom.mass} {species_pseudo}\n")
+                    f'{atom.symbol} {atom.mass} {species_pseudo}\n'
+                )
             # construct line for atomic positions
             atomic_positions_str.append(
                 format_atom_position(atom, crystal_coordinates, mask=mask)
@@ -1389,11 +1528,11 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
         else:
             kgrid = kpts
     else:
-        kgrid = "gamma"
+        kgrid = 'gamma'
 
     # True and False work here and will get converted by ':d' format
     if isinstance(koffset, int):
-        koffset = (koffset, ) * 3
+        koffset = (koffset,) * 3
 
     # BandPath object or bandpath-as-dictionary:
     if isinstance(kgrid, dict) or hasattr(kgrid, 'kpts'):
@@ -1402,9 +1541,9 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
         kgrid = kpts2ndarray(kgrid, atoms=atoms)
         pwi.append(f'{len(kgrid)}\n')
         for k in kgrid:
-            pwi.append(f"{k[0]:.14f} {k[1]:.14f} {k[2]:.14f} 0\n")
+            pwi.append(f'{k[0]:.14f} {k[1]:.14f} {k[2]:.14f} 0\n')
         pwi.append('\n')
-    elif isinstance(kgrid, str) and (kgrid == "gamma"):
+    elif isinstance(kgrid, str) and (kgrid == 'gamma'):
         pwi.append('K_POINTS gamma\n')
         pwi.append('\n')
     elif isinstance(kgrid, np.ndarray):
@@ -1413,21 +1552,25 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
         pwi.append('K_POINTS crystal\n')
         pwi.append(f'{len(kgrid)}\n')
         for k in kgrid:
-            pwi.append(f"{k[0]:.14f} {k[1]:.14f} {k[2]:.14f} {k[3]:.14f}\n")
+            pwi.append(f'{k[0]:.14f} {k[1]:.14f} {k[2]:.14f} {k[3]:.14f}\n')
         pwi.append('\n')
     else:
         pwi.append('K_POINTS automatic\n')
-        pwi.append(f"{kgrid[0]} {kgrid[1]} {kgrid[2]} "
-                   f" {koffset[0]:d} {koffset[1]:d} {koffset[2]:d}\n")
+        pwi.append(
+            f'{kgrid[0]} {kgrid[1]} {kgrid[2]} '
+            f' {koffset[0]:d} {koffset[1]:d} {koffset[2]:d}\n'
+        )
         pwi.append('\n')
 
     # CELL block, if required
     if input_parameters['SYSTEM']['ibrav'] == 0:
         pwi.append('CELL_PARAMETERS angstrom\n')
-        pwi.append('{cell[0][0]:.14f} {cell[0][1]:.14f} {cell[0][2]:.14f}\n'
-                   '{cell[1][0]:.14f} {cell[1][1]:.14f} {cell[1][2]:.14f}\n'
-                   '{cell[2][0]:.14f} {cell[2][1]:.14f} {cell[2][2]:.14f}\n'
-                   ''.format(cell=atoms.cell))
+        pwi.append(
+            '{cell[0][0]:.14f} {cell[0][1]:.14f} {cell[0][2]:.14f}\n'
+            '{cell[1][0]:.14f} {cell[1][1]:.14f} {cell[1][2]:.14f}\n'
+            '{cell[2][0]:.14f} {cell[2][1]:.14f} {cell[2][2]:.14f}\n'
+            ''.format(cell=atoms.cell)
+        )
         pwi.append('\n')
 
     # Positions - already constructed, but must appear after namelist
@@ -1443,18 +1586,15 @@ def write_espresso_in(fd, atoms, input_data=None, pseudopotentials=None,
 
     if additional_cards:
         if isinstance(additional_cards, list):
-            additional_cards = "\n".join(additional_cards)
-            additional_cards += "\n"
+            additional_cards = '\n'.join(additional_cards)
+            additional_cards += '\n'
 
         fd.write(additional_cards)
 
 
 def write_espresso_ph(
-        fd,
-        input_data=None,
-        qpts=None,
-        nat_todo_indices=None,
-        **kwargs) -> None:
+    fd, input_data=None, qpts=None, nat_todo_indices=None, **kwargs
+) -> None:
     """
     Function that write the input file for a ph.x calculation. Normal namelist
     cards are passed in the input_data dictionary. Which can be either nested
@@ -1493,30 +1633,28 @@ def write_espresso_ph(
     input_data = Namelist(input_data)
     input_data.to_nested('ph', **kwargs)
 
-    input_ph = input_data["inputph"]
+    input_ph = input_data['inputph']
 
-    inp_nat_todo = input_ph.get("nat_todo", 0)
+    inp_nat_todo = input_ph.get('nat_todo', 0)
     qpts = qpts or (0, 0, 0)
 
     pwi = input_data.to_string()
 
     fd.write(pwi)
 
-    qplot = input_ph.get("qplot", False)
-    ldisp = input_ph.get("ldisp", False)
+    qplot = input_ph.get('qplot', False)
+    ldisp = input_ph.get('ldisp', False)
 
     if qplot:
-        fd.write(f"{len(qpts)}\n")
+        fd.write(f'{len(qpts)}\n')
         for qpt in qpts:
-            fd.write(
-                f"{qpt[0]:0.8f} {qpt[1]:0.8f} {qpt[2]:0.8f} {qpt[3]:1d}\n"
-            )
+            fd.write(f'{qpt[0]:0.8f} {qpt[1]:0.8f} {qpt[2]:0.8f} {qpt[3]:1d}\n')
     elif not (qplot or ldisp):
-        fd.write(f"{qpts[0]:0.8f} {qpts[1]:0.8f} {qpts[2]:0.8f}\n")
+        fd.write(f'{qpts[0]:0.8f} {qpts[1]:0.8f} {qpts[2]:0.8f}\n')
     if inp_nat_todo:
         tmp = [str(i) for i in nat_todo_indices]
-        fd.write(" ".join(tmp))
-        fd.write("\n")
+        fd.write(' '.join(tmp))
+        fd.write('\n')
 
 
 def read_espresso_ph(fileobj):
@@ -1557,24 +1695,20 @@ def read_espresso_ph(fileobj):
     dict
         The results dictionnary as described above.
     """
-    freg = re.compile(r"-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?")
-
-    QPOINTS = r"(?i)^\s*Calculation\s*of\s*q"
-    NKPTS = r"(?i)^\s*number\s*of\s*k\s*points\s*"
-    DIEL = r"(?i)^\s*Dielectric\s*constant\s*in\s*cartesian\s*axis\s*$"
-    BORN = r"(?i)^\s*Effective\s*charges\s*\(d\s*Force\s*/\s*dE\)"
-    POLA = r"(?i)^\s*Polarizability\s*(a.u.)\^3"
-    REPR = r"(?i)^\s*There\s*are\s*\d+\s*irreducible\s*representations\s*$"
-    EQPOINTS = r"(?i)^\s*Number\s*of\s*q\s*in\s*the\s*star\s*=\s*"
-    DIAG = r"(?i)^\s*Diagonalizing\s*the\s*dynamical\s*matrix\s*$"
-    MODE_SYM = r"(?i)^\s*Mode\s*symmetry,\s*"
-    BORN_DFPT = r"(?i)^\s*Effective\s*charges\s*\(d\s*P\s*/\s*du\)"
-    POSITIONS = r"(?i)^\s*site\s*n\..*\(alat\s*units\)"
-    ALAT = r"(?i)^\s*celldm\(1\)="
-    CELL = (
-        r"^\s*crystal\s*axes:\s*\(cart.\s*coord.\s*in\s*units\s*of\s*alat\)"
-    )
-    ELECTRON_PHONON = r"(?i)^\s*electron-phonon\s*interaction\s*...\s*$"
+    QPOINTS = r'(?i)^\s*Calculation\s*of\s*q'
+    NKPTS = r'(?i)^\s*number\s*of\s*k\s*points\s*'
+    DIEL = r'(?i)^\s*Dielectric\s*constant\s*in\s*cartesian\s*axis\s*$'
+    BORN = r'(?i)^\s*Effective\s*charges\s*\(d\s*Force\s*/\s*dE\)'
+    POLA = r'(?i)^\s*Polarizability\s*(a.u.)\^3'
+    REPR = r'(?i)^\s*There\s*are\s*\d+\s*irreducible\s*representations\s*$'
+    EQPOINTS = r'(?i)^\s*Number\s*of\s*q\s*in\s*the\s*star\s*=\s*'
+    DIAG = r'(?i)^\s*Diagonalizing\s*the\s*dynamical\s*matrix\s*$'
+    MODE_SYM = r'(?i)^\s*Mode\s*symmetry,\s*'
+    BORN_DFPT = r'(?i)^\s*Effective\s*charges\s*\(d\s*P\s*/\s*du\)'
+    POSITIONS = r'(?i)^\s*site\s*n\..*\(alat\s*units\)'
+    ALAT = r'(?i)^\s*celldm\(1\)='
+    CELL = r'^\s*crystal\s*axes:\s*\(cart.\s*coord.\s*in\s*units\s*of\s*alat\)'
+    ELECTRON_PHONON = r'(?i)^\s*electron-phonon\s*interaction\s*...\s*$'
 
     output = {
         QPOINTS: [],
@@ -1594,20 +1728,20 @@ def read_espresso_ph(fileobj):
     }
 
     names = {
-        QPOINTS: "qpoints",
-        NKPTS: "kpoints",
-        DIEL: "dieltensor",
-        BORN: "borneffcharge",
-        BORN_DFPT: "borneffcharge_dfpt",
-        POLA: "polarizability",
-        REPR: "representations",
-        EQPOINTS: "eqpoints",
-        DIAG: "freqs",
-        MODE_SYM: "mode_symmetries",
-        POSITIONS: "positions",
-        ALAT: "alat",
-        CELL: "cell",
-        ELECTRON_PHONON: "ep_data",
+        QPOINTS: 'qpoints',
+        NKPTS: 'kpoints',
+        DIEL: 'dieltensor',
+        BORN: 'borneffcharge',
+        BORN_DFPT: 'borneffcharge_dfpt',
+        POLA: 'polarizability',
+        REPR: 'representations',
+        EQPOINTS: 'eqpoints',
+        DIAG: 'freqs',
+        MODE_SYM: 'mode_symmetries',
+        POSITIONS: 'positions',
+        ALAT: 'alat',
+        CELL: 'cell',
+        ELECTRON_PHONON: 'ep_data',
     }
 
     unique = {
@@ -1639,30 +1773,35 @@ def read_espresso_ph(fileobj):
     output = {key: np.array(value) for key, value in output.items()}
 
     def _read_qpoints(idx):
-        match = re.findall(freg, fdo_lines[idx])
+        match = re.findall(float_regex, fdo_lines[idx])
         return tuple(round(float(x), 7) for x in match)
 
     def _read_kpoints(idx):
-        n_kpts = int(re.findall(freg, fdo_lines[idx])[0])
+        n_kpts = int(re.findall(float_regex, fdo_lines[idx])[0])
         kpts = []
-        for line in fdo_lines[idx + 2: idx + 2 + n_kpts]:
-            if bool(re.search(r"^\s*k\(.*wk", line)):
-                kpts.append([round(float(x), 7)
-                            for x in re.findall(freg, line)[1:]])
+        for line in fdo_lines[idx + 2 : idx + 2 + n_kpts]:
+            if bool(re.search(r'^\s*k\(.*wk', line)):
+                kpts.append(
+                    [
+                        round(float(x), 7)
+                        for x in re.findall(float_regex, line)[1:]
+                    ]
+                )
         return np.array(kpts)
 
     def _read_repr(idx):
-        n_repr, curr, n = int(re.findall(freg, fdo_lines[idx])[0]), 0, 0
+        n_repr, curr, n = int(re.findall(float_regex, fdo_lines[idx])[0]), 0, 0
         representations = {}
         while idx + n < n_lines:
-            if re.search(r"^\s*Representation.*modes", fdo_lines[idx + n]):
-                curr = int(re.findall(freg, fdo_lines[idx + n])[0])
-                representations[curr] = {"done": False, "modes": []}
-            if re.search(r"Calculated\s*using\s*symmetry", fdo_lines[idx + n]) \
-                    or re.search(r"-\s*Done\s*$", fdo_lines[idx + n]):
-                representations[curr]["done"] = True
-            if re.search(r"(?i)^\s*(mode\s*#\s*\d\s*)+", fdo_lines[idx + n]):
-                representations[curr]["modes"] = _read_modes(idx + n)
+            if re.search(r'^\s*Representation.*modes', fdo_lines[idx + n]):
+                curr = int(re.findall(float_regex, fdo_lines[idx + n])[0])
+                representations[curr] = {'done': False, 'modes': []}
+            if re.search(
+                r'Calculated\s*using\s*symmetry', fdo_lines[idx + n]
+            ) or re.search(r'-\s*Done\s*$', fdo_lines[idx + n]):
+                representations[curr]['done'] = True
+            if re.search(r'(?i)^\s*(mode\s*#\s*\d\s*)+', fdo_lines[idx + n]):
+                representations[curr]['modes'] = _read_modes(idx + n)
                 if curr == n_repr:
                     break
             n += 1
@@ -1670,18 +1809,18 @@ def read_espresso_ph(fileobj):
 
     def _read_modes(idx):
         n = 1
-        n_modes = len(re.findall(r"mode", fdo_lines[idx]))
+        n_modes = len(re.findall(r'mode', fdo_lines[idx]))
         modes = []
-        while not modes or bool(re.match(r"^\s*\(", fdo_lines[idx + n])):
-            tmp = re.findall(freg, fdo_lines[idx + n])
+        while not modes or bool(re.match(r'^\s*\(', fdo_lines[idx + n])):
+            tmp = re.findall(float_regex, fdo_lines[idx + n])
             modes.append([round(float(x), 5) for x in tmp])
             n += 1
         return np.hsplit(np.array(modes), n_modes)
 
     def _read_eqpoints(idx):
-        n_star = int(re.findall(freg, fdo_lines[idx])[0])
+        n_star = int(re.findall(float_regex, fdo_lines[idx])[0])
         return np.loadtxt(
-            fdo_lines[idx + 2: idx + 2 + n_star], usecols=(1, 2, 3)
+            fdo_lines[idx + 2 : idx + 2 + n_star], usecols=(1, 2, 3)
         ).reshape(-1, 3)
 
     def _read_freqs(idx):
@@ -1689,10 +1828,10 @@ def read_espresso_ph(fileobj):
         freqs = []
         stop = 0
         while not freqs or stop < 2:
-            if bool(re.search(r"^\s*freq", fdo_lines[idx + n])):
-                tmp = re.findall(freg, fdo_lines[idx + n])[1]
+            if bool(re.search(r'^\s*freq', fdo_lines[idx + n])):
+                tmp = re.findall(float_regex, fdo_lines[idx + n])[1]
                 freqs.append(float(tmp))
-            if bool(re.search(r"\*{5,}", fdo_lines[idx + n])):
+            if bool(re.search(r'\*{5,}', fdo_lines[idx + n])):
                 stop += 1
             n += 1
         return np.array(freqs)
@@ -1700,18 +1839,18 @@ def read_espresso_ph(fileobj):
     def _read_sym(idx):
         n = 1
         sym = {}
-        while bool(re.match(r"^\s*freq", fdo_lines[idx + n])):
-            r = re.findall("\\d+", fdo_lines[idx + n])
+        while bool(re.match(r'^\s*freq', fdo_lines[idx + n])):
+            r = re.findall('\\d+', fdo_lines[idx + n])
             r = tuple(range(int(r[0]), int(r[1]) + 1))
-            sym[r] = fdo_lines[idx + n].split("-->")[1].strip()
-            sym[r] = re.sub(r"\s+", " ", sym[r])
+            sym[r] = fdo_lines[idx + n].split('-->')[1].strip()
+            sym[r] = re.sub(r'\s+', ' ', sym[r])
             n += 1
         return sym
 
     def _read_epsil(idx):
         epsil = np.zeros((3, 3))
         for n in range(1, 4):
-            tmp = re.findall(freg, fdo_lines[idx + n])
+            tmp = re.findall(float_regex, fdo_lines[idx + n])
             epsil[n - 1] = [round(float(x), 9) for x in tmp]
         return epsil
 
@@ -1719,10 +1858,10 @@ def read_espresso_ph(fileobj):
         n = 1
         born = []
         while idx + n < n_lines:
-            if re.search(r"^\s*atom\s*\d\s*\S", fdo_lines[idx + n]):
+            if re.search(r'^\s*atom\s*\d\s*\S', fdo_lines[idx + n]):
                 pass
-            elif re.search(r"^\s*E\*?(x|y|z)\s*\(", fdo_lines[idx + n]):
-                tmp = re.findall(freg, fdo_lines[idx + n])
+            elif re.search(r'^\s*E\*?(x|y|z)\s*\(', fdo_lines[idx + n]):
+                tmp = re.findall(float_regex, fdo_lines[idx + n])
                 born.append([round(float(x), 5) for x in tmp])
             else:
                 break
@@ -1734,10 +1873,10 @@ def read_espresso_ph(fileobj):
         n = 1
         born = []
         while idx + n < n_lines:
-            if re.search(r"^\s*atom\s*\d\s*\S", fdo_lines[idx + n]):
+            if re.search(r'^\s*atom\s*\d\s*\S', fdo_lines[idx + n]):
                 pass
-            elif re.search(r"^\s*P(x|y|z)\s*\(", fdo_lines[idx + n]):
-                tmp = re.findall(freg, fdo_lines[idx + n])
+            elif re.search(r'^\s*P(x|y|z)\s*\(', fdo_lines[idx + n]):
+                tmp = re.findall(float_regex, fdo_lines[idx + n])
                 born.append([round(float(x), 5) for x in tmp])
             else:
                 break
@@ -1748,7 +1887,7 @@ def read_espresso_ph(fileobj):
     def _read_pola(idx):
         pola = np.zeros((3, 3))
         for n in range(1, 4):
-            tmp = re.findall(freg, fdo_lines[idx + n])[:3]
+            tmp = re.findall(float_regex, fdo_lines[idx + n])[:3]
             pola[n - 1] = [round(float(x), 2) for x in tmp]
         return pola
 
@@ -1756,11 +1895,13 @@ def read_espresso_ph(fileobj):
         positions = []
         symbols = []
         n = 1
-        while re.findall(r"^\s*\d+", fdo_lines[idx + n]):
+        while re.findall(r'^\s*\d+', fdo_lines[idx + n]):
             symbols.append(fdo_lines[idx + n].split()[1])
             positions.append(
-                [round(float(x), 5)
-                 for x in re.findall(freg, fdo_lines[idx + n])[-3:]]
+                [
+                    round(float(x), 5)
+                    for x in re.findall(float_regex, fdo_lines[idx + n])[-3:]
+                ]
             )
             n += 1
         atoms = Atoms(positions=positions, symbols=symbols)
@@ -1768,31 +1909,31 @@ def read_espresso_ph(fileobj):
         return atoms
 
     def _read_alat(idx):
-        return round(float(re.findall(freg, fdo_lines[idx])[1]), 5)
+        return round(float(re.findall(float_regex, fdo_lines[idx])[1]), 5)
 
     def _read_cell(idx):
         cell = []
         n = 1
-        while re.findall(r"^\s*a\(\d\)", fdo_lines[idx + n]):
-            cell.append([round(float(x), 4)
-                         for x in re.findall(freg, fdo_lines[idx + n])[-3:]])
+        while re.findall(r'^\s*a\(\d\)', fdo_lines[idx + n]):
+            cell.append(
+                [
+                    round(float(x), 4)
+                    for x in re.findall(float_regex, fdo_lines[idx + n])[-3:]
+                ]
+            )
             n += 1
         return np.array(cell)
 
     def _read_electron_phonon(idx):
         results = {}
 
-        broad_re = (
-            r"^\s*Gaussian\s*Broadening:\s+([\d.]+)\s+Ry, ngauss=\s+\d+"
-        )
+        broad_re = r'^\s*Gaussian\s*Broadening:\s+([\d.]+)\s+Ry, ngauss=\s+\d+'
         dos_re = (
-            r"^\s*DOS\s*=\s*([\d.]+)\s*states/"
-            r"spin/Ry/Unit\s*Cell\s*at\s*Ef=\s+([\d.]+)\s+eV"
+            r'^\s*DOS\s*=\s*([\d.]+)\s*states/'
+            r'spin/Ry/Unit\s*Cell\s*at\s*Ef=\s+([\d.]+)\s+eV'
         )
-        lg_re = (
-            r"^\s*lambda\(\s+(\d+)\)=\s+([\d.]+)\s+gamma=\s+([\d.]+)\s+GHz"
-        )
-        end_re = r"^\s*Number\s*of\s*q\s*in\s*the\s*star\s*=\s+(\d+)$"
+        lg_re = r'^\s*lambda\(\s+(\d+)\)=\s+([\d.]+)\s+gamma=\s+([\d.]+)\s+GHz'
+        end_re = r'^\s*Number\s*of\s*q\s*in\s*the\s*star\s*=\s+(\d+)$'
 
         lambdas = []
         gammas = []
@@ -1810,22 +1951,22 @@ def read_espresso_ph(fileobj):
 
             if broad_match:
                 if lambdas:
-                    results[current]["lambdas"] = lambdas
-                    results[current]["gammas"] = gammas
+                    results[current]['lambdas'] = lambdas
+                    results[current]['gammas'] = gammas
                     lambdas = []
                     gammas = []
                 current = float(broad_match[1])
                 results[current] = {}
             elif dos_match:
-                results[current]["dos"] = float(dos_match[1])
-                results[current]["fermi"] = float(dos_match[2])
+                results[current]['dos'] = float(dos_match[1])
+                results[current]['fermi'] = float(dos_match[2])
             elif lg_match:
                 lambdas.append(float(lg_match[2]))
                 gammas.append(float(lg_match[3]))
 
             if end_match:
-                results[current]["lambdas"] = lambdas
-                results[current]["gammas"] = gammas
+                results[current]['lambdas'] = lambdas
+                results[current]['gammas'] = gammas
                 break
 
             n += 1
@@ -1852,7 +1993,7 @@ def read_espresso_ph(fileobj):
 
     for qnum, (past, future) in enumerate(zip(iblocks[:-1], iblocks[1:])):
         qpoint = _read_qpoints(past)
-        results[qnum + 1] = curr_result = {"qpoint": qpoint}
+        results[qnum + 1] = curr_result = {'qpoint': qpoint}
         for prop in properties:
             p = (past < output[prop]) & (output[prop] < future)
             selected = output[prop][p]
@@ -1866,24 +2007,21 @@ def read_espresso_ph(fileobj):
                 for k, idx in enumerate(selected):
                     tmp[k + 1] = properties[prop](idx)
                 curr_result[names[prop]] = tmp
-        alat = curr_result.pop("alat", 1.0)
-        atoms = curr_result.pop("positions", None)
-        cell = curr_result.pop("cell", np.eye(3))
+        alat = curr_result.pop('alat', 1.0)
+        atoms = curr_result.pop('positions', None)
+        cell = curr_result.pop('cell', np.eye(3))
         if atoms:
-            atoms.positions *= alat * units["Bohr"]
-            atoms.cell = cell * alat * units["Bohr"]
+            atoms.positions *= alat * units['Bohr']
+            atoms.cell = cell * alat * units['Bohr']
             atoms.wrap()
-            curr_result["atoms"] = atoms
+            curr_result['atoms'] = atoms
 
     return results
 
 
 def write_fortran_namelist(
-        fd,
-        input_data=None,
-        binary=None,
-        additional_cards=None,
-        **kwargs) -> None:
+    fd, input_data=None, binary=None, additional_cards=None, **kwargs
+) -> None:
     """
     Function which writes input for simple espresso binaries.
     List of supported binaries are in the espresso_keys.py file.
@@ -1922,16 +2060,15 @@ def write_fortran_namelist(
 
     if additional_cards:
         if isinstance(additional_cards, list):
-            additional_cards = "\n".join(additional_cards)
-            additional_cards += "\n"
+            additional_cards = '\n'.join(additional_cards)
+            additional_cards += '\n'
 
         fd.write(additional_cards)
 
-    fd.write("EOF")
+    fd.write('EOF')
 
 
-@deprecated('Please use the ase.io.espresso.Namelist class',
-            DeprecationWarning)
+@deprecated('Please use the ase.io.espresso.Namelist class', DeprecationWarning)
 def construct_namelist(parameters=None, keys=None, warn=False, **kwargs):
     """
     Construct an ordered Namelist containing all the parameters given (as
@@ -2044,8 +2181,10 @@ def construct_namelist(parameters=None, keys=None, warn=False, **kwargs):
     return input_namelist
 
 
-@deprecated('Please use the .to_string() method of Namelist instead.',
-            DeprecationWarning)
+@deprecated(
+    'Please use the .to_string() method of Namelist instead.',
+    DeprecationWarning,
+)
 def namelist_to_string(input_parameters):
     """Format a Namelist object as a string for writing to a file.
     Assume sections are ordered (taken care of in namelist construction)
