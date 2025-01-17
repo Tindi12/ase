@@ -10,6 +10,7 @@ from ase import Atoms
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.filters import UnitCellFilter
 from ase.io.logger import Logger
+from ase.optimize.logger import OptLogger
 from ase.parallel import world
 from ase.utils import IOContext
 from ase.utils.abc import Optimizable
@@ -240,8 +241,6 @@ class Dynamics(IOContext):
 
         # log the initial step
         if self.nsteps == 0:
-            self.log()
-
             if self.default_logger:
                 self.default_logger.write_header()
 
@@ -263,10 +262,8 @@ class Dynamics(IOContext):
             self.step()
             self.nsteps += 1
 
-            # log the step
-            self.log()
             self.call_observers()
-
+            print(self.atoms.calc.results)
             # check convergence
             is_converged = self.converged()
             yield is_converged
@@ -297,11 +294,6 @@ class Dynamics(IOContext):
         """" a dummy function as placeholder for a real criterion, e.g. in
         Optimizer """
         return False
-
-    def log(self, *args):
-        """ a dummy function as placeholder for a real logger, e.g. in
-        Optimizer """
-        return True
 
     def step(self):
         """this needs to be implemented by subclasses"""
@@ -368,8 +360,9 @@ class Optimizer(Dynamics):
             self.read()
             self.comm.barrier()
 
-        if self.default_logger:
-            self.default_logger.add_opt_fields(self)
+        if logfile:
+            self.default_logger = OptLogger(self, logfile)
+            self.attach(self.default_logger, interval=1)
 
     def read(self):
         raise NotImplementedError

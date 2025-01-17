@@ -167,7 +167,7 @@ class TrajectoryWriter:
                 self.multiple_headers = not headers_equal(self.header_data,
                                                           header_data)
             write_header = self.multiple_headers
-
+        print(atoms.calc.results["forces"])
         write_atoms(b, atoms, write_header=write_header)
 
         calc = atoms.calc

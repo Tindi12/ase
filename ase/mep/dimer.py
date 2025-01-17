@@ -653,7 +653,7 @@ class MinModeAtoms:
         self.control.increment_counter('forcecalls')
         self.check_atoms = self.atoms.copy()
 
-    def get_potential_energy(self):
+    def get_potential_energy(self, **_kwargs):
         """Return the potential energy."""
         if self.calculation_required():
             self.calculate_real_forces_and_energies()
@@ -1004,23 +1004,32 @@ class MinModeTranslate(Optimizer):
         self.control = dimeratoms.get_control()
         self.dimeratoms = dimeratoms
 
-        # Make a header for the log
-        if self.logfile is not None:
-            l = ''
-            if isinstance(self.control, DimerControl):
-                l = 'MinModeTranslate: STEP      TIME          ENERGY    ' + \
-                    'MAX-FORCE     STEPSIZE    CURVATURE  ROT-STEPS\n'
-            self.logfile.write(l)
-            self.logfile.flush()
-
         # Load the relevant parameters from control
         self.cg_on = self.control.get_parameter('cg_translation')
         self.trial_step = self.control.get_parameter('trial_trans_step')
         self.max_step = self.control.get_parameter('maximum_translation')
+        self.stepsize = 0.0
 
         # Start conjugate gradient
         if self.cg_on:
             self.cg_init = True
+
+        if self.default_logger:
+            self.default_logger.add_field(
+                "StepSize",
+                lambda: self.stepsize,
+                '{:>16.4f}'
+            )
+            self.default_logger.add_field(
+                "Curvature",
+                self.dimeratoms.get_curvature,
+                '{:>16.4f}'
+            )
+            self.default_logger.add_field(
+                "RotSteps",
+                lambda: self.dimeratoms.get_control().get_counter('rotcount'),
+                '{:>16d}'
+            )
 
     def initialize(self):
         """Set initial values."""
@@ -1050,10 +1059,8 @@ class MinModeTranslate(Optimizer):
             step = (-F / C + self.trial_step / 2.0) * direction
             if norm(step) > self.max_step:
                 step = direction * self.max_step
-        self.log(f0p, norm(step))
-
+        self.stepsize = norm(step)
         atoms.set_positions(r + step)
-
         self.f0 = f.flat.copy()
         self.r0 = r.flat.copy()
 
@@ -1075,34 +1082,6 @@ class MinModeTranslate(Optimizer):
         self.cg_direction = direction + self.cg_direction * betaPR
         self.direction_old = direction.copy()
         return self.cg_direction.copy()
-
-    def log(self, f=None, stepsize=None):
-        """Log each step of the optimization."""
-        if f is None:
-            f = self.dimeratoms.get_forces()
-        if self.logfile is not None:
-            T = time.localtime()
-            e = self.dimeratoms.get_potential_energy()
-            fmax = sqrt((f**2).sum(axis=1).max())
-            rotsteps = self.dimeratoms.control.get_counter('rotcount')
-            curvature = self.dimeratoms.get_curvature()
-            l = ''
-            if stepsize:
-                if isinstance(self.control, DimerControl):
-                    l = '%s: %4d  %02d:%02d:%02d %15.6f %12.4f %12.6f ' \
-                        '%12.6f %10d\n' % (
-                            'MinModeTranslate', self.nsteps,
-                            T[3], T[4], T[5], e, fmax, stepsize, curvature,
-                            rotsteps)
-            else:
-                if isinstance(self.control, DimerControl):
-                    l = '%s: %4d  %02d:%02d:%02d %15.6f %12.4f %s ' \
-                        '%12.6f %10d\n' % (
-                            'MinModeTranslate', self.nsteps,
-                            T[3], T[4], T[5], e, fmax, '    --------',
-                            curvature, rotsteps)
-            self.logfile.write(l)
-            self.logfile.flush()
 
 
 def read_eigenmode(mlog, index=-1):

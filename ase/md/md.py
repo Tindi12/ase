@@ -5,6 +5,7 @@ from typing import IO, Optional, Union
 import numpy as np
 
 from ase import Atoms, units
+from ase.md.logger import MDLogger
 from ase.optimize.optimize import Dynamics
 
 
@@ -127,8 +128,9 @@ class MolecularDynamics(Dynamics):
         if not self.atoms.has('momenta'):
             self.atoms.set_momenta(np.zeros([len(self.atoms), 3]))
 
-        if self.default_logger:
-            self.default_logger.add_md_fields(self)
+        if logfile:
+            self.default_logger = MDLogger(self, logfile)
+            self.attach(self.default_logger, interval=loginterval)
 
     def todict(self):
         return {'type': 'molecular-dynamics',

@@ -72,7 +72,7 @@ class Bussi(VelocityVerlet):
                 'Econs[eV]',
                 lambda: self.atoms.get_total_energy() -
                 self.transferred_energy,
-                '>12.4f',
+                '{:>12.4f}',
             )
 
     def scale_velocities(self):

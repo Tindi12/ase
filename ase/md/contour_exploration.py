@@ -201,24 +201,24 @@ class ContourExploration(Dynamics):
 
         if self.default_logger:
             self.default_logger.add_field(
-                'Step', lambda: self.nsteps, fmt='6d'
+                'Step', lambda: self.nsteps, fmt='{:6d}'
             )
             self.default_logger.add_field(
-                'Etarget', self.energy_target, fmt='15.6f'
+                'Etarget[eV]', lambda: self.energy_target, fmt='{:15.6f}'
             )
             self.default_logger.add_field(
-                'Epot', self._actual_atoms.get_potential_energy, fmt='15.6f'
+                'Epot[eV]', self._actual_atoms.get_potential_energy, fmt='{:15.6f}'
             )
             self.default_logger.add_field(
-                'Curv', lambda: self.curvature, fmt='12.6f'
+                'Curvature[1/Å]', lambda: self.curvature, fmt='{:16.6f}'
             )
             self.default_logger.add_field(
-                'StepSize', lambda: self.step_size, fmt='12.6f'
+                'StepSize[Å]', lambda: self.step_size, fmt='{:12.6f}'
             )
-            self.default_logger.add_field('EnergyDev', lambda: (
+            self.default_logger.add_field('EnergyDev[eV]', lambda: (
                 self._actual_atoms.get_potential_energy(force_consistent=True) -
                 self.energy_target) / len(self._actual_atoms),
-                fmt='24.9f'
+                fmt='{:24.9f}'
             )
 
     # Required stuff for Dynamics

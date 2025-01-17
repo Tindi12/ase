@@ -33,7 +33,7 @@ def test_dimer_method(testdir):
 
         # Converge to a saddle point
         with MinModeTranslate(d_atoms, trajectory='dimer_method.traj',
-                              logfile=None) as dim_rlx:
+                              logfile="-") as dim_rlx:
             dim_rlx.run(fmax=0.001)
 
     # Test the results

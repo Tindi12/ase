@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import time
+import re
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -16,8 +16,6 @@ if TYPE_CHECKING:
     from typing import IO, Any, Callable, Union
 
     from ase import Atoms
-    from ase.md.md import MolecularDynamics
-    from ase.optimize.optimize import Optimizer
 
 
 class Logger(IOContext):
@@ -65,11 +63,8 @@ class Logger(IOContext):
         comm: Any = world,
     ) -> None:
         """Initialize the molecular dynamics logger."""
-        self.fields = {}
+        self.fields: dict[str | tuple[str], dict] = {}
         self.logfile = self.openfile(logfile, mode=mode, comm=comm)
-
-        self._cache = {}
-        self._field_is_list = {}
 
     def __call__(self) -> None:
         """
@@ -81,21 +76,12 @@ class Logger(IOContext):
         parts = []
 
         for key in self.fields:
-            value = key()
+            value = self.fields[key]['function']()
 
-            if key not in self._cache:
-                fmt = self.fields[key][1]
-                if isinstance(value, (list, tuple, np.ndarray)):
-                    self._cache[key] = ' '.join(f'{{:{f}}}' for f in fmt)
-                    self._field_is_list[key] = True
-                else:
-                    self._cache[key] = f'{{:{fmt}}}'
-                    self._field_is_list[key] = False
-
-            if self._field_is_list[key]:
-                parts.append(self._cache[key].format(*value))
+            if self.fields[key]['is_list']:
+                parts.append(self.fields[key]['fmt'].format(*value))
             else:
-                parts.append(self._cache[key].format(value))
+                parts.append(self.fields[key]['fmt'].format(value))
 
         self.logfile.write(' '.join(parts) + '\n')
         self.logfile.flush()
@@ -104,7 +90,7 @@ class Logger(IOContext):
         """Clean up by closing the log file."""
         self.close()
 
-    def _create_header_format(self) -> str:
+    def create_header(self) -> str:
         """
         Create the header format string based on configured options.
 
@@ -113,31 +99,24 @@ class Logger(IOContext):
         str
             Formatted header string.
         """
-        names = [field[0] for field in self.fields.values()]
-        formats = [field[1] for field in self.fields.values()]
-
         to_write = []
 
-        for name, fmt in zip(names, formats):
-            if isinstance(fmt, (list, tuple, np.ndarray)) and isinstance(
-                name, (list, tuple, np.ndarray)
-            ):
-                to_write.extend(
-                    [
-                        f'{n:{get_auto_header_format(f)}}'
-                        for n, f in zip(name, fmt)
-                    ]
-                )
+        for name in self.fields:
+            header_fmt = self.fields[name]['header_fmt']
+            if self.fields[name]['is_list']:
+                to_write.append(header_fmt.format(*name))
             else:
-                to_write.append(f'{name:{get_auto_header_format(fmt)}}')
+                to_write.append(header_fmt.format(name))
 
         return ' '.join(to_write)
 
     def add_field(
         self,
-        name: str,
+        name: str | list[str] | tuple[str],
         function: Callable,
-        fmt: str = '10.3f',
+        fmt: str = '{:10.3f}',
+        header_fmt: str | None = None,
+        is_list: bool = False,
     ) -> None:
         """
         Add one field to the logger, which track a value that
@@ -147,12 +126,14 @@ class Logger(IOContext):
 
         Parameters
         ----------
-        names
+        name
             Name of the field to add.
-        callables
+        function
             Callable object returning the value of the field.
-        formats
+        fmt
             Format string for field value.
+        is_list
+            Whether the field's function returns a list of values.
 
         Examples
         --------
@@ -164,67 +145,25 @@ class Logger(IOContext):
             [">12s", ">12d"],
         )
         ```
+
+        Notes
+        -----
+        If the field is a list, the format string should be a list of the same
+        length as the name. The format string should be a single format string
+        which length cannot change during the simulation.
         """
-        self.fields[function] = (name, fmt)
+        if isinstance(name, list):
+            name = tuple(name)
 
-    def add_md_fields(self, dyn: MolecularDynamics) -> None:
-        """
-        Convenience function to add commonly used fields for MD simulations.
-        Add the following fields to the logger:
+        if header_fmt is None:
+            header_fmt = get_auto_header_format(fmt)
 
-        - Time[ps]: The current simulation time in picoseconds.
-        - Etot[eV]: The current total energy.
-        - Epot[eV]: The current potential energy.
-        - Ekin[eV]: The current kinetic energy.
-        - T[K]: The current temperature.
-
-        Parameters
-        ----------
-        dyn
-            The :class:~ase.md.md.MolecularDynamics` object.
-        """
-        names = ['Time[ps]', 'Etot[eV]', 'Epot[eV]', 'Ekin[eV]', 'T[K]']
-        callables = [
-            lambda: dyn.get_time() / (1000 * units.fs),
-            dyn.atoms.get_total_energy,
-            dyn.atoms.get_potential_energy,
-            dyn.atoms.get_kinetic_energy,
-            dyn.atoms.get_temperature,
-        ]
-        formats = ['<12.4f'] + ['>12.4f'] * 3 + ['>10.2f']
-
-        for name, func, fmt in zip(names, callables, formats):
-            self.add_field(name, func, fmt)
-
-    def add_opt_fields(self, opt: Optimizer) -> None:
-        """
-        Convenience function to add commonly used fields for ASE optimizers.
-        Add the following fields to the logger:
-
-        - Optimizer: The name of the optimizer class.
-        - Step: The current optimization step.
-        - Time: The current time in HH:MM:SS format.
-        - Epot[eV]: The current potential energy.
-        - Fmax[eV/A]: The maximum force component.
-
-        Parameters
-        ----------
-        optimizer
-            The ASE optimizer object.
-        """
-        names = ['Optimizer', 'Step', 'Time', 'Epot[eV]', 'Fmax[eV/A]']
-        callables = [
-            lambda: opt.__class__.__name__,
-            lambda: opt.nsteps,
-            lambda: '{:02d}:{:02d}:{:02d}'.format(*time.localtime()[3:6]),
-            opt.optimizable.get_potential_energy,
-            lambda: np.linalg.norm(opt.optimizable.get_forces(), axis=1).max(),
-        ]
-
-        formats = ['<20s'] + ['>6d'] + ['>12s'] + ['>12.4f'] * 2
-
-        for name, func, fmt in zip(names, callables, formats):
-            self.add_field(name, func, fmt)
+        self.fields[name] = {
+            'function': function,
+            'fmt': fmt,
+            'header_fmt': header_fmt,
+            'is_list': is_list,
+        }
 
     def add_stress_fields(
         self,
@@ -241,6 +180,9 @@ class Logger(IOContext):
             The ASE atoms object.
         include_ideal_gas
             Whether to include the ideal gas contribution to the stress.
+        mask
+            A list of booleans to mask the stress components to log.
+            The default is to log all components.
         """
         if mask is None:
             mask = [True] * 6
@@ -253,34 +195,36 @@ class Logger(IOContext):
         components = ['xx', 'yy', 'zz', 'yz', 'xz', 'xy']
 
         names = [
-            f'{component}Stress[GPa]'
+            f'Stress[{component}][GPa]'
             for n, component in enumerate(components)
             if mask[n]
         ]
 
-        formats = ['>14.3f'] * sum(mask)
+        formats = '{:>18.3f}' * sum(mask)
 
-        self.add_field(names, log_stress, formats)
+        self.add_field(names, log_stress, formats, is_list=True)
 
-    def remove_fields(self, name: str) -> None:
+    def remove_fields(self, pattern: str) -> None:
         """
-        Remove one or multiple field(s) from the logger. Work by finding
-        partial matches of the field name(s) in the current fields. List fields
-        count as a single field, i.e., if a match is found in a list field, the
-        whole list field is removed
+        Remove fields whose names contain the given pattern.
 
         Parameters
         ----------
-        name
-            Name of the field to remove.
+        pattern : str
+            Pattern to match in field names. For compound fields
+            (tuple of names), matches if any component contains the pattern.
         """
-        for func, (field_name, _) in list(self.fields.items()):
-            if name in field_name:
-                self.fields.pop(func, None)
+        for field_name in list(self.fields.keys()):
+            if isinstance(field_name, tuple):
+                if any(pattern in name for name in field_name):
+                    self.fields.pop(field_name)
+            else:
+                if pattern in field_name:
+                    self.fields.pop(field_name)
 
     def write_header(self) -> None:
         """Write the header line to the log file."""
-        self.logfile.write(f'{self._create_header_format()}\n')
+        self.logfile.write(f'{self.create_header()}\n')
 
 
 def get_auto_header_format(data_format: str) -> str:
@@ -303,15 +247,8 @@ def get_auto_header_format(data_format: str) -> str:
     get_header_format('10.3f') -> '>10s'
     get_header_format('4s') -> '>4s'
     """
-    data_format = data_format.lstrip(':')
-
-    align = '>' if data_format[0] not in '<>^' else data_format[0]
-
-    width = ''
-    for char in data_format.lstrip('<>^'):
-        if char.isdigit():
-            width += char
-        else:
-            break
-
-    return f'{align}{width}s' if width else '>10s'
+    return re.sub(
+        r':([<>^])?(\d+)?[^}]*',
+        lambda m: f':{m.group(1) or ">"}{m.group(2) or "10"}s',
+        data_format,
+    )

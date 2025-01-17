@@ -120,6 +120,28 @@ class BFGSClimbFixInternals(BFGS):
         self.autolog = 'logfile' not in self.optB_kwargs
         self.autotraj = 'trajectory' not in self.optB_kwargs
 
+        if self.default_logger:
+            self.default_logger.add_field(
+                'TargetValue[Any]',
+                lambda: self.targetvalue,
+                '{:>16.4f}',
+            )
+            self.default_logger.add_field(
+                'ScaledFmax[eV/A]',
+                self.get_scaled_fmax,
+                '{:>16.4f}',
+            )
+            self.default_logger.add_field(
+                'ProjectedFmax[eV/A]',
+                lambda: norm(self.get_projected_forces()).max(),
+                '{:>20.4f}',
+            )
+            self.default_logger.add_field(
+                'TotalFmax[eV/A]',
+                lambda: norm(self.get_total_forces()).max(),
+                '{:>16.4f}',
+            )
+
     def read(self):
         (self.H, self.pos0, self.forces0, self.maxstep,
          self.targetvalue) = self.load()
@@ -183,10 +205,6 @@ class BFGSClimbFixInternals(BFGS):
         """Did the optimization converge based on the total forces?"""
         forces = forces or self.get_total_forces()
         return super().converged(forces=forces)
-
-    def log(self, forces=None):
-        forces = forces or self.get_total_forces()
-        super().log(forces=forces)
 
 
 def get_fixinternals(atoms):

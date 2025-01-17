@@ -6,8 +6,10 @@ from ase.build import bulk, molecule
 from ase.calculators.emt import EMT
 from ase.io.logger import Logger
 from ase.md.bussi import Bussi
+from ase.md.logger import MDLogger
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 from ase.optimize import BFGS
+from ase.optimize.logger import OptLogger
 from ase.units import fs
 
 
@@ -15,9 +17,9 @@ def test_logger():
     string_io = StringIO()
 
     logger = Logger(string_io)
-    logger.add_field('Class', lambda: 'MyRandomMDClass', fmt='<24s')
+    logger.add_field('Class', lambda: 'MyRandomMDClass', fmt='{:<24s}')
     logger.add_field('Epot[eV]', lambda: 123141.0)
-    logger.add_field('Step', lambda: 1, fmt='>12d')
+    logger.add_field('Step', lambda: 1, fmt='{:>12d}')
     logger.write_header()
 
     logger()
@@ -101,8 +103,10 @@ def test_opt_custom_logger():
     atoms.calc = EMT()
 
     string_io = StringIO()
-    logger = Logger(string_io)
+
     opt = BFGS(atoms, logfile=None)
+
+    logger = OptLogger(opt, string_io)
 
     def negative_omega():
         if opt.nsteps > 0:
@@ -110,8 +114,7 @@ def test_opt_custom_logger():
         else:
             return 'N/A'
 
-    logger.add_opt_fields(opt)
-    logger.add_field('NegativeEigenvalues', negative_omega, fmt='>22s')
+    logger.add_field('NegativeEigenvalues', negative_omega, fmt='{:>22s}')
     opt.attach(logger)
 
     logger.write_header()
@@ -133,12 +136,12 @@ def test_opt_stress_logger():
     atoms.calc = EMT()
 
     string_io = StringIO()
-    logger = Logger(string_io)
 
     MaxwellBoltzmannDistribution(atoms, temperature_K=300)
     dyn = Bussi(atoms, 1.0 * fs, temperature_K=300, taut=50 * fs)
 
-    logger.add_md_fields(dyn)
+    logger = MDLogger(dyn, string_io)
+
     logger.add_stress_fields(
         atoms, mask=[False, True, False, True, True, False]
     )
@@ -154,14 +157,14 @@ def test_opt_stress_logger():
 
     pos = string_io.tell()
 
-    assert 'yyStress[GPa]' in logger_lines
-    assert 'xxStress[GPa]' not in logger_lines
-    assert 'zzStress[GPa]' not in logger_lines
-    assert 'yzStress[GPa]' in logger_lines
-    assert 'xzStress[GPa]' in logger_lines
-    assert 'xyStress[GPa]' not in logger_lines
+    assert 'Stress[yy][GPa]' in logger_lines
+    assert 'Stress[xx][GPa]' not in logger_lines
+    assert 'Stress[zz][GPa]' not in logger_lines
+    assert 'Stress[yz][GPa]' in logger_lines
+    assert 'Stress[xz][GPa]' in logger_lines
+    assert 'Stress[xy][GPa]' not in logger_lines
 
-    logger.remove_fields('yyStress[GPa]')
+    logger.remove_fields('Stress[yz][GPa]')
     logger.add_stress_fields(
         atoms, mask=[False, False, False, False, False, True]
     )
@@ -173,8 +176,8 @@ def test_opt_stress_logger():
     string_io.seek(pos)
     new_logger_lines = string_io.read()
 
-    assert 'yyStress[GPa]' not in new_logger_lines
-    assert 'xzStress[GPa]' not in new_logger_lines
-    assert 'xyStress[GPa]' in new_logger_lines
+    assert 'Stress[yy][GPa]' not in new_logger_lines
+    assert 'Stress[xz][GPa]' not in new_logger_lines
+    assert 'Stress[xy][GPa]' in new_logger_lines
 
     string_io.close()
