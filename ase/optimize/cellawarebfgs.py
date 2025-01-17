@@ -92,7 +92,7 @@ class CellAwareBFGS(BFGS):
     def converged(self, forces=None):
         if forces is None:
             forces = self.atoms.atoms.get_forces()
-        stress = self.atoms.atoms.get_stress()
+        stress = self.atoms.atoms.get_stress(voigt=False) * self.atoms.mask
         return np.max(np.sum(forces**2, axis=1))**0.5 < self.fmax and \
             np.max(np.abs(stress)) < self.smax
 
