@@ -1,6 +1,5 @@
 import sys
 import threading
-import time
 import warnings
 from abc import ABC, abstractmethod
 from functools import cached_property
@@ -883,6 +882,13 @@ class NEBOptimizer(Optimizer):
         self.C1 = C1
         self.C2 = C2
 
+        if self.default_logger:
+            self.default_logger.add_field(
+                "NEBResidual[eV/A]",
+                self.neb.get_residual,
+                '{:>20.4f}',
+            )
+
     def force_function(self, X):
         positions = X.reshape((self.neb.nimages - 2) *
                               self.neb.natoms, 3)
@@ -932,6 +938,9 @@ class NEBOptimizer(Optimizer):
         fmax - desired force tolerance
         steps - maximum number of steps
         """
+        if self.default_logger:
+            self.default_logger.write_header()
+
         self.max_steps = steps
         if method is None:
             method = self.method

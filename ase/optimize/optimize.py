@@ -262,8 +262,9 @@ class Dynamics(IOContext):
             self.step()
             self.nsteps += 1
 
+            self.optimizable.get_forces()
             self.call_observers()
-            print(self.atoms.calc.results)
+
             # check convergence
             is_converged = self.converged()
             yield is_converged
