@@ -4,14 +4,40 @@
 Release notes
 =============
 
+A comprehensive list of changes can be found in the :ref:`changelog`.
+
 Git master branch
 =================
 
 :git:`master <>`.
 
-* Improved :func:`~ase.build.find_optimal_cell_shape` to be rotationally
-  invariant (:mr:`3404`)
-* Added :class:`ase.md.bussi.Bussi` (:mr:`3350`)
+Version 3.24.0
+==============
+
+28 December 2024: :git:`3.24.0 <../3.24.0>`
+
+Requirements
+------------
+
+* The minimum supported Python version has increased to 3.9 (:mr:`3473`)
+
+Breaking changes
+----------------
+
+* The ``master`` parameter to each Optimizer is now passed via ``**kwargs`` and so becomes keyword-only. (:mr:`3424`)
+* Removed legacy ``read_cell`` and ``write_cell`` functions from ase.io.castep. (:mr:`3435`)
+* Removed deprecated ``force_consistent`` option from Optimizer (:mr:`3424`)
+* :class:`ase.spectrum.band_structure.BandStructurePlot`: the ``plot_with_colors()`` has been removed and its features merged into the ``plot()`` method.
+
+Highlights
+----------
+
+* Major improvements to :func:`~ase.build.find_optimal_cell_shape`: improve target metric; ensure rotationally invariant results; avoid negative determinants; improved performance via vectorisation (:mr:`3404`, :mr:`3441`, :mr:`3474`). The ``norm`` argument to :func:`ase.build.supercells.get_deviation_from_optimal_cell_shape` is now deprecated.
+* Added new FiniteDifferenceCalculator which wraps other calculator for finite-difference forces and strains (:mr:`3509`)
+* Added two new MD thermostats: :class:`ase.md.bussi.Bussi` (:mr:`3350`) and :class:`ase.md.nosef_hoover_chain.NoseHooverChainNVT` (:mr:`3508`)
+* Added atom-projected partial phonon dos to :func:`ase.phonons.Phonons.get_dos` (:mr:`3460`)
+* New module :mod:`ase.pourbaix` written to replace
+  :class:`ase.phasediagram.Pourbaix` (:mr:`3280`), with improved energy definition and visualisation
 
 
 Version 3.23.0
@@ -118,6 +144,13 @@ Version 3.23.0
 
 * Fix bug in :class:`ase.vibrations.Vibrations` causing property
   calculations to always use the default method (:mr:`3012`)
+
+* Replaced :class:`ase.phasediagram.Pourbaix` class (to be deprecated)
+  with the :mod:`ase.pourbaix` module. The latter includes a
+  `~ase.pourbaix.Pourbaix` class able to plot a complete diagram given a
+  set of references. The decomposition energy is now shown on a colormap
+  and the phase boundaries are determined with a plane intersection method.
+  (:mr:`3280`)
 
 Calculators:
 
@@ -253,10 +286,10 @@ Optimizers:
   (:mr:`2299`)
 
 * :func:`ase.optimize.optimize.Optimizers.irun` and
-  :func:`ase.optimize.optimize.Optimizers.run` now respect ``steps=0`` (:issue:`1183`; 
+  :func:`ase.optimize.optimize.Optimizers.run` now respect ``steps=0`` (:issue:`1183`;
   :issue:`1258`; :mr:`2922`).
 
-* Added the ``.trajectory`` attribute to :class:`ase.optimize.optimize.Dynamics` 
+* Added the ``.trajectory`` attribute to :class:`ase.optimize.optimize.Dynamics`
   (:mr:`2901`).
 
 * Fixed a bug when :class:`ase.optimize.precon.precon.PreconImages` is initialized with
@@ -1276,7 +1309,7 @@ Algorithms:
 
 * New Gaussian Process (GP) regression optimizer
   (:class:`~ase.optimize.GPMin`).  Check out this `performance test
-  <https://wiki.fysik.dtu.dk/gpaw/devel/ase_optimize/ase_optimize.html>`_.
+  <https://gpaw.readthedocs.io/devel/ase_optimize/ase_optimize.html>`_.
 
 * New filter for lattice optimization,
   :class:`~ase.constraints.ExpCellFilter`, based on an exponential
@@ -1982,10 +2015,15 @@ Version 3.5.0
 
 
 .. _ASAP: https://wiki.fysik.dtu.dk/asap
-.. _GPAW: https://wiki.fysik.dtu.dk/gpaw/documentation/xc/vdwcorrection.html
+.. _GPAW: https://gpaw.readthedocs.io/documentation/xc/vdwcorrection.html
 
 
 Version 3.4.1
 =============
 
 11 August 2010: :git:`3.4.1 <../3.4.1>`.
+
+
+.. toctree::
+
+  changelog.rst

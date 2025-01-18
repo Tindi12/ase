@@ -774,30 +774,66 @@ class Phonons(Displacement):
 
         return omega_kl
 
-    def get_dos(self, kpts=(10, 10, 10), npts=1000, delta=1e-3, indices=None):
+    def get_dos(self, kpts=(10, 10, 10), indices=None, verbose=True):
+        """Return a phonon density of states.
+
+        Parameters:
+
+        kpts: tuple
+            Shape of Monkhorst-Pack grid for sampling the Brillouin zone.
+        indices: list
+            If indices is not None, the amplitude-weighted atomic-partial
+            DOS for the specified atoms will be calculated.
+        verbose: bool
+            Print warnings when imaginary frequncies are detected.
+
+        Returns:
+            A RawDOSData object containing the density of states.
+        """
         from ase.spectrum.dosdata import RawDOSData
 
         # dos = self.dos(kpts, npts, delta, indices)
         kpts_kc = monkhorst_pack(kpts)
-        omega_w = self.band_structure(kpts_kc).ravel()
-        dos = RawDOSData(omega_w, np.ones_like(omega_w))
+        if indices is None:
+            # Return the total DOS
+            omega_w = self.band_structure(kpts_kc, verbose=verbose)
+            assert omega_w.ndim == 2
+            n_kpt = omega_w.shape[0]
+            omega_w = omega_w.ravel()
+            dos = RawDOSData(omega_w, np.ones_like(omega_w) / n_kpt)
+        else:
+            # Return a partial DOS
+            omegas, amplitudes = self.band_structure(kpts_kc,
+                                                     modes=True,
+                                                     verbose=verbose)
+            # omegas.shape = (k-points, bands)
+            # amplitudes.shape = (k-points, bands, atoms, 3)
+            ampl_sq = (np.abs(amplitudes)**2).sum(axis=3)
+            assert ampl_sq.ndim == 3
+            assert ampl_sq.shape == omegas.shape + (len(self.indices),)
+            weights = ampl_sq[:, :, indices].sum(axis=2) / ampl_sq.sum(axis=2)
+            dos = RawDOSData(omegas.ravel(), weights.ravel() / omegas.shape[0])
         return dos
 
-    def dos(self, kpts=(10, 10, 10), npts=1000, delta=1e-3, indices=None):
+    @deprecated('Please use Phonons.get_dos() instead of Phonons.dos().')
+    def dos(self, kpts=(10, 10, 10), npts=1000, delta=1e-3):
         """Calculate phonon dos as a function of energy.
 
         Parameters:
 
-        qpts: tuple
+        kpts: tuple
             Shape of Monkhorst-Pack grid for sampling the Brillouin zone.
         npts: int
             Number of energy points.
         delta: float
             Broadening of Lorentzian line-shape in eV.
-        indices: list
-            If indices is not None, the atomic-partial dos for the specified
-            atoms will be calculated.
 
+        Returns:
+            Tuple of (frequencies, dos).  The frequencies are in units of eV.
+
+        .. deprecated:: 3.23.1
+            Please use the ``.get_dos()`` method instead, it returns a proper
+            RawDOSData object.
         """
 
         # Monkhorst-Pack grid
