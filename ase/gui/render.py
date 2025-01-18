@@ -1,8 +1,10 @@
-from ase.gui.i18n import _
-import ase.gui.ui as ui
-from ase.io.pov import write_pov, get_bondpairs
 from os import unlink
+
 import numpy as np
+
+import ase.gui.ui as ui
+from ase.gui.i18n import _
+from ase.io.pov import get_bondpairs, write_pov
 
 pack = error = Help = 42
 
@@ -77,7 +79,7 @@ class Render:
 
     def ok(self, *args):
         print("Rendering with povray:")
-        guiwidth, guiheight = self.get_guisize()
+        _guiwidth, guiheight = self.get_guisize()
         width = self.width_widget.value
         height = self.height_widget.value
         # (Do width/height become inconsistent upon gui resize?  Not critical)

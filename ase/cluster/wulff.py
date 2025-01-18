@@ -1,6 +1,5 @@
 import numpy as np
 
-
 delta = 1e-10
 
 
@@ -50,7 +49,7 @@ def wulff_construction(symbol, surfaces, energies, size, structure,
               (size, rounding))
 
         if rounding not in ['above', 'below', 'closest']:
-            raise ValueError('Invalid rounding: %s' % rounding)
+            raise ValueError(f'Invalid rounding: {rounding}')
 
     # Interpret structure, if it is a string.
     if isinstance(structure, str):
@@ -61,12 +60,11 @@ def wulff_construction(symbol, surfaces, energies, size, structure,
         elif structure == 'sc':
             from ase.cluster.cubic import SimpleCubic as structure
         elif structure == 'hcp':
-            from ase.cluster.hexagonal import \
-                HexagonalClosedPacked as structure
+            from ase.cluster.hexagonal import HexagonalClosedPacked as structure
         elif structure == 'graphite':
             from ase.cluster.hexagonal import Graphite as structure
         else:
-            error = 'Crystal structure %s is not supported.' % structure
+            error = f'Crystal structure {structure} is not supported.'
             raise NotImplementedError(error)
 
     # Check number of surfaces

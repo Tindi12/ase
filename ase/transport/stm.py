@@ -2,11 +2,12 @@
 import time
 
 import numpy as np
+from scipy.integrate import trapezoid
 
-from ase.transport.tools import dagger
-from ase.transport.selfenergy import LeadSelfEnergy
-from ase.transport.greenfunction import GreenFunction
 from ase.parallel import world
+from ase.transport.greenfunction import GreenFunction
+from ase.transport.selfenergy import LeadSelfEnergy
+from ase.transport.tools import dagger
 
 
 class STM:
@@ -203,5 +204,5 @@ class STM:
         if i2 < i1:
             step = -1
 
-        return np.sign(bias) * \
-            np.trapz(x=energies[i1:i2:step], y=T_e[i1:i2:step])
+        return np.sign(bias) * trapezoid(x=energies[i1:i2:step],
+                                         y=T_e[i1:i2:step])

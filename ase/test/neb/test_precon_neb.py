@@ -3,15 +3,17 @@ import json
 import numpy as np
 import pytest
 
+from ase.build import bulk
 from ase.calculators.morse import MorsePotential
+from ase.constraints import FixBondLength
+from ase.geometry.geometry import find_mic, get_distances
+from ase.mep import NEB, NEBTools
+from ase.mep.neb import NEBOptimizer
 from ase.optimize import BFGS, ODE12r
 from ase.optimize.precon import Exp
-from ase.build import bulk
-from ase.neb import NEB, NEBTools, NEBOptimizer
-from ase.geometry.geometry import find_mic
-from ase.constraints import FixBondLength
-from ase.geometry.geometry import get_distances
 from ase.utils.forcecurve import fit_images
+
+pytestmark = pytest.mark.optimize
 
 
 def calc():
@@ -71,7 +73,7 @@ def _setup_images_global():
     return neb.images, i1, i2
 
 
-@pytest.fixture
+@pytest.fixture()
 def setup_images(_setup_images_global):
     images, i1, i2 = _setup_images_global
     new_images = [img.copy() for img in images]
@@ -100,7 +102,7 @@ def _ref_vacancy_global(_setup_images_global):
     return Ef_ref, dE_ref, saddle
 
 
-@pytest.fixture
+@pytest.fixture()
 def ref_vacancy(_ref_vacancy_global):
     Ef_ref, dE_ref, saddle = _ref_vacancy_global
     return Ef_ref, dE_ref, saddle.copy()
@@ -201,6 +203,28 @@ def test_single_precon_initialisation(setup_images):
     assert mep.precon[0].mu == mep.precon[1].mu
 
 
+def test_list_precon_initialisation(setup_images):
+    images, _, _ = setup_images
+
+    precon = Exp()
+    mep = NEB(images, method='spline', precon=precon)
+    mep.get_forces()
+
+    # the tested scenario is saving computed precon
+    # for restarting of a calculation
+
+    # saving as PreconImages object
+    mep_restart = NEB(images, method='spline', precon=mep.precon)
+    mep_restart.get_forces()
+    assert len(mep_restart.precon) == len(mep_restart.images)
+    assert mep_restart.precon[0].mu == mep_restart.precon[1].mu
+    # saving as a list of precon objects
+    mep_restart = NEB(images, method='spline', precon=mep.precon.precon)
+    mep_restart.get_forces()
+    assert len(mep_restart.precon) == len(mep_restart.images)
+    assert mep_restart.precon[0].mu == mep_restart.precon[1].mu
+
+
 def test_precon_assembly(setup_images):
     images, _, _ = setup_images
     neb = NEB(images, method='spline', precon='Exp')
@@ -238,7 +262,7 @@ def test_integrate_forces(setup_images):
 
     neb = NEB(images)
     spline_points = 1000  # it is the default value
-    s, E, F = neb.integrate_forces(spline_points=spline_points)
+    _s, E, _F = neb.integrate_forces(spline_points=spline_points)
     # check the difference between initial and final images
     np.testing.assert_allclose(E[0] - E[-1],
                                forcefit.energies[0] - forcefit.energies[-1],

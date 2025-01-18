@@ -1,10 +1,16 @@
 import numpy as np
-
 from numpy import linalg
-from ase.transport.selfenergy import LeadSelfEnergy, BoxProbe
+from scipy.integrate import trapezoid
+
 from ase.transport.greenfunction import GreenFunction
-from ase.transport.tools import subdiagonalize, cutcoupling, dagger,\
-    rotate_matrix, fermidistribution
+from ase.transport.selfenergy import BoxProbe, LeadSelfEnergy
+from ase.transport.tools import (
+    cutcoupling,
+    dagger,
+    fermidistribution,
+    rotate_matrix,
+    subdiagonalize,
+)
 from ase.units import kB
 
 
@@ -294,7 +300,7 @@ class TransportCalculator:
         sa_ii = self.greenfunction.S[:pl1, :pl1]
         c1 = np.abs(h_ii - ha_ii).max()
         c2 = np.abs(s_ii - sa_ii).max()
-        print('Conv (h,s)=%.2e, %2.e' % (c1, c2))
+        print(f'Conv (h,s)={c1:.2e}, {c2:2.e}')
 
     def plot_pl_convergence(self):
         self.initialize()
@@ -363,9 +369,9 @@ class TransportCalculator:
         fr = fermidistribution(E + bias / 2., kB * T)
 
         if spinpol:
-            return .5 * np.trapz((fl - fr) * T_e, x=E, axis=0)
+            return .5 * trapezoid((fl - fr) * T_e, x=E, axis=0)
         else:
-            return np.trapz((fl - fr) * T_e, x=E, axis=0)
+            return trapezoid((fl - fr) * T_e, x=E, axis=0)
 
     def get_transmission(self):
         self.initialize()

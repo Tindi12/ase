@@ -1,6 +1,7 @@
 import pytest
-from ase.neighborlist import NeighborList
+
 from ase.build import bulk
+from ase.neighborlist import NeighborList
 
 
 def test_neighborlist_initialization():
@@ -15,4 +16,4 @@ def test_neighborlist_initialization():
         nl.get_connectivity_matrix()
 
     nl.update(atoms)
-    indices, offsets = nl.get_neighbors(0)
+    nl.get_neighbors(0)

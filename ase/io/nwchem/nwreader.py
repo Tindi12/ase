@@ -1,11 +1,15 @@
 import re
 from collections import OrderedDict
+
 import numpy as np
 
 from ase import Atoms
-from ase.units import Hartree, Bohr
-from ase.calculators.singlepoint import (SinglePointDFTCalculator,
-                                         SinglePointKPoint)
+from ase.calculators.singlepoint import (
+    SinglePointDFTCalculator,
+    SinglePointKPoint,
+)
+from ase.units import Bohr, Hartree
+
 from .parser import _define_pattern
 
 # Note to the reader of this code: Here and below we use the function
@@ -42,9 +46,8 @@ def read_nwchem_out(fobj, index=-1):
                 return [parse_gto_chunk(''.join(lines))]
             if _pw_block.match(line):
                 return [parse_pw_chunk(''.join(lines))]
-        else:
-            raise ValueError('This does not appear to be a valid NWChem '
-                             'output file.')
+        raise ValueError('This does not appear to be a valid NWChem '
+                         'output file.')
 
     # First, find each SCF block
     group = []
@@ -77,11 +80,10 @@ def read_nwchem_out(fobj, index=-1):
                 lastparser = parser
             group = []
         parser = next_parser
-    else:
-        if not header:
-            atoms = parser(''.join(group))
-            if atoms is not None:
-                atomslist.append(atoms)
+    if not header:
+        atoms = parser(''.join(group))
+        if atoms is not None:
+            atomslist.append(atoms)
 
     return atomslist[index]
 
@@ -210,7 +212,6 @@ def parse_gto_chunk(chunk):
     forces = None
     energy = None
     dipole = None
-    quadrupole = None
     for theory, pattern in _e_gto.items():
         matches = pattern.findall(chunk)
         if matches:
@@ -233,7 +234,7 @@ def parse_gto_chunk(chunk):
         forces *= Hartree / Bohr
         atoms = Atoms(symbols, positions=pos)
 
-    dipole, quadrupole = _get_multipole(chunk)
+    dipole, _quadrupole = _get_multipole(chunk)
 
     kpts = _get_gto_kpts(chunk)
 
@@ -241,7 +242,7 @@ def parse_gto_chunk(chunk):
         atoms = _parse_geomblock(chunk)
 
     if atoms is None:
-        return
+        return None
 
     # SinglePointDFTCalculator doesn't support quadrupole moment currently
     calc = SinglePointDFTCalculator(atoms=atoms,
@@ -257,9 +258,12 @@ def parse_gto_chunk(chunk):
 
 
 # Extracts dipole and quadrupole moment for a GTO calculation
+# Note on the regex: Some, but not all, versions of NWChem
+# insert extra spaces in the blank lines. Do not remove the \s*
+# in between \n and \n
 _multipole = _define_pattern(
     r'^[ \t]+Multipole analysis of the density[ \t\S]*\n'
-    r'^[ \t-]+\n\n^[ \t\S]+\n^[ \t-]+\n'
+    r'^[ \t-]+\n\s*\n^[ \t\S]+\n^[ \t-]+\n'
     r'((?:(?:(?:[ \t]+[\S]+){7,8}\n)|[ \t]*\n){12})',
     """\
      Multipole analysis of the density
@@ -289,7 +293,8 @@ def _get_multipole(chunk):
         return None, None
     # This pulls the 5th column out of the multipole moments block;
     # this column contains the actual moments.
-    moments = [float(x.split()[4]) for x in matches[-1].split('\n') if x]
+    moments = [float(x.split()[4]) for x in matches[-1].split('\n')
+               if x and not x.isspace()]
     dipole = np.array(moments[1:4]) * Bohr
     quadrupole = np.zeros(9)
     quadrupole[[0, 1, 2, 4, 5, 8]] = [moments[4:]]
@@ -412,7 +417,7 @@ _fermi_energy = _define_pattern(
 def parse_pw_chunk(chunk):
     atoms = _parse_geomblock(chunk)
     if atoms is None:
-        return
+        return None
 
     energy = None
     efermi = None
@@ -559,9 +564,9 @@ def _get_pw_kpts(chunk):
 # SinglePointKPoint objects.
 class NWChemKpts:
     def __init__(self):
-        self.data = dict()
-        self.ibz_kpts = dict()
-        self.weights = dict()
+        self.data = {}
+        self.ibz_kpts = {}
+        self.weights = {}
 
     def add_ibz_kpt(self, index, raw_kpt):
         kpt = np.array([float(x.strip('>')) for x in raw_kpt.split()[1:4]])
@@ -569,7 +574,7 @@ class NWChemKpts:
 
     def add_eval(self, index, spin, energy, occ):
         if index not in self.data:
-            self.data[index] = dict()
+            self.data[index] = {}
         if spin not in self.data[index]:
             self.data[index][spin] = []
         self.data[index][spin].append((energy, occ))

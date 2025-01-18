@@ -1,9 +1,12 @@
+from math import cos, sin
+
+from ase import Atoms
+from ase.calculators.fd import calculate_numerical_forces
+from ase.calculators.tip4p import TIP4P, angleHOH, rOH
+
+
 def test_tip4p():
     """Test TIP4P forces."""
-    from math import cos, sin
-
-    from ase import Atoms
-    from ase.calculators.tip4p import TIP4P, rOH, angleHOH
 
     r = rOH
     a = angleHOH
@@ -24,6 +27,6 @@ def test_tip4p():
     dimer.calc = TIP4P(rc=4.0, width=2.0)
     F = dimer.get_forces()
     print(F)
-    dF = dimer.calc.calculate_numerical_forces(dimer) - F
+    dF = calculate_numerical_forces(dimer) - F
     print(dF)
     assert abs(dF).max() < 2e-6

@@ -88,6 +88,8 @@ def lammps_data_to_ase_atoms(
     :rtype: Atoms
 
     """
+    if len(data.shape) == 1:
+        data = data[np.newaxis, :]
 
     # read IDs if given and order if needed
     if "id" in colnames:
@@ -155,7 +157,7 @@ def lammps_data_to_ase_atoms(
         celldisp = prismobj.vector_to_ase(celldisp)
         cell = prismobj.update_cell(cell)
 
-    if quaternions:
+    if quaternions is not None:
         out_atoms = Quaternions(
             symbols=elements,
             positions=positions,
@@ -191,7 +193,7 @@ def lammps_data_to_ase_atoms(
             velocities = prismobj.vector_to_ase(velocities)
         out_atoms.set_velocities(velocities)
     if charges is not None:
-        out_atoms.set_initial_charges(charges)
+        out_atoms.set_initial_charges([charge[0] for charge in charges])
     if forces is not None:
         if prismobj:
             forces = prismobj.vector_to_ase(forces)
@@ -313,7 +315,7 @@ def read_lammps_dump_text(fileobj, index=-1, **kwargs):
         if "ITEM: ATOMS" in line:
             colnames = line.split()[2:]
             datarows = [lines.popleft() for _ in range(n_atoms)]
-            data = np.loadtxt(datarows, dtype=str)
+            data = np.loadtxt(datarows, dtype=str, ndmin=2)
             out_atoms = lammps_data_to_ase_atoms(
                 data=data,
                 colnames=colnames,
@@ -347,7 +349,7 @@ def read_lammps_dump_binary(
     # depending on the chosen compilation flag lammps uses either normal
     # integers or long long for its id or timestep numbering
     # !TODO: tags are cast to double -> missing/double ids (add check?)
-    tagformat, bigformat = dict(
+    _tagformat, bigformat = dict(
         SMALLSMALL=("i", "i"), SMALLBIG=("i", "q"), BIGBIG=("q", "q")
     )[intformat]
 
@@ -397,7 +399,7 @@ def read_lammps_dump_binary(
                 # TODO: Use the endianness of the dump file in subsequent
                 #       read_variables rather than just assuming it will match
                 #       that of the host
-                endian, = read_variables("=i")
+                read_variables("=i")
 
                 # Read revision number (integer)
                 revision, = read_variables("=i")
@@ -405,7 +407,7 @@ def read_lammps_dump_binary(
                 # Finally, read the actual timestep (bigint)
                 ntimestep, = read_variables("=" + bigformat)
 
-            n_atoms, triclinic = read_variables("=" + bigformat + "i")
+            _n_atoms, triclinic = read_variables("=" + bigformat + "i")
             boundary = read_variables("=6i")
             diagdisp = read_variables("=6d")
             if triclinic != 0:
@@ -430,7 +432,7 @@ def read_lammps_dump_binary(
                 flag, = read_variables("=c")
                 if flag != b'\x00':
                     # Flag was non-empty string
-                    time, = read_variables("=d")
+                    read_variables("=d")
 
                 # Length of column string
                 columns_str_len, = read_variables("=i")

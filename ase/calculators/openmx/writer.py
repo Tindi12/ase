@@ -18,12 +18,18 @@ functional theories.
     along with ASE.  If not, see <http://www.gnu.org/licenses/>.
 """
 import os
+
 import numpy as np
-from ase.units import Bohr, Ha, Ry, fs, m, s
+
 from ase.calculators.calculator import kpts2sizeandoffsets
-from ase.calculators.openmx.reader import (
-    read_electron_valency, get_file_name, get_standard_key)
 from ase.calculators.openmx import parameters as param
+from ase.calculators.openmx.reader import (
+    get_file_name,
+    get_standard_key,
+    read_electron_valency,
+)
+from ase.config import cfg
+from ase.units import Bohr, Ha, Ry, fs, m, s
 
 keys = [param.tuple_integer_keys, param.tuple_float_keys,
         param.tuple_bool_keys, param.integer_keys, param.float_keys,
@@ -76,9 +82,9 @@ def parameters_to_keywords(label=None, atoms=None, parameters=None,
 
     For aesthetical purpose, sequnece of writing input file is specified.
     """
-    from ase.calculators.openmx.parameters import matrix_keys
-    from ase.calculators.openmx.parameters import unit_dat_keywords
     from collections import OrderedDict
+
+    from ase.calculators.openmx.parameters import matrix_keys, unit_dat_keywords
     keywords = OrderedDict()
     sequence = [
         'system_currentdirectory', 'system_name', 'data_path',
@@ -89,12 +95,12 @@ def parameters_to_keywords(label=None, atoms=None, parameters=None,
         'atoms_unitvectors', 'band_dispersion', 'band_nkpath',
         'band_kpath']
 
-    directory, prefix = os.path.split(label)
+    _directory, prefix = os.path.split(label)
     curdir = os.path.join(os.getcwd(), prefix)
     counterparts = {
         'system_currentdirectory': curdir,
         'system_name': prefix,
-        'data_path': os.environ.get('OPENMX_DFT_DATA_PATH'),
+        'data_path': cfg.get('OPENMX_DFT_DATA_PATH'),
         'species_number': len(get_species(atoms.get_chemical_symbols())),
         'atoms_number': len(atoms),
         'scf_restart': 'restart',
@@ -156,7 +162,7 @@ def parameters_to_keywords(label=None, atoms=None, parameters=None,
             return counterparts[openmx_keyword]
 
     # Overwrites openmx keyword using standard parameters
-    for openmx_keyword in counterparts.keys():
+    for openmx_keyword in counterparts:
         keywords[openmx_keyword] = parameter_overwrites(openmx_keyword)
 
     # keywords['scf_stress_tensor'] = 'stress' in properties
@@ -190,8 +196,8 @@ def parameters_to_keywords(label=None, atoms=None, parameters=None,
         get_matrix_key = globals()['get_' + get_standard_key(key)]
         keywords[get_standard_key(key)] = get_matrix_key(atoms, parameters)
     return OrderedDict([(k, v)for k, v in keywords.items()
-                        if not(v is None or
-                               (isinstance(v, list) and v == []))])
+                        if not (v is None or
+                                (isinstance(v, list) and v == []))])
 
 
 def get_species(symbols):
@@ -232,7 +238,7 @@ def get_scf_kgrid(atoms, parameters):
     if isinstance(kpts, (tuple, list, np.ndarray)) and len(
             kpts) == 3 and isinstance(kpts[0], int):
         return kpts
-    elif isinstance(kpts, float) or isinstance(kpts, int):
+    elif isinstance(kpts, (float, int)):
         return tuple(kpts2sizeandoffsets(atoms=atoms, density=kpts)[0])
     else:
         return scf_kgrid
@@ -405,7 +411,13 @@ def get_atoms_speciesandcoordinates(atoms, parameters):
 
 
 def get_up_down_spin(magmom, element, xc, data_path, year):
-    magmom = np.linalg.norm(magmom)
+    # for magmom with single number (collinear spin) skip  the normalization
+    if isinstance(magmom, (int, float)):
+        # Collinear spin
+        magmom = float(magmom)
+    else:
+        # Non-collinear spin
+        magmom = np.linalg.norm(magmom)
     suffix = get_pseudo_potential_suffix(element, xc, year)
     filename = os.path.join(data_path, 'VPS/' + suffix + '.vps')
     valence_electron = float(read_electron_valency(filename))
@@ -636,7 +648,7 @@ def write_float(fd, key, value):
 
 def write_bool(fd, key, value):
     omx_bl = {True: 'On', False: 'Off'}
-    fd.write("        ".join([key, "%s" % omx_bl[value]]))
+    fd.write("        ".join([key, f"{omx_bl[value]}"]))
     fd.write("\n")
 
 

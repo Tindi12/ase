@@ -24,6 +24,12 @@ MariaDB_:
 The JSON and SQLite3 back-ends work "out of the box", whereas PostgreSQL, MySQL
 and MariaDB requires a server (See :ref:`server` or :ref:`MySQL_server`).
 
+.. note::
+
+   You need to install the back-ends for PostgreSQL, MySQL and MariaDB with::
+
+      pip install git@gitlab.com:ase/ase-db-backends
+
 There is a command-line tool called :ref:`ase-db` that can be
 used to query and manipulate databases and also a `Python interface`_.
 
@@ -377,7 +383,7 @@ If you do this::
         db.write(mol, ...)
 
 the database will make sure that each molecule is written to permanent
-starage (typically a harddisk) before it moves on to the next molecule.  This
+storage (typically a harddisk) before it moves on to the next molecule.  This
 can be quite slow.  To speed this up, you can write all the molecules in a
 single transaction like this::
 

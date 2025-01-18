@@ -1,22 +1,25 @@
+from math import cos, pi, sin
+
+import numpy as np
+
+from ase import Atoms, units
+from ase.calculators.combine_mm import CombineMM
+from ase.calculators.counterions import AtomicCounterIon as ACI
+from ase.calculators.fd import calculate_numerical_forces
+from ase.calculators.qmmm import LJInteractionsGeneral
+from ase.calculators.tip3p import TIP3P, angleHOH, rOH
+from ase.calculators.tip3p import epsilon0 as eps3
+from ase.calculators.tip3p import sigma0 as sig3
+from ase.calculators.tip4p import TIP4P
+from ase.calculators.tip4p import epsilon0 as eps4
+from ase.calculators.tip4p import sigma0 as sig4
+
+
 def test_combine_mm():
     """Test CombineMM forces by combining tip3p and tip4p with them selves, and
        by combining tip3p with tip4p and testing against numerical forces.
 
        Also test LJInterationsGeneral with CombineMM """
-
-    from math import cos, sin, pi
-    import numpy as np
-    from ase import Atoms
-    from ase import units
-    from ase.calculators.counterions import AtomicCounterIon as ACI
-    from ase.calculators.combine_mm import CombineMM
-    from ase.calculators.qmmm import LJInteractionsGeneral
-    from ase.calculators.tip3p import TIP3P, rOH, angleHOH
-    from ase.calculators.tip4p import TIP4P
-    from ase.calculators.tip3p import epsilon0 as eps3
-    from ase.calculators.tip3p import sigma0 as sig3
-    from ase.calculators.tip4p import epsilon0 as eps4
-    from ase.calculators.tip4p import sigma0 as sig4
 
     def make_atoms():
         r = rOH
@@ -67,7 +70,7 @@ def test_combine_mm():
                            sig1, eps1, sig2, eps2, rc, 1.0)
 
     F2 = dimer.get_forces()
-    Fn = dimer.calc.calculate_numerical_forces(dimer, 1e-7)
+    Fn = calculate_numerical_forces(dimer, 1e-7)
     dF = F2 - Fn
     print('TIP3P/TIP4P')
     print(dF)
@@ -111,7 +114,7 @@ def test_combine_mm():
 
     lj = LJInteractionsGeneral(sig_qm, eps_qm, sig_mm, eps_mm, 2)
 
-    ecomb, fcomb1, fcomb2 = lj.calculate(faux_qm,
+    ecomb, _fcomb1, _fcomb2 = lj.calculate(faux_qm,
                                          mmatoms,
                                          np.array([0, 0, 0]))
 
@@ -129,19 +132,19 @@ def test_combine_mm():
     sig_mm = sig_mm[1]
     eps_mm = eps_mm[1]
     lj = LJInteractionsGeneral(sig_qm, eps_qm, sig_mm, eps_mm, 4)
-    ea, fa1, fa2 = lj.calculate(faux_qm + ions, mmatoms, np.array([0, 0, 0]))
+    ea, _fa1, _fa2 = lj.calculate(faux_qm + ions, mmatoms, np.array([0, 0, 0]))
 
     # B:
     lj = LJInteractionsGeneral(sig_qm[:2], eps_qm[:2],
                                sig_qm[:2], eps_qm[:2], 2, 2)
 
-    eb, fb1, fb2, = lj.calculate(faux_qm, ions, np.array([0, 0, 0]))
+    eb, _fb1, _fb2, = lj.calculate(faux_qm, ions, np.array([0, 0, 0]))
 
     # C:
     lj = LJInteractionsGeneral(sig_qm[:2], eps_qm[:2],
                                sig_mm, eps_mm,
                                2, 3)
 
-    ec, fc1, fc2, = lj.calculate(ions, dimer, np.array([0, 0, 0]))
+    ec, _fc1, _fc2, = lj.calculate(ions, dimer, np.array([0, 0, 0]))
 
     assert ecomb - (ea + eb) + ec == 0

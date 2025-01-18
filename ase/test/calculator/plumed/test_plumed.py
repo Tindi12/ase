@@ -1,17 +1,17 @@
-from ase import Atoms
+import numpy as np
+import pytest
+from pytest import approx
+
+from ase import Atoms, units
 from ase.calculators.emt import EMT
 from ase.calculators.idealgas import IdealGas
-from ase.md.verlet import VelocityVerlet
 from ase.calculators.lj import LennardJones
-import numpy as np
-from ase.io.trajectory import Trajectory
-from pytest import approx
-import pytest
 from ase.calculators.plumed import restart_from_trajectory
-from ase import units
+from ase.io.trajectory import Trajectory
+from ase.md.verlet import VelocityVerlet
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 @pytest.mark.calculator('plumed')
 def test_units(factory):
     """
@@ -83,14 +83,14 @@ def test_units(factory):
         approx(plumed_values['forces'], abs=1E-5), \
         "error in forces units"
     assert ase_values['masses'] == approx(plumed_values['masses'],
-                                          abs=1E-5),\
+                                          abs=1E-5), \
         "error in masses units"
     assert ase_values['charges'] == approx(plumed_values['charges'],
-                                           abs=1E-5),\
+                                           abs=1E-5), \
         "error in charges units"
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 @pytest.mark.calculator('plumed')
 def test_CVs(factory):
     """ This test calls plumed-ASE calculator for computing some CVs.
@@ -98,7 +98,7 @@ def test_CVs(factory):
     compares them"""
     # plumed setting
     ps = 1000 * units.fs
-    set_plumed = [f"UNITS LENGTH=A TIME={1/ps} ENERGY={units.mol/units.kJ}",
+    set_plumed = [f"UNITS LENGTH=A TIME={1 / ps} ENERGY={units.mol / units.kJ}",
                   "c1: COM ATOMS=1,2",
                   "c2: CENTER ATOMS=1,2",
                   "l: DISTANCE ATOMS=c1,c2",
@@ -140,7 +140,7 @@ def test_CVs(factory):
     assert centersASE == approx(centersPlumed)
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 @pytest.mark.calculator('plumed')
 def test_metadyn(factory):
     """This test computes a Metadynamics calculation,
@@ -159,12 +159,12 @@ def test_metadyn(factory):
         "Error in the computation of Bias-forces"
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 @pytest.mark.calculator('plumed')
 def test_restart(factory):
     ins = setups()
     # first steps
-    _, res = run(factory, ins, name='restart')
+    _, _res = run(factory, ins, name='restart')
 
     # rest of steps with restart
     input, atoms1, timestep = setups()
@@ -189,7 +189,7 @@ def test_restart(factory):
         "Error in the restart of metadynamics simulation"
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 @pytest.mark.calculator('plumed')
 def test_postpro(factory):
     # Metadynamics simulation
@@ -208,7 +208,7 @@ def test_postpro(factory):
     assert postpr == approx(direct['HILLS_direct'])
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 @pytest.mark.calculator('plumed')
 def test_pbc(factory):
     atoms = Atoms('H2')
@@ -218,7 +218,7 @@ def test_pbc(factory):
     traj = [atoms]
 
     ps = 1000 * units.fs
-    setup = [f"UNITS LENGTH=A TIME={1/ps} ENERGY={units.mol/units.kJ}",
+    setup = [f"UNITS LENGTH=A TIME={1 / ps} ENERGY={units.mol / units.kJ}",
              "d: DISTANCE ATOMS=1,2",
              "PRINT ARG=d STRIDE=100 FILE=COLVAR_pbc"]
 
@@ -240,7 +240,7 @@ def run(factory, inputs, name='',
                       timestep=timestep,
                       atoms=atoms) as atoms.calc:
         with VelocityVerlet(atoms, timestep,
-                            trajectory='test-{}.traj'.format(name)) as dyn:
+                            trajectory=f'test-{name}.traj') as dyn:
             dyn.run(steps)
         res = atoms.calc.read_plumed_files()
     return atoms, res
@@ -248,7 +248,7 @@ def run(factory, inputs, name='',
 
 def setups(name=''):
     ps = 1000 * units.fs
-    set_plumed = [f"UNITS LENGTH=A TIME={1/ps} ENERGY={units.mol/units.kJ}",
+    set_plumed = [f"UNITS LENGTH=A TIME={1 / ps} ENERGY={units.mol / units.kJ}",
                   "d: DISTANCE ATOMS=1,2",
                   "FLUSH STRIDE=1",
                   f"METAD ARG=d SIGMA=0.5 HEIGHT=2 PACE=20 FILE=HILLS_{name}"]

@@ -4,14 +4,13 @@ import re
 import numpy as np
 
 from ase import Atoms
+from ase.calculators.calculator import kpts2ndarray
 from ase.data import atomic_numbers
 from ase.io import read
-from ase.calculators.calculator import kpts2ndarray
 from ase.units import Bohr, Hartree
 from ase.utils import reader
 
-
-special_ase_keywords = set(['kpts'])
+special_ase_keywords = {'kpts'}
 
 
 def process_special_kwargs(atoms, kwargs):
@@ -54,7 +53,7 @@ def octbool2bool(value):
     elif value in ['no', 'f', 'false', '0']:
         return False
     else:
-        raise ValueError('Failed to interpret "%s" as a boolean.' % value)
+        raise ValueError(f'Failed to interpret "{value}" as a boolean.')
 
 
 def list2block(name, rows):
@@ -441,7 +440,7 @@ def generate_input(atoms, kwargs):
         append('')
 
     def setvar(key, var):
-        append('%s = %s' % (key, var))
+        append(f'{key} = {var}')
 
     for kw in ['lsize', 'latticevectors', 'latticeparameters']:
         assert kw not in kwargs
@@ -517,7 +516,7 @@ def atoms2kwargs(atoms, use_ase_cell):
 
         if atoms.cell.orthorhombic:
             Lsize = 0.5 * np.diag(cell)
-            kwargs['lsize'] = [[repr(size) for size in Lsize]]
+            kwargs['lsize'] = [[str(size) for size in Lsize]]
             # ASE uses (0...cell) while Octopus uses -L/2...L/2.
             # Lsize is really cell / 2, and we have to adjust our
             # positions by subtracting Lsize (see construction of the coords
@@ -534,7 +533,7 @@ def atoms2kwargs(atoms, use_ase_cell):
             if sym is None:
                 raise ValueError('Cannot represent atom X without tags and '
                                  'species info in atoms.info')
-        coord_block.append([repr(sym)] + [repr(x) for x in pos])
+        coord_block.append([repr(sym)] + [str(x) for x in pos])
 
     kwargs[coordtype] = coord_block
     npbc = sum(atoms.pbc)
