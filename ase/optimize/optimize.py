@@ -4,6 +4,7 @@ import warnings
 from collections.abc import Callable
 from functools import cached_property
 from os.path import isfile
+from pathlib import Path
 from typing import IO, Any, Dict, List, Optional, Tuple, Union
 
 from ase import Atoms
@@ -74,7 +75,7 @@ class Dynamics(IOContext):
     def __init__(
         self,
         atoms: Atoms,
-        logfile: Optional[Union[IO, str]] = None,
+        logfile: Optional[Union[IO, str, Logger]] = None,
         trajectory: Optional[str] = None,
         append_trajectory: bool = False,
         master: Optional[bool] = None,
@@ -136,11 +137,9 @@ class Dynamics(IOContext):
 
         self.trajectory = trajectory
 
-        if logfile:
-            self.default_logger = Logger(logfile)
+        if not hasattr(self, "default_logger"):
+            self.default_logger = Logger(logfile, comm=comm)
             self.attach(self.closelater(self.default_logger), loginterval)
-        else:
-            self.default_logger = None
 
     def todict(self) -> Dict[str, Any]:
         raise NotImplementedError
@@ -312,7 +311,7 @@ class Optimizer(Dynamics):
         self,
         atoms: Atoms,
         restart: Optional[str] = None,
-        logfile: Optional[Union[IO, str]] = None,
+        logfile: Optional[Union[IO, str, Path]] = None,
         trajectory: Optional[str] = None,
         append_trajectory: bool = False,
         **kwargs,
@@ -345,7 +344,7 @@ class Optimizer(Dynamics):
         """
         super().__init__(
             atoms=atoms,
-            logfile=logfile,
+            logfile=None,
             trajectory=trajectory,
             append_trajectory=append_trajectory,
             **kwargs,
@@ -364,6 +363,8 @@ class Optimizer(Dynamics):
         if logfile:
             self.default_logger = OptLogger(self, logfile)
             self.attach(self.default_logger, interval=1)
+        else:
+            self.default_logger = None
 
     def read(self):
         raise NotImplementedError

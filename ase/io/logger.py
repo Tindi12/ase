@@ -63,7 +63,7 @@ class Logger(IOContext):
         comm: Any = world,
     ) -> None:
         """Initialize the molecular dynamics logger."""
-        self.fields: dict[str | tuple[str], dict] = {}
+        self.fields: dict[str | tuple[str, ...], dict] = {}
         self.logfile = self.openfile(logfile, mode=mode, comm=comm)
 
     def __call__(self) -> None:
@@ -112,8 +112,8 @@ class Logger(IOContext):
 
     def add_field(
         self,
-        name: str | list[str] | tuple[str],
-        function: Callable,
+        name: str | list[str] | tuple[str, ...],
+        function: Callable[[], Any],
         fmt: str = '{:10.3f}',
         header_fmt: str | None = None,
         is_list: bool = False,
@@ -164,6 +164,17 @@ class Logger(IOContext):
             'header_fmt': header_fmt,
             'is_list': is_list,
         }
+
+    def add_default_fields(self, simulation: Any) -> None:
+        """
+        Add default fields to the logger for the given simulation object.
+
+        Parameters
+        ----------
+        simulation
+            The simulation object to track.
+        """
+        raise NotImplementedError
 
     def add_stress_fields(
         self,

@@ -1,10 +1,12 @@
 """Molecular Dynamics."""
 import warnings
+from pathlib import Path
 from typing import IO, Optional, Union
 
 import numpy as np
 
 from ase import Atoms, units
+from ase.io.logger import Logger
 from ase.md.logger import MDLogger
 from ase.optimize.optimize import Dynamics
 
@@ -66,7 +68,7 @@ class MolecularDynamics(Dynamics):
         atoms: Atoms,
         timestep: float,
         trajectory: Optional[str] = None,
-        logfile: Optional[Union[IO, str]] = None,
+        logfile: Optional[Union[IO, str, Path]] = None,
         loginterval: int = 1,
         **kwargs,
     ):
@@ -100,7 +102,7 @@ class MolecularDynamics(Dynamics):
 
         super().__init__(
             atoms,
-            logfile=logfile,
+            logfile=None,
             trajectory=trajectory,
             loginterval=loginterval,
             **kwargs,
@@ -131,6 +133,8 @@ class MolecularDynamics(Dynamics):
         if logfile:
             self.default_logger = MDLogger(self, logfile)
             self.attach(self.default_logger, interval=loginterval)
+        else:
+            self.default_logger = None
 
     def todict(self):
         return {'type': 'molecular-dynamics',

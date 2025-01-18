@@ -12,7 +12,7 @@ from ase.parallel import world
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import IO, Any, Union
+    from typing import IO, Any, Callable, Union
 
     from ase.optimize.optimize import Optimizer
 
@@ -51,7 +51,7 @@ class OptLogger(Logger):
         super().__init__(logfile, mode, comm)
 
         names = ['Optimizer', 'Step', 'Time', 'Epot[eV]', 'Fmax[eV/A]']
-        callables = [
+        callables: list[Callable[[], Any]] = [
             lambda: opt.__class__.__name__,
             lambda: opt.nsteps,
             lambda: '{:02d}:{:02d}:{:02d}'.format(*time.localtime()[3:6]),

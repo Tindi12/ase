@@ -207,7 +207,9 @@ class ContourExploration(Dynamics):
                 'Etarget[eV]', lambda: self.energy_target, fmt='{:15.6f}'
             )
             self.default_logger.add_field(
-                'Epot[eV]', self._actual_atoms.get_potential_energy, fmt='{:15.6f}'
+                'Epot[eV]',
+                self._actual_atoms.get_potential_energy,
+                fmt='{:15.6f}'
             )
             self.default_logger.add_field(
                 'Curvature[1/Å]', lambda: self.curvature, fmt='{:16.6f}'

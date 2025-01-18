@@ -10,7 +10,7 @@ from ase.parallel import world
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import IO, Any, Union
+    from typing import IO, Any, Callable, Union
 
     from ase.md.md import MolecularDynamics
 
@@ -49,7 +49,7 @@ class MDLogger(Logger):
         super().__init__(logfile, mode, comm)
 
         names = ['Time[ps]', 'Etot[eV]', 'Epot[eV]', 'Ekin[eV]', 'T[K]']
-        callables = [
+        callables: list[Callable[[], Any]] = [
             lambda: dyn.get_time() / (1000 * units.fs),
             dyn.atoms.get_total_energy,
             dyn.atoms.get_potential_energy,
