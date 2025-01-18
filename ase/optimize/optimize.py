@@ -75,7 +75,7 @@ class Dynamics(IOContext):
     def __init__(
         self,
         atoms: Atoms,
-        logfile: Optional[Union[IO, str, Logger]] = None,
+        logfile: Optional[Union[IO, str, Path]] = None,
         trajectory: Optional[str] = None,
         append_trajectory: bool = False,
         master: Optional[bool] = None,
@@ -138,8 +138,11 @@ class Dynamics(IOContext):
         self.trajectory = trajectory
 
         if not hasattr(self, "default_logger"):
-            self.default_logger = Logger(logfile, comm=comm)
-            self.attach(self.closelater(self.default_logger), loginterval)
+            if logfile is None:
+                self.default_logger = None
+            else:
+                self.default_logger = Logger(logfile, comm=comm)
+                self.attach(self.closelater(self.default_logger), loginterval)
 
     def todict(self) -> Dict[str, Any]:
         raise NotImplementedError
@@ -360,11 +363,11 @@ class Optimizer(Dynamics):
             self.read()
             self.comm.barrier()
 
-        if logfile:
+        if logfile is None:
+            self.default_logger = None
+        else:
             self.default_logger = OptLogger(self, logfile)
             self.attach(self.default_logger, interval=1)
-        else:
-            self.default_logger = None
 
     def read(self):
         raise NotImplementedError

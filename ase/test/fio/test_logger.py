@@ -84,7 +84,7 @@ def test_opt_logger():
     assert (
         header
         == 'Optimizer'
-        + ' ' * 14
+        + ' ' * 20
         + 'Step'
         + ' ' * 9
         + 'Time'

@@ -6,7 +6,7 @@ There is, currently, only one implemented method: The Dimer method.
 import sys
 import time
 import warnings
-from math import atan, cos, degrees, pi, sin, sqrt, tan
+from math import atan, cos, degrees, pi, sin, tan
 from typing import Any, Dict
 
 import numpy as np

@@ -316,8 +316,7 @@ class MinimaHopping:
         traj = io.Trajectory('md%05i.traj' % self._counter, 'a',
                              self._atoms)
         dyn = VelocityVerlet(self._atoms, timestep=self._timestep * units.fs)
-        log = MDLogger(dyn, self._atoms, 'md%05i.log' % self._counter,
-                       header=True, stress=False, peratom=False)
+        log = MDLogger(dyn, 'md%05i.log' % self._counter)
 
         with traj, dyn, log:
             dyn.attach(log, interval=1)
