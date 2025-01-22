@@ -1,11 +1,18 @@
 """Bussi NVT dynamics class."""
+from __future__ import annotations
 
 import math
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from ase import units
 from ase.md.verlet import VelocityVerlet
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    from ase import Atoms
 
 
 class Bussi(VelocityVerlet):
@@ -108,8 +115,8 @@ class Bussi(VelocityVerlet):
         return super().step(forces)
 
 
-class BussiParinello(MolecularDynamics):
-    """Bussi-Parinello (NVT) langevin-based dynamics.
+class BussiParinello(VelocityVerlet):
+    """Bussi-Parinello (NVT) Langevin-based dynamics.
 
     Based on the paper from Bussi et al. (https://arxiv.org/abs/0803.4083)
 
@@ -132,11 +139,11 @@ class BussiParinello(MolecularDynamics):
 
     def __init__(
         self,
-        atoms,
-        timestep,
-        temperature_K,
-        friction,
-        rng=np.random,
+        atoms: Atoms,
+        timestep: float,
+        temperature_K: float,
+        friction: float,
+        rng: Any = np.random,
         **md_kwargs,
     ):
         super().__init__(
@@ -145,87 +152,73 @@ class BussiParinello(MolecularDynamics):
             **md_kwargs,
         )
 
-        self.temp = temperature_K * units.kB
+        self.temperature = temperature_K * units.kB
         self.friction = friction
-        self.communicator = world
         self.rng = rng
 
+    def thermostat_half_step(self) -> None:
+        """Move one half timestep forward using Bussi-Parinello
+        NVT molecular dynamics."""
+        self.atoms.set_momenta(
+            self.coefficient_1 * self.atoms.get_momenta()
+            + self.coefficient_2 * self.rng.normal(size=(len(self.atoms), 3))
+        )
+
+    def last_thermostat_half_step(self) -> None:
+        """Move one half timestep forward using Bussi-Parinello
+        NVT molecular dynamics."""
+        self.atoms.set_momenta(
+            self.coefficient_1 * self.atoms.get_momenta()
+            + self.coefficient_2 * self.rng.normal(size=(len(self.atoms), 3))
+        )
+
+    @property
+    def friction(self) -> float:
+        """Friction coefficient for the Langevin thermostat."""
+        return self._friction
+
+    @friction.setter
+    def friction(self, value: float) -> None:
+        """Set the friction coefficient for the Langevin thermostat."""
+        self._friction = value
+        self.coefficient_1: float = math.exp(-self._friction * self.dt / 2)
+        self.coefficient_2: NDArray = np.sqrt(
+            (1 - self.coefficient_1**2)
+            * self.atoms.get_masses()[:, None]
+            * self._temperature
+        )
+
+    @property
+    def temperature(self) -> float:
+        """The desired temperature, in Kelvin."""
+        return self._temperature
+
+    @temperature.setter
+    def temperature(self, value: float) -> None:
+        """Set the desired temperature, in Kelvin."""
+        self._temperature = value
         self.target_kinetic_energy = (
-            0.5 * self.temp * self.atoms.get_number_of_degrees_of_freedom()
+            0.5
+            * self._temperature
+            * self.atoms.get_number_of_degrees_of_freedom()
         )
 
-        self._masses = self.atoms.get_masses()[:, np.newaxis]
-
-        self.coefficient_1 = np.exp(-self.friction * self.dt / 2)
-        self.coefficient_2 = np.sqrt(
-            (1 - self.coefficient_1**2) * self._masses * self.temp
-        )
-
-        self.size = (len(self.atoms), 3)
-
-    def thermostat_half_step(self):
-        """Move one half timestep forward using Bussi-Parinello
-        NVT molecular dynamics."""
-        self.atoms.set_momenta(
-            self.coefficient_1 * self.atoms.get_momenta()
-            + self.coefficient_2 * self.rng.normal(size=self.size)
-        )
-
-    def verlet_step(self, forces=None):
+    def step(self, forces: NDArray | None = None) -> Any:
         """Move one timestep forward using Bussi-Parinello
         NVT molecular dynamics.
 
         Parameters
         ----------
-        forces : ndarray, optional
+        forces : NDArray, optional
             Forces acting on the atoms. If None, forces will be calculated.
 
         Returns
         -------
-        forces : ndarray
-            Forces acting on the atoms after the step.
-        """
-        if forces is None:
-            forces = self.atoms.get_forces(md=True)
-
-        self.atoms.set_momenta(
-            self.atoms.get_momenta() + 0.5 * self.dt * forces
-        )
-
-        momenta = self.atoms.get_momenta()
-        self.atoms.set_positions(
-            self.atoms.positions + self.dt * momenta / self._masses
-        )
-
-        forces = self.atoms.get_forces(md=True)
-        self.atoms.set_momenta(momenta + 0.5 * self.dt * forces)
-
-        return forces
-
-    def last_thermostat_half_step(self):
-        """Move one half timestep forward using Bussi-Parinello
-        NVT molecular dynamics."""
-        self.atoms.set_momenta(
-            self.coefficient_1 * self.atoms.get_momenta()
-            + self.coefficient_2 * self.rng.normal(size=self.size)
-        )
-
-    def step(self, forces=None):
-        """Move one timestep forward using Bussi-Parinello
-        NVT molecular dynamics.
-
-        Parameters
-        ----------
-        forces : ndarray, optional
-            Forces acting on the atoms. If None, forces will be calculated.
-
-        Returns
-        -------
-        forces : ndarray
+        forces : NDArray
             Forces acting on the atoms after the step.
         """
         self.thermostat_half_step()
-        forces = self.verlet_step(forces)
+        forces = super().step(forces)
         self.last_thermostat_half_step()
 
         return forces

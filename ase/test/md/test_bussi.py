@@ -136,21 +136,49 @@ def test_bussi_parinello():
 
     atoms.calc = EMT()
 
-    #MaxwellBoltzmannDistribution(
-    #    atoms, temperature_K=300, rng=np.random.default_rng(seed=42)
-    #)
-    
+    MaxwellBoltzmannDistribution(
+        atoms, temperature_K=500, rng=np.random.default_rng(seed=42)
+    )
+
     temperatures = []
+    velocities = []
 
     with BussiParinello(
         atoms,
-        1.0 * units.fs,
-        300,
+        0.1 * units.fs,
+        500,
         10,
-        logfile="-",
-        rng=np.random.default_rng(seed=42),
+        logfile=None,
+        rng=np.random.default_rng(),
     ) as dyn:
-        for _ in dyn.irun(200):
+        for _ in dyn.irun(1000):
             temperatures.append(dyn.atoms.get_temperature())
-    print(np.mean(temperatures))
-    assert np.mean(temperatures) == pytest.approx(300, abs=5.0)
+            velocities.append(dyn.atoms.get_velocities())
+
+    assert np.mean(temperatures) == pytest.approx(500, abs=50.0)
+
+    velocities = np.array(velocities).flatten()
+
+    from scipy.stats import norm
+
+    mean, std = norm.fit(velocities)
+
+    assert mean == pytest.approx(0, abs=0.1)
+
+    assert std == pytest.approx(
+        np.sqrt(500 * units.kB / (atoms.get_masses()[0])), abs=0.1
+    )
+
+    from scipy.stats import chisquare
+
+    theoretical_velocities = norm.rvs(scale=std, size=len(velocities))
+
+    hist_velocities, _ = np.histogram(velocities, bins=20)
+    hist_velocities = hist_velocities / np.sum(hist_velocities)
+
+    hist_theoretical, _ = np.histogram(theoretical_velocities, bins=20)
+    hist_theoretical = hist_theoretical / np.sum(hist_theoretical)
+
+    _, p_value = chisquare(hist_velocities, hist_theoretical)
+
+    assert p_value > 0.05
