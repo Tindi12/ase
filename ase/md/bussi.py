@@ -115,7 +115,7 @@ class Bussi(VelocityVerlet):
         return super().step(forces)
 
 
-class BussiParinello(VelocityVerlet):
+class BussiLangevin(VelocityVerlet):
     """Bussi-Parinello (NVT) Langevin-based dynamics.
 
     Based on the paper from Bussi et al. (https://arxiv.org/abs/0803.4083)

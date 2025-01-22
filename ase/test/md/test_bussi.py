@@ -4,7 +4,7 @@ import pytest
 from ase import units
 from ase.build import bulk
 from ase.calculators.emt import EMT
-from ase.md.bussi import Bussi, BussiParinello
+from ase.md.bussi import Bussi, BussiLangevin
 from ase.md.velocitydistribution import MaxwellBoltzmannDistribution
 
 
@@ -143,7 +143,7 @@ def test_bussi_parinello():
     temperatures = []
     velocities = []
 
-    with BussiParinello(
+    with BussiLangevin(
         atoms,
         0.1 * units.fs,
         500,
