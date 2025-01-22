@@ -219,7 +219,8 @@ def read_espresso_out(
         symbols = np.loadtxt(
             output_lines[index + 1 : index + 1 + n_atoms],
             usecols=1,
-            converters=label_to_symbol,
+            converters={1: label_to_symbol},
+            encoding="U",
             dtype=str,
             ndmin=1,
         )
@@ -256,6 +257,7 @@ def read_espresso_out(
             usecols=0,
             converters=label_to_symbol,
             dtype=str,
+            encoding="U",
             ndmin=1,
         )
         return positions, symbols
@@ -301,6 +303,7 @@ def read_espresso_out(
             output_lines[index + 2 : index + 2 + len_kpts],
             converters=lambda x: float(x[:-2].strip(')')),
             usecols=(4, 5, 6, -1),
+            encoding="U",
             ndmin=2,
         )
 
