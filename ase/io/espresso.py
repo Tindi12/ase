@@ -18,7 +18,7 @@ import warnings
 from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
-from typing import IO, List
+from typing import IO, Generator
 
 import numpy as np
 from numpy.typing import NDArray
@@ -49,49 +49,65 @@ ibrav_error_message = (
 )
 
 # Section identifiers
-PW_NUMBER_OF_ATOMS = 'number of atoms/cell'
-PW_ALAT = 'lattice parameter (alat)'
-PW_FIRST_CELL = 'crystal axes:'
-PW_CELL = 'CELL_PARAMETERS'
-PW_FIRST_POSITIONS = 'site n.     atom'
-PW_POSITIONS = 'ATOMIC_POSITIONS'
-PW_FORCES = 'Forces acting on atoms'
-PW_STRESS = 'total stress'
-PW_MAGMOM = 'Magnetic moment per site'
-PW_DIPOLE = 'Debye'
-PW_DIPOLE_DIRECTION = 'Computed dipole along edir'
-PW_FERMI = 'the Fermi energy is'
-PW_HIGHEST_OCCUPIED = 'highest occupied level'
-PW_HIGHEST_OCCUPIED_LOWEST_FREE = 'highest occupied, lowest unoccupied level'
-PW_KPTS = 'number of k points='
-PW_NUMBER_OF_BANDS = 'number of Kohn-Sham states'
-PW_BANDS = 'bands (ev):'
-PW_BANDSTRUCTURE = 'End of band structure calculation'
-PW_BLOCK_START = 'Program PWSCF'
-PW_BLOCK_END = ' scf cycles '
-PW_TOTEN = '!    total energy'
-PW_VERBOSITY = "set verbosity='high'"
+PW_NUMBER_OF_ATOMS = r'number of atoms\/cell'
+PW_ALAT = r'celldm\(1\)='
+PW_FIRST_CELL = r'crystal axes:'
+PW_CELL = r'CELL_PARAMETERS'
+PW_FIRST_POSITIONS = r'site n\.\s+atom'
+PW_POSITIONS = r'ATOMIC_POSITIONS'
+PW_FORCES = r'Forces acting on atoms'
+PW_STRESS = r'total\s+stress'
+PW_MAGMOM = r'Magnetic moment per site'
+PW_DIPOLE = r'Debye'
+PW_DIPOLE_DIRECTION = r'Computed dipole along edir'
+PW_FERMI = r'the Fermi energy is'
+PW_HIGHEST_OCCUPIED = r'highest occupied level'
+PW_HIGHEST_OCCUPIED_LOWEST_FREE = r'highest occupied, lowest unoccupied level'
+PW_KPTS = r'number of k points\='
+PW_NUMBER_OF_BANDS = r'number of Kohn-Sham states'
+PW_BANDS = r'bands \(ev\):'
+PW_BANDSTRUCTURE = r'End of band structure calculation'
+PW_BLOCK_START = (
+    r"(Program PWSCF|A final scf calculation at the relaxed structure.)"
+)
+PW_RESTART = r"Atomic positions from file used, from input discarded"
+PW_BLOCK_START_LSDA = r'the program is checking if it is really the minimum'
+PW_FINAL_COORDS = r'Begin final coordinates'
+PW_BLOCK_END = r'(number of scf cycles|Entering Dynamics:    iteration)'
+PW_TOTEN = r'!\s+total energy'
+PW_VERBOSITY = r"set verbosity\='high'"
 
 
 def read_espresso_out(
     fileobj: IO,
-    index: int = -1,
+    index: slice | int = -1,
     results_required: bool = True,
-    ignore_errors: bool = False,
-):
+) -> Generator:
     """Reads Quantum ESPRESSO output files.
 
-    The atomistic configurations as well as results (energy, force, stress,
-    magnetic moments) of the calculation are read for all configurations
-    within the output file.
+    The atomistic configurations as well as results, if present:
 
-    Will probably raise errors for broken or incomplete files.
+    - energy
+    - forces
+    - stress
+    - magnetic moments
+    - dipole moments
+    - Fermi energy
+    - k-points
+    - band structure
+    - cell parameters
+    - positions
+
+    Will raise a ValueError if the desired index (block) is not complete.
+    Similarly, restart blocks are not supported since the only original
+    atomic positions are read. This is to prevent the parser from linking
+    the wrong results to the wrong configuration.
 
     Parameters
     ----------
-    fileobj : file|str
+    fileobj : IO
         A file like object or filename
-    index : slice
+    index : slice | int
         The index of configurations to extract.
     results_required : bool
         If True, atomistic configurations that do not have any
@@ -109,24 +125,7 @@ def read_espresso_out(
     output_lines = fileobj.readlines()
     len_output_lines = len(output_lines)
 
-    def conversion_to_crystal_sg_error(_) -> None:
-        raise NotImplementedError('crystal_sg positions are not implemented')
-
-    def handle_error(message: str) -> None:
-        if ignore_errors:
-            warnings.warn(message)
-        else:
-            raise ValueError(message)
-
-    positions_convertions = {
-        'alat': lambda x: x * alat,
-        'bohr': lambda x: x * units['Bohr'],
-        'angstrom': lambda x: x,
-        'crystal': lambda x: np.dot(x, cell),
-        'crystal_sg': conversion_to_crystal_sg_error,
-    }
-
-    indexes = {
+    indexes: dict[str, list] = {
         PW_NUMBER_OF_ATOMS: [],
         PW_ALAT: [],
         PW_FIRST_CELL: [],
@@ -147,21 +146,31 @@ def read_espresso_out(
         PW_BANDSTRUCTURE: [],
         PW_BLOCK_START: [],
         PW_BLOCK_END: [],
+        PW_BLOCK_START_LSDA: [],
+        PW_FINAL_COORDS: [],
         PW_TOTEN: [],
+        PW_RESTART: [],
+        PW_VERBOSITY: [],
     }
 
     for idx, line in enumerate(output_lines):
         for identifier in indexes:
-            if identifier in line:
+            if re.search(identifier, line):
                 indexes[identifier].append(idx)
 
-    for identifier in indexes:
-        indexes[identifier] = np.array(indexes[identifier])
+    indexes: dict[str, NDArray] = {  # type: ignore[no-redef]
+        key: np.array(value) for key, value in indexes.items()
+    }
 
     indices_block = np.sort(
-        np.hstack((indexes[PW_BLOCK_START], indexes[PW_BLOCK_END]))
+        np.hstack(
+            (
+                indexes[PW_BLOCK_START],
+                indexes[PW_BLOCK_START_LSDA],
+                indexes[PW_BLOCK_END],
+            )
+        )
     )
-    indices_block = indices_block[index]
     indices_block = np.append(indices_block, len_output_lines)
 
     def parse_number_of_atoms(index: int) -> int:
@@ -169,48 +178,85 @@ def read_espresso_out(
 
     def parse_alat(index: int) -> float:
         return (
-            float(re.findall(float_regex, output_lines[index])[0])
+            float(re.findall(float_regex, output_lines[index])[1])
             * units['Bohr']
         )
 
-    def parse_first_cell(index: int) -> NDArray:
-        cell = np.loadtxt(
+    def parse_first_cell(index: int, alat: float) -> NDArray:
+        parsed_cell = np.loadtxt(
             output_lines[index + 1 : index + 4], usecols=(3, 4, 5)
         )
-        return cell * alat
+        return parsed_cell * alat
 
     def parse_cell(index: int) -> NDArray:
-        cell = np.loadtxt(
+        match_ = re.search(r'(bohr)|(angstrom)|(alat)', output_lines[index])
+        if match_ is None:
+            raise ValueError(
+                'No units found in the `pw.x` output file at line {index}.'
+                'Something is wrong with the output file.'
+            )
+        key = match_.group()
+        parsed_cell = np.loadtxt(
             output_lines[index + 1 : index + 4], usecols=(0, 1, 2)
         )
-        return cell * alat
+        if key == 'alat':
+            alat = float(re.findall(float_regex, output_lines[index])[0])
+            return parsed_cell * alat * units['Bohr']
+        else:
+            return parsed_cell * units[key.title()]
 
-    def parse_first_positions(index: int):
-        positions = np.loadtxt(
-            output_lines[index + 1 : index + 1 + n_atoms], usecols=(6, 7, 8)
+    def parse_first_positions(
+        index: int, alat: float
+    ) -> tuple[NDArray, NDArray]:
+        positions = (
+            np.loadtxt(
+                output_lines[index + 1 : index + 1 + n_atoms],
+                usecols=(6, 7, 8),
+                ndmin=2,
+            )
+            * alat
         )
         symbols = np.loadtxt(
             output_lines[index + 1 : index + 1 + n_atoms],
             usecols=1,
             converters=label_to_symbol,
             dtype=str,
+            ndmin=1,
         )
         return positions, symbols
 
-    def parse_positions(index: int) -> NDArray:
-        conversion = (
-            output_lines[index].split()[1].replace('(', '').replace(')', '')
+    def parse_positions(
+        index: int, alat: float, cell: NDArray
+    ) -> tuple[NDArray, NDArray]:
+        match_ = re.search(
+            r'(bohr)|(angstrom)|(alat)|(crystal)|(crystal_sg)',
+            output_lines[index],
         )
+        if match_ is None:
+            raise ValueError(
+                'No units found in the `pw.x` output file at line {index}.'
+                'Something is wrong with the output file.'
+            )
+        key = match_.group()
         positions = np.loadtxt(
             output_lines[index + 1 : index + 1 + n_atoms],
             usecols=(1, 2, 3),
-            converters=positions_convertions[conversion],
+            ndmin=2,
         )
+        if key == 'crystal_sg':
+            raise ValueError('crystal_sg positions are not implemented')
+        elif key == 'crystal':
+            positions = np.dot(positions, cell)
+        elif key == 'alat':
+            positions *= alat
+        else:
+            positions *= units[key.title()]
         symbols = np.loadtxt(
             output_lines[index + 1 : index + 1 + n_atoms],
             usecols=0,
             converters=label_to_symbol,
             dtype=str,
+            ndmin=1,
         )
         return positions, symbols
 
@@ -222,18 +268,20 @@ def read_espresso_out(
     def parse_forces(index: int) -> NDArray:
         offset = 4 if 'negative rho' in output_lines[index + 2] else 2
         forces = np.loadtxt(
-            output_lines[index + offset : index + offset + len(atoms)],
+            output_lines[index + offset : index + offset + n_atoms],
             usecols=(6, 7, 8),
         )
         return forces * units['Ry'] / units['Bohr']
 
     def parse_stress(index: int) -> NDArray:
-        stress = np.loadtxt(output_lines[index + 1 : index + 4])
+        stress = np.loadtxt(
+            output_lines[index + 1 : index + 4], usecols=(0, 1, 2)
+        )
         return stress * units['Ry'] / (units['Bohr'] ** 3)
 
     def parse_magmom(index: int) -> NDArray:
         magmoms = np.loadtxt(
-            output_lines[index + 1 : index + 1 + len(atoms)], usecols=-1
+            output_lines[index + 1 : index + 1 + n_atoms], usecols=-1
         )
         return magmoms
 
@@ -246,10 +294,6 @@ def read_espresso_out(
     def parse_fermi(index: int) -> float:
         return float(re.findall(float_regex, output_lines[index])[0])
 
-    def parse_hol_lul(index: int) -> tuple[float, float]:
-        hol, lul = re.findall(float_regex, output_lines[index])
-        return float(hol), float(lul)
-
     def parse_kpts_and_weights(index: int) -> tuple[NDArray, NDArray]:
         len_kpts = int(re.findall(float_regex, output_lines[index])[0])
 
@@ -257,6 +301,7 @@ def read_espresso_out(
             output_lines[index + 2 : index + 2 + len_kpts],
             converters=lambda x: float(x[:-2].strip(')')),
             usecols=(4, 5, 6, -1),
+            ndmin=2,
         )
 
         kpts_coord = kpts_and_weights[:, :3]
@@ -272,7 +317,7 @@ def read_espresso_out(
     def parse_dipole_direction(index: int) -> int:
         return int(re.findall(r'\d+', output_lines[index])[0]) - 1
 
-    def parse_bands(index: int) -> list[SinglePointKPoint]:
+    def parse_bands(index: int) -> NDArray:
         offset = 1 if n_bands % 8 == 0 else 2
         bands = [
             re.findall(float_regex, line)
@@ -292,7 +337,6 @@ def read_espresso_out(
     results_properties = (
         [
             PW_TOTEN,
-            PW_FORCES,
         ]
         if results_required
         else []
@@ -307,11 +351,10 @@ def read_espresso_out(
         PW_KPTS,
     ]
 
-    # We treat each block (calculations) separately
     for num_block, (past, future) in enumerate(
-        zip(indices_block[:-1], indices_block[1:])
+        zip(indices_block[:-1][index], indices_block[1:][index])
     ):
-        current_indices = {}
+        current_indices: dict[str, NDArray] = {}
 
         for property_ in properties:
             is_property = np.logical_and(
@@ -319,39 +362,42 @@ def read_espresso_out(
             )
             current_indices[property_] = indexes[property_][is_property]
 
-            if len(current_indices[property_]) == 1:
-                current_indices[property_] = indexes[property_][is_property][0]
-            elif len(current_indices[property_]) == 0:
-                current_indices[property_] = None
+        if current_indices[PW_RESTART].size:
+            raise ValueError(
+                'The output file contains a restart block, which is not'
+                'supported by this parser.'
+            )
 
         if not (
-            current_indices.get(PW_POSITIONS)
-            or current_indices.get(PW_FIRST_POSITIONS)
+            current_indices[PW_POSITIONS].size
+            or current_indices[PW_FIRST_POSITIONS].size
         ):
-            handle_error(
+            raise ValueError(
                 'No positions found in the `pw.x` output file at requested'
                 f'block {num_block} starting at line {past}.'
             )
-            continue
 
         # If alat is None, we are not at the start of a calculation and we need
         # to find the alat printed at the last start
         def seek_last_property(property_):
-            past_property = indexes[property_][indexes[property_] < future]
+            # We look for past starts (Program PWSCF or A final scf calculation)
             past_starts = indexes[PW_BLOCK_START][
                 indexes[PW_BLOCK_START] < future
             ]
 
-            # Ensure that the property is from the same calculation,
-            # and that it exists
-            assert np.abs(future - past_property[-1]) < np.abs(
-                future - past_starts[-1]
-            )
+            # We look for the property printed after the last start
+            past_property = indexes[property_][
+                np.logical_and(
+                    indexes[property_] < future,
+                    np.abs(future - indexes[property_])
+                    < np.abs(future - past_starts[-1]),
+                )
+            ]
 
-            return past_property[-1]
+            return past_property
 
         for property_ in property_only_at_start:
-            if current_indices.get(property_) is None:
+            if current_indices[property_].size == 0:
                 # PW_CELL is a special case, it can be the first cell or the
                 # cell printed after the positions in case of vc-relax
                 if property_ == PW_CELL:
@@ -361,58 +407,64 @@ def read_espresso_out(
                 else:
                     current_indices[property_] = seek_last_property(property_)
 
-        # We work under the assumption that alat != celldm(1), see PR ...
-        n_atoms = parse_number_of_atoms(current_indices[PW_NUMBER_OF_ATOMS])
-        n_bands = parse_number_of_bands(current_indices[PW_NUMBER_OF_BANDS])
-        alat = (
-            parse_alat(current_indices[PW_ALAT])
-            if current_indices[PW_ALAT] is not None
-            else None
-        )
+        n_atoms = parse_number_of_atoms(current_indices[PW_NUMBER_OF_ATOMS][-1])
+        n_bands = parse_number_of_bands(current_indices[PW_NUMBER_OF_BANDS][-1])
+
+        if current_indices[PW_ALAT].size:
+            alat = parse_alat(current_indices[PW_ALAT][-1])
+        else:
+            raise ValueError(
+                'No alat found in the `pw.x` output file at block'
+                f'{num_block} starting at line {past}.'
+                'Something is wrong with the output file.'
+            )
 
         if not (
-            current_indices.get(PW_FIRST_CELL) or current_indices.get(PW_CELL)
+            current_indices[PW_FIRST_CELL].size or current_indices[PW_CELL].size
         ):
-            handle_error(
+            raise ValueError(
                 'No cell found in the `pw.x` output file at '
                 f'requested block {num_block} starting at line {past}.'
             )
-            continue
 
-        if current_indices.get(PW_FIRST_CELL):
-            if alat is None:
-                handle_error(
-                    'No alat found in the `pw.x` output file at block'
-                    f'{num_block} starting at line {past}.'
-                    'Something is wrong with the output file.'
-                )
-                continue
-
-            cell = parse_first_cell(current_indices[PW_FIRST_CELL])
+        if current_indices[PW_FIRST_CELL].size:
+            cell = parse_first_cell(current_indices[PW_FIRST_CELL][-1], alat)
             current_indices[PW_CELL] = current_indices[PW_FIRST_CELL]
         else:
-            cell = parse_cell(current_indices[PW_CELL])
+            # If the final coordinates are present, two cells can be within the
+            # same block, we need to check if that's the case.
+            if current_indices[PW_CELL].size > 1:
+                if current_indices[PW_FINAL_COORDS].size == 0:
+                    raise ValueError(
+                        'Multiple cell blocks found in the `pw.x` output file'
+                        f'at block {num_block} starting at line {past}.'
+                    )
+            cell = parse_cell(current_indices[PW_CELL][-1])
 
-        if current_indices.get(PW_FIRST_POSITIONS):
+        if current_indices[PW_FIRST_POSITIONS].size:
             positions, symbols = parse_first_positions(
-                current_indices[PW_FIRST_POSITIONS]
+                current_indices[PW_FIRST_POSITIONS][-1],
+                alat,
             )
             current_indices[PW_POSITIONS] = current_indices[PW_FIRST_POSITIONS]
         else:
-            positions, symbols = parse_positions(current_indices[PW_POSITIONS])
+            if current_indices[PW_POSITIONS].size > 1:
+                if current_indices[PW_FINAL_COORDS].size == 0:
+                    raise ValueError(
+                        'Multiple positions blocks found in the `pw.x` output'
+                        f' file at block {num_block} starting at line {past}.'
+                    )
+            positions, symbols = parse_positions(
+                current_indices[PW_POSITIONS][-1], alat, cell
+            )
 
-        has_error = False
         for property_ in required_properties:
-            if current_indices.get(property_) is None:
-                handle_error(
+            if current_indices[property_].size == 0:
+                raise ValueError(
                     'Required properties are missing from the output file:'
                     f'{property_} at requested block {num_block}, starting at'
-                    'line {past}.'
+                    f' line {past}.'
                 )
-                has_error = True
-
-        if has_error:
-            continue
 
         atoms = Atoms(
             symbols=symbols,
@@ -421,22 +473,24 @@ def read_espresso_out(
             pbc=True,
         )
 
-        if current_indices.get(PW_HIGHEST_OCCUPIED):
+        if current_indices[PW_HIGHEST_OCCUPIED].size:
             current_indices[PW_FERMI] = current_indices[PW_HIGHEST_OCCUPIED]
+        elif current_indices[PW_HIGHEST_OCCUPIED_LOWEST_FREE].size:
+            current_indices[PW_FERMI] = current_indices[
+                PW_HIGHEST_OCCUPIED_LOWEST_FREE
+            ]
 
-        if current_indices.get(PW_FERMI):
-            fermi = parse_fermi(current_indices[PW_FERMI])
-        elif current_indices.get(PW_HIGHEST_OCCUPIED_LOWEST_FREE):
-            fermi, _ = parse_hol_lul(
-                current_indices[PW_HIGHEST_OCCUPIED_LOWEST_FREE]
-            )
+        if current_indices[PW_FERMI].size:
+            fermi = parse_fermi(current_indices[PW_FERMI][-1])
         else:
             fermi = None
 
-        ibzkpts, weights = parse_kpts_and_weights(current_indices[PW_KPTS])
-
         kpts = []
-        if current_indices.get(PW_VERBOSITY) is None:
+        if current_indices[PW_VERBOSITY].size == 0:
+            ibzkpts, weights = parse_kpts_and_weights(
+                current_indices[PW_KPTS][-1]
+            )
+
             for kpt_index, idx in enumerate(current_indices.get(PW_BANDS, [])):
                 spin = kpt_index // len(ibzkpts)
                 ibzkpts_index = kpt_index % len(ibzkpts)
@@ -449,13 +503,15 @@ def read_espresso_out(
                         eps_n=eigenvalues,
                     )
                 )
+        else:
+            ibzkpts, weights = None, None
 
-        if current_indices.get(PW_DIPOLE):
+        if current_indices[PW_DIPOLE].size:
             dipole_direction = parse_dipole_direction(
-                current_indices[PW_DIPOLE_DIRECTION]
+                current_indices[PW_DIPOLE_DIRECTION][-1]
             )
             dipole = (
-                parse_dipole(current_indices[PW_DIPOLE])
+                parse_dipole(current_indices[PW_DIPOLE][-1])
                 * np.eye(3)[dipole_direction, dipole_direction]
             )
         else:
@@ -471,10 +527,10 @@ def read_espresso_out(
         computed_properties = {}
 
         for property_ in properties_left_to_parse:
-            if current_indices.get(property_):
+            if current_indices[property_].size:
                 computed_properties[property_] = properties_left_to_parse[
                     property_
-                ](current_indices[property_])
+                ](current_indices[property_][-1])
 
         calc = SinglePointDFTCalculator(
             atoms,
