@@ -164,14 +164,6 @@ class BussiParinello(VelocityVerlet):
             + self.coefficient_2 * self.rng.normal(size=(len(self.atoms), 3))
         )
 
-    def last_thermostat_half_step(self) -> None:
-        """Move one half timestep forward using Bussi-Parinello
-        NVT molecular dynamics."""
-        self.atoms.set_momenta(
-            self.coefficient_1 * self.atoms.get_momenta()
-            + self.coefficient_2 * self.rng.normal(size=(len(self.atoms), 3))
-        )
-
     @property
     def friction(self) -> float:
         """Friction coefficient for the Langevin thermostat."""
@@ -219,6 +211,6 @@ class BussiParinello(VelocityVerlet):
         """
         self.thermostat_half_step()
         forces = super().step(forces)
-        self.last_thermostat_half_step()
+        self.thermostat_half_step()
 
         return forces
