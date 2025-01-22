@@ -123,7 +123,25 @@ class Bussi(MolecularDynamics):
 
 class BussiParinello(MolecularDynamics):
     """Bussi-Parinello (NVT) langevin-based dynamics.
-    Based on the paper from Bussi et al. (https://arxiv.org/abs/0803.4083)"""
+
+    Based on the paper from Bussi et al. (https://arxiv.org/abs/0803.4083)
+
+    Parameters
+    ----------
+    atoms : Atoms
+        The atoms object.
+    timestep : float
+        The time step in ASE time units.
+    temperature_K : float
+        The desired temperature, in Kelvin.
+    friction : float
+        Friction coefficient for the Langevin thermostat.
+    rng : numpy.random, optional
+        Random number generator.
+    **md_kwargs : dict, optional
+        Additional arguments passed to :class:`~ase.md.md.MolecularDynamics`
+        base class.
+    """
 
     def __init__(
         self,
@@ -145,7 +163,9 @@ class BussiParinello(MolecularDynamics):
         self.communicator = world
         self.rng = rng
 
-        self.target_kinetic_energy = 0.5 * self.temp * self.atoms.get_number_of_degrees_of_freedom()
+        self.target_kinetic_energy = (
+            0.5 * self.temp * self.atoms.get_number_of_degrees_of_freedom()
+        )
 
         self._masses = self.atoms.get_masses()[:, np.newaxis]
 
@@ -166,7 +186,18 @@ class BussiParinello(MolecularDynamics):
 
     def verlet_step(self, forces=None):
         """Move one timestep forward using Bussi-Parinello
-        NVT molecular dynamics."""
+        NVT molecular dynamics.
+
+        Parameters
+        ----------
+        forces : ndarray, optional
+            Forces acting on the atoms. If None, forces will be calculated.
+
+        Returns
+        -------
+        forces : ndarray
+            Forces acting on the atoms after the step.
+        """
         if forces is None:
             forces = self.atoms.get_forces(md=True)
 
@@ -194,7 +225,18 @@ class BussiParinello(MolecularDynamics):
 
     def step(self, forces=None):
         """Move one timestep forward using Bussi-Parinello
-        NVT molecular dynamics."""
+        NVT molecular dynamics.
+
+        Parameters
+        ----------
+        forces : ndarray, optional
+            Forces acting on the atoms. If None, forces will be calculated.
+
+        Returns
+        -------
+        forces : ndarray
+            Forces acting on the atoms after the step.
+        """
         self.thermostat_half_step()
         forces = self.verlet_step(forces)
         self.last_thermostat_half_step()
