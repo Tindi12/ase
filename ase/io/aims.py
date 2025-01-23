@@ -4,40 +4,25 @@
 import os
 import time
 import warnings
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable, TextIO
+from typing import Any, TextIO
 
 import numpy as np
-from pyfhiaims.control.control import AimsControlIn
-from pyfhiaims.geometry.geometry import AimsGeometry
-from pyfhiaims.outputs.stdout import AimsStdout, AimsParseError
-
 from ase import Atoms
 from ase.calculators.calculator import kpts2mp
 from ase.calculators.singlepoint import SinglePointDFTCalculator
-from ase.data import atomic_numbers
 from ase.units import Ang, fs
 from ase.utils import deprecated, reader, writer
+
+from pyfhiaims.control.control import AimsControl
+from pyfhiaims.geometry.atom import FHIAimsAtom
+from pyfhiaims.geometry.geometry import AimsGeometry
+from pyfhiaims.outputs.stdout import AimsParseError, AimsStdout
 
 v_unit = Ang / (1000.0 * fs)
 
 LINE_NOT_FOUND = object()
-
-
-def singular(key: str) -> str:
-    """Returns the singular form of a string."""
-    if key[-6:] == "_atoms":
-        return key[:-6]
-    if key[-4:] == "sses":
-        return key[:-4] + "ss"
-    if key[-3:] == "ies":
-        return key[:-3] + "y"
-    if key[-2:] == "es":
-        return key[:-2] + "e"
-    if key[-1:] == "s":
-        return key[:-1]
-
-    return key
 
 
 # Read aims geometry files
@@ -49,8 +34,7 @@ def read_aims(fd: TextIO | str | Path, apply_constraints=True) -> Atoms:
     Reads unitcell, atom positions and constraints from
     a geometry.in file.
     """
-    lines = [line for line in fd.readlines()]
-    geometry = AimsGeometry.from_strings(lines)
+    geometry = AimsGeometry.from_file(fd)
     atoms = geometry.ase_atoms
 
     if apply_constraints:
@@ -114,6 +98,8 @@ def write_aims(
             structure to output to the file
         scaled: bool
             If True use fractional coordinates instead of Cartesian coordinates
+        geo_constrain: bool
+            If true add parameteric constraints
         write_velocities: bool
             If True add the atomic velocity vectors to the file
         velocities: bool
@@ -130,58 +116,31 @@ def write_aims(
         Use of ``velocities`` is deprecated, please use ``write_velocities``.
 
     """
-    geometry = AimsGeometry.from_atoms(atoms)
-    if scaled and not np.all(atoms.pbc):
-        raise ValueError(
-            "Requesting scaled for a calculation where scaled=True, but "
-            "the system is not periodic")
-
-    if geo_constrain:
-        if not scaled and np.all(atoms.pbc):
-            warnings.warn(
-                "Setting scaled to True because a symmetry_block is detected."
-            )
-            scaled = True
-        elif not np.all(atoms.pbc):
-            warnings.warn(
-                "Parameteric constraints can only be used in periodic systems."
-            )
-            geo_constrain = False
-
-    if not geo_constrain:
-        geometry.symmetry_frac = None
-        geometry.symmetry_lv = None
-        geometry.symmetry_params = None
-        geometry.symmetry_n_params = None
-
+    make_empty = None
     if ghosts is not None:
-        assert len(ghosts) == len(atoms)
-        for gg, ghost in enumerate(ghosts):
-            if ghost == 1:
-                geometry.atoms[gg].is_empty = True
+        make_empty = [ii for ii, ind in enumerate(ghosts) if ind == 1]
 
-    wrap = wrap and not geo_constrain
-    if scaled:
-        for atom in geometry.atoms:
-            atom.set_fractional(atoms.cell.array, wrap)
+    geometry = AimsGeometry.from_atoms(
+        atoms,
+        remove_velocities=not write_velocities,
+        geo_constrain=geo_constrain,
+        make_empty=make_empty,
+        scaled=scaled,
+        wrap=wrap,
+    )
 
-    if not write_velocities:
-        for atom in geometry.atoms:
-            atom.velocity = None
-
-    fd.write(get_aims_header())
-
+    header = get_aims_header()
     # If writing additional information is requested via info_str:
     if info_str is not None:
-        fd.write("\n# Additional information:\n")
+        header += "\n# Additional information:\n"
         if isinstance(info_str, list):
-            fd.write("\n".join([f"#  {s}" for s in info_str]))
+            header += "\n".join([f"#  {s}" for s in info_str])
         else:
-            fd.write(f"# {info_str}")
-        fd.write("\n")
+            header += f"# {info_str}"
+        header += "\n"
 
-    fd.write("#=======================================================\n")
-    fd.write(geometry.to_string())
+    header += "#=======================================================\n"
+    geometry.write_file(fd, header)
 
 
 def get_species_directory(species_dir: str | Path | None = None):
@@ -258,42 +217,23 @@ def write_control(
         parameters["k_grid"] = tuple(mp)
         parameters["k_offset"] = tuple(dk)
 
-    species_dir = get_species_directory(parameters.pop("species_dir"))
-    tiers = parameters.pop("tier", None)
-    plus_u = parameters.pop("plus_u", None)
+    parameters["species_dir"] = get_species_directory(
+        parameters.pop("species_dir")
+    )
 
-    outputs = parameters.pop("output")
-
-    control_in = AimsControlIn(
+    control_in = AimsControl(
         parameters=parameters,
-        outputs=outputs,
+        outputs=parameters.pop("output"),
     )
 
     geometry = AimsGeometry.from_atoms(atoms)
-    if isinstance(tiers, int):
-        tiers = {sym: tiers for sym in np.unique(geometry.symbols)}
-    elif tiers is not None:
-        assert all([sym in tiers for sym in np.unique(geometry.symbols)])
 
-    geometry.load_species(species_directory=species_dir)
-    for sym in np.unique(geometry.symbols):
-        if tiers is not None:
-            end_activate = 1 + min(
-                tiers[sym], geometry.species_dict[sym].basis_set.n_tiers
-            )
-            for tt in range(1, end_activate):
-                geometry.species_dict[sym].basis_set.activate_tier(tt)
-
-            for tt in range(
-                end_activate, geometry.species_dict[sym].basis_set.n_tiers + 1
-            ):
-                geometry.species_dict[sym].basis_set.deactivate_tier(tt)
-
-        if plus_u is not None:
-            geometry.species_dict[sym].plus_u = plus_u.get(sym)
-
-    fd.write(get_aims_header())
-    fd.write(control_in.get_content(geometry, verbose_header))
+    control_in.write_file(
+        geometry=geometry,
+        writer=fd,
+        header=get_aims_header(),
+        verbose_header=verbose_header,
+    )
 
 
 @reader
@@ -352,11 +292,11 @@ def read_aims_output(
     return atoms_list
 
 
-@reader
 def read_aims_results(
     fd: TextIO | str | Path,
     index: int | slice = -1,
-    non_convergence_ok: bool = False
+    non_convergence_ok: bool = False,
+    verbosity: str = "converged",
 ) -> dict[str, Any] | list[dict[str, Any]]:
     """
     Import FHI-aims output files with all data available as a dict
@@ -369,7 +309,8 @@ def read_aims_results(
         The images to return
     non_convergence_ok: bool
         True if a non-converged result is okay
-
+    verbosity: str
+        Results verbosity level, can be "single_point" or "all"
     Returns
     -------
     dict[str, Any] | list[dict[str, Any]]
@@ -388,8 +329,7 @@ def read_aims_results(
         image = output[ind]
         if not non_convergence_ok and (not image.converged):
             raise AimsParseError("The calculation did not converge properly.")
-        results.append(image._results)
-        results[-1]["energy"] = image.free_energy
+        results.append(image.get_results(verbosity=verbosity))
 
     if isinstance(index, int):
         return results[0]

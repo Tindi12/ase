@@ -121,6 +121,7 @@ class AimsTemplate(CalculatorTemplate):
 
         if scaled is None:
             scaled = np.all(atoms.pbc)
+
         if write_velocities is None:
             write_velocities = atoms.has('momenta')
 
@@ -135,6 +136,7 @@ class AimsTemplate(CalculatorTemplate):
         )
         if have_lattice_vectors and not have_k_grid:
             raise RuntimeError('Found lattice vectors but no k-grid!')
+
         if not have_lattice_vectors and have_k_grid:
             raise RuntimeError('Found k-grid but no lattice vectors!')
 

@@ -312,7 +312,6 @@ def test_control(
         control_file_as_string,
     )
 
-    print(control_file_as_string)
     for expr in expected_basisset_expr:
         assert expr in control_file_as_string
 
