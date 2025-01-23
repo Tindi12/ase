@@ -147,7 +147,7 @@ def test_bussi_parinello():
         atoms,
         0.1 * units.fs,
         500,
-        50,
+        5000,
         logfile=None,
         rng=np.random.default_rng(),
     ) as dyn:
