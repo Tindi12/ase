@@ -176,7 +176,7 @@ class BussiLangevin(VelocityVerlet):
         self.coefficient_1: float = math.exp(-self._friction * self.dt / 2)
         self.coefficient_2: NDArray = np.sqrt(
             (1 - self.coefficient_1**2)
-            * self.atoms.get_masses()[:, None]
+            * self.atoms.get_masses()[:, np.newaxis]
             * self._temperature
         )
 
