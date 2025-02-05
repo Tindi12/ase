@@ -169,8 +169,7 @@ def read_orca_output(fd):
     in the frame of reference of the center of mass "
     """
     lines = fd.readlines()
-    print("Tell me the lines",len(lines))
-
+    
     energy = read_energy(lines)
     charge = read_charge(lines)
     com = read_center_of_mass(lines)
