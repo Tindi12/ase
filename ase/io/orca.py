@@ -8,9 +8,17 @@ import numpy as np
 from ase.io import read
 from ase.units import Bohr, Hartree
 from ase.utils import reader, writer
+from ase import Atom, Atoms
+from ase.calculators.singlepoint import SinglePointDFTCalculator
 
-# Made from NWChem interface
+# Made from NWChem and FHI-aims interface
 
+class ORCAParseError(Exception):
+    """Exception raised if an error occurs when parsing an ORCA output file"""
+
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
 @reader
 def read_geom_orcainp(fd):
@@ -117,6 +125,43 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
         return dipole * Bohr  # Return the last match
     return dipole
 
+def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
+    """Read atomic positions and symbols. Create Atoms object.
+    
+    Based on FHI-aims interface.
+    """
+    line_start = -1
+    natoms = 0
+
+    for ll, line in enumerate(lines):
+        if ('Number of atoms                             ...' in line):
+            natoms = int(line.split()[4])
+        elif ('CARTESIAN COORDINATES (ANGSTROEM)' in line):
+            line_start = ll + 2
+
+    # Check if atoms present
+    if (line_start == -1 or natoms == 0):
+        raise ORCAParseError(
+            "No information about the structure in the ORCA output file.")
+
+    positions = np.zeros((natoms,3))
+    symbols = [""] * natoms
+
+    for ll, line in enumerate(lines[line_start:line_start + natoms]):
+        inp = line.split()
+        positions[ll, :] = [float(pos) for pos in inp[1:4]]
+        symbols[ll] = inp[0]
+    
+    atoms = Atoms(symbols=symbols, positions=positions)
+    atoms.set_pbc([False, False, False])
+    
+    # ORCA seems to do a cell, is this relevant?
+    #atoms.set_cell(input)
+    # Does ORCA do constraints?
+    #atoms.set_constraint(input)
+
+    return atoms
+
 
 @reader
 def read_orca_output(fd):
@@ -124,11 +169,13 @@ def read_orca_output(fd):
     in the frame of reference of the center of mass "
     """
     lines = fd.readlines()
+    print("Tell me the lines",len(lines))
 
     energy = read_energy(lines)
     charge = read_charge(lines)
     com = read_center_of_mass(lines)
     dipole = read_dipole(lines)
+    atoms = read_atoms(lines)
 
     results = {}
     results['energy'] = energy
@@ -137,8 +184,21 @@ def read_orca_output(fd):
     if com is not None and dipole is not None:
         dipole = dipole + com * charge
         results['dipole'] = dipole
+    
+    atoms.calc = SinglePointDFTCalculator(
+            atoms,
+            energy=energy,
+            free_energy=energy,
+            #forces=self.forces,
+            #stress=self.stress,
+            #stresses=self.stresses,
+            #magmom=self.magmom,
+            dipole=dipole,
+            #dielectric_tensor=self.dielectric_tensor,
+            #polarization=self.polarization,
+        )
 
-    return results
+    return atoms
 
 
 @reader
@@ -167,9 +227,17 @@ def read_orca_engrad(fd):
 
 
 def read_orca_outputs(directory, stdout_path):
+    # Reproduce old functionality to keep backwards compatability.
     stdout_path = Path(stdout_path)
     results = {}
-    results.update(read_orca_output(stdout_path))
+    #results.update(read_orca_output(stdout_path)) # old, needs to be removed 
+    atoms = read_orca_output(stdout_path)
+
+    results['energy'] = atoms.get_total_energy()
+    results['free_energy'] = atoms.get_total_energy()
+
+    if atoms.get_dipole_moment() is not None:
+        results['dipole'] = atoms.get_dipole_moment()
 
     # Does engrad always exist? - No!
     # Will there be other files -No -> We should just take engrad
