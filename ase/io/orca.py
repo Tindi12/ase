@@ -132,17 +132,23 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
     """
     line_start = -1
     natoms = 0
+    finished = False
 
     for ll, line in enumerate(lines):
         if ('Number of atoms                             ...' in line):
             natoms = int(line.split()[4])
         elif ('CARTESIAN COORDINATES (ANGSTROEM)' in line):
             line_start = ll + 2
+        elif('ORCA TERMINATED NORMALLY' in line):
+            finished = True
 
-    # Check if atoms present
+    # Check if atoms present and if calculation finished
     if (line_start == -1 or natoms == 0):
         raise ORCAParseError(
             "No information about the structure in the ORCA output file.")
+    elif (not finished):
+        raise ORCAParseError(
+            "ORCA calculations did not finish.")
 
     positions = np.zeros((natoms,3))
     symbols = [""] * natoms
@@ -169,20 +175,12 @@ def read_orca_output(fd):
     in the frame of reference of the center of mass "
     """
     lines = fd.readlines()
-    
+
     energy = read_energy(lines)
     charge = read_charge(lines)
     com = read_center_of_mass(lines)
     dipole = read_dipole(lines)
     atoms = read_atoms(lines)
-
-    results = {}
-    results['energy'] = energy
-    results['free_energy'] = energy
-
-    if com is not None and dipole is not None:
-        dipole = dipole + com * charge
-        results['dipole'] = dipole
     
     atoms.calc = SinglePointDFTCalculator(
             atoms,
