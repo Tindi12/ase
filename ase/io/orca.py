@@ -176,6 +176,8 @@ def get_chunks(lines):
             line_numbers = []
         elif ('ORCA TERMINATED NORMALLY' in line):
             finished = True
+            # Return the last part of the calculation
+            yield line_numbers
         elif ('ORCA SCF GRADIENT CALCULATION' in line):
             relaxation = True
         elif ('FINAL SINGLE POINT ENERGY' not in line):
@@ -190,6 +192,7 @@ def get_chunks(lines):
             "Error: Calculation did not finish.")
     elif (not finished and relaxation):
         print("WARNING: Calculation did not finish!")
+    
 
 
 @reader
@@ -206,12 +209,17 @@ def read_orca_output(fd, index):
     chunks = list(get_chunks(lines))
     
     # Iterate over chunks and create a separate atoms object for each
-    for chunk in chunks:
+    for i, chunk in enumerate(chunks[:-1]):
         energy = read_energy(chunk)
         charge = read_charge(chunk)
         com = read_center_of_mass(chunk)
-        dipole = read_dipole(chunk)
         atoms = read_atoms(chunk)
+
+        # Dipole moment seems to be only printed at the end of calculation.
+        if (i == len(chunks)-2):
+            dipole = read_dipole(chunks[-1])
+        else:
+            dipole = np.zeros(3)
     
         atoms.calc = SinglePointDFTCalculator(
                 atoms,
@@ -227,6 +235,7 @@ def read_orca_output(fd, index):
             )
         #collect images
         images.append(atoms)
+
     return images[index]
 
     #return atoms
@@ -261,8 +270,7 @@ def read_orca_outputs(directory, stdout_path):
     # Reproduce old functionality to keep backwards compatability.
     stdout_path = Path(stdout_path)
     results = {}
-    #results.update(read_orca_output(stdout_path)) # old, needs to be removed 
-    atoms = read_orca_output(stdout_path)
+    atoms = read_orca_output(stdout_path,index=-1)
 
     results['energy'] = atoms.get_total_energy()
     results['free_energy'] = atoms.get_total_energy()
