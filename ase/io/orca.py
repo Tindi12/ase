@@ -92,7 +92,7 @@ def read_energy(lines: List[str]) -> Optional[float]:
             else:
                 energy = float(line.split()[-1])
     if energy is not None:
-        return energy #* Hartree
+        return energy * Hartree
     return energy
 
 
@@ -134,15 +134,18 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
     natoms = 0
 
     for ll, line in enumerate(lines):
-        if ('Number of atoms                             ...' in line):
+        if ('Number of atoms' in line):
             natoms = int(line.split()[4])
         elif ('CARTESIAN COORDINATES (ANGSTROEM)' in line):
             line_start = ll + 2
 
-    # Check if atoms present and if calculation finished
-    if (line_start == -1 or natoms == 0):
+    # Check if atoms present and if their number is clear.
+    if (line_start == -1):
         raise ORCAParseError(
             "No information about the structure in the ORCA output file.")
+    elif (natoms == 0):
+        raise ORCAParseError(
+            "No information about number of atoms in the ORCA output file.")
 
     positions = np.zeros((natoms,3))
     symbols = [""] * natoms
@@ -171,7 +174,6 @@ def get_chunks(lines):
             line_numbers.append(line)
             yield line_numbers
             line_numbers = []
-            #relaxation = True
         elif ('ORCA TERMINATED NORMALLY' in line):
             finished = True
         elif ('ORCA SCF GRADIENT CALCULATION' in line):
@@ -210,7 +212,6 @@ def read_orca_output(fd, index):
         com = read_center_of_mass(chunk)
         dipole = read_dipole(chunk)
         atoms = read_atoms(chunk)
-        print(energy)
     
         atoms.calc = SinglePointDFTCalculator(
                 atoms,
