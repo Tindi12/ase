@@ -92,7 +92,7 @@ def read_energy(lines: List[str]) -> Optional[float]:
             else:
                 energy = float(line.split()[-1])
     if energy is not None:
-        return energy * Hartree
+        return energy #* Hartree
     return energy
 
 
@@ -132,23 +132,17 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
     """
     line_start = -1
     natoms = 0
-    finished = False
 
     for ll, line in enumerate(lines):
         if ('Number of atoms                             ...' in line):
             natoms = int(line.split()[4])
         elif ('CARTESIAN COORDINATES (ANGSTROEM)' in line):
             line_start = ll + 2
-        elif('ORCA TERMINATED NORMALLY' in line):
-            finished = True
 
     # Check if atoms present and if calculation finished
     if (line_start == -1 or natoms == 0):
         raise ORCAParseError(
             "No information about the structure in the ORCA output file.")
-    elif (not finished):
-        raise ORCAParseError(
-            "ORCA calculations did not finish.")
 
     positions = np.zeros((natoms,3))
     symbols = [""] * natoms
@@ -161,41 +155,80 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
     atoms = Atoms(symbols=symbols, positions=positions)
     atoms.set_pbc([False, False, False])
     
-    # ORCA seems to do a cell, is this relevant?
+    # ORCA: cell?
     #atoms.set_cell(input)
-    # Does ORCA do constraints?
-    #atoms.set_constraint(input)
 
     return atoms
+
+def get_chunks(lines):
+    """Separate out the chunks for each geometry relaxation step."""
+    finished = False
+    relaxation = False
+
+    line_numbers = []
+    for line in lines:
+        if ('FINAL SINGLE POINT ENERGY' in line):
+            line_numbers.append(line)
+            yield line_numbers
+            line_numbers = []
+            #relaxation = True
+        elif ('ORCA TERMINATED NORMALLY' in line):
+            finished = True
+        elif ('ORCA SCF GRADIENT CALCULATION' in line):
+            relaxation = True
+        elif ('FINAL SINGLE POINT ENERGY' not in line):
+            line_numbers.append(line)
+        else:
+            raise ORCAParseError(
+            "No information about chunk in output file.")
+    
+    # Give error/warning if calculation not finished.
+    if (not finished and not relaxation):
+        raise ORCAParseError(
+            "Error: Calculation did not finish.")
+    elif (not finished and relaxation):
+        print("WARNING: Calculation did not finish!")
 
 
 @reader
-def read_orca_output(fd):
+def read_orca_output(fd, index):
     """ From the ORCA output file: Read Energy and dipole moment
-    in the frame of reference of the center of mass "
+    in the frame of reference of the center of mass
+
+    Create separated atoms object for each geometry frame.
     """
+    images = []
     lines = fd.readlines()
 
-    energy = read_energy(lines)
-    charge = read_charge(lines)
-    com = read_center_of_mass(lines)
-    dipole = read_dipole(lines)
-    atoms = read_atoms(lines)
+    #Get the chunks of the output file
+    chunks = list(get_chunks(lines))
     
-    atoms.calc = SinglePointDFTCalculator(
-            atoms,
-            energy=energy,
-            free_energy=energy,
-            #forces=self.forces,
-            #stress=self.stress,
-            #stresses=self.stresses,
-            #magmom=self.magmom,
-            dipole=dipole,
-            #dielectric_tensor=self.dielectric_tensor,
-            #polarization=self.polarization,
-        )
+    # Iterate over chunks and create a separate atoms object for each
+    for chunk in chunks:
+        energy = read_energy(chunk)
+        charge = read_charge(chunk)
+        com = read_center_of_mass(chunk)
+        dipole = read_dipole(chunk)
+        atoms = read_atoms(chunk)
+        print(energy)
+    
+        atoms.calc = SinglePointDFTCalculator(
+                atoms,
+                energy=energy,
+                free_energy=energy,
+                #forces=self.forces,
+                #stress=self.stress,
+                #stresses=self.stresses,
+                #magmom=self.magmom,
+                dipole=dipole,
+                #dielectric_tensor=self.dielectric_tensor,
+                #polarization=self.polarization,
+            )
+        #collect images
+        images.append(atoms)
+    return images[index]
 
-    return atoms
+    #return atoms
 
 
 @reader
