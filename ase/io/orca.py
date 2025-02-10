@@ -117,12 +117,10 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
 
     Note that the read dipole moment is for the COM frame of reference.
     """
-    dipole = None
+    dipole = np.zeros(3)
     for line in lines:
         if 'Total Dipole Moment' in line:
             dipole = np.array([float(_) for _ in line.split()[-3:]])
-        else:
-            dipole = np.zeros(3)
     if dipole is not None:
         return dipole * Bohr  # Return the last match
     return dipole
@@ -196,7 +194,7 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
         for ll, line in enumerate(lines[line_start:line_start + natoms]):
             inp = line.split()
             forces[ll, :] = [float(pos) for pos in inp[3:6]]
-        forces = -forces #* Hartree / Bohr
+        forces = -forces * Hartree / Bohr
 
     return forces
 
