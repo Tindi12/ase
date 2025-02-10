@@ -165,6 +165,41 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
 
     return atoms
 
+def read_forces(lines: List[str]) -> Optional[np.ndarray]:
+    """Read forces from output file if available. 
+    
+    Else return None.
+    Taking the forces from the output files (instead of
+    the engrad-file) is more general. The forces can be 
+    present in general output even if the engrad file is not.
+    """
+    line_start = -1
+    natoms = 0
+
+    for ll, line in enumerate(lines):
+        if ('Number of atoms' in line):
+            natoms = int(line.split()[4])
+        elif ('CARTESIAN GRADIENT' in line):
+            line_start = ll + 3
+
+    # Check if atoms present and if their number is clear.
+    if (natoms == 0):
+        raise ORCAParseError(
+            "No information about number of atoms in the ORCA output file.")
+    
+    #Forces are not always printed. If not printed, return None
+    if (line_start == -1):
+        forces = np.full((natoms,3), None)
+    else:
+        forces = np.zeros((natoms,3))
+
+        for ll, line in enumerate(lines[line_start:line_start + natoms]):
+            inp = line.split()
+            forces[ll, :] = [float(pos) for pos in inp[3:6]]
+        forces = -forces #* Hartree / Bohr
+
+    return forces
+
 def get_chunks(lines):
     """Separate out the chunks for each geometry relaxation step."""
     finished = False
@@ -216,18 +251,19 @@ def read_orca_output(fd, index):
         charge = read_charge(chunk)
         com = read_center_of_mass(chunk)
         atoms = read_atoms(chunk)
+        forces = read_forces(chunk)
 
         # Dipole moment seems to be only printed at the end of calculation.
         if (i == len(chunks)-2):
             dipole = read_dipole(chunks[-1])
         else:
             dipole = np.zeros(3)
-    
+               
         atoms.calc = SinglePointDFTCalculator(
                 atoms,
                 energy=energy,
                 free_energy=energy,
-                #forces=self.forces,
+                forces=forces,
                 #stress=self.stress,
                 #stresses=self.stresses,
                 #magmom=self.magmom,
@@ -290,44 +326,3 @@ def read_orca_outputs(directory, stdout_path):
     if engrad_path.is_file():
         results['forces'] = read_orca_engrad(engrad_path)
     return results
-
-
-# ### Old routines, need to be removed once I'm sure that they can be reproduced
-
-
-# def read_orca_output0(fd):
-#     """ From the ORCA output file: Read Energy and dipole moment
-#     in the frame of reference of the center of mass "
-#     """
-#     lines = fd.readlines()
-
-#     energy = read_energy(lines)
-#     charge = read_charge(lines)
-#     com = read_center_of_mass(lines)
-#     dipole = read_dipole(lines)
-
-#     results = {}
-#     results['energy'] = energy
-#     results['free_energy'] = energy
-
-#     if com is not None and dipole is not None:
-#         dipole = dipole + com * charge
-#         results['dipole'] = dipole
-
-#     return results
-
-
-# def read_orca_outputs0(directory, stdout_path):
-#     stdout_path = Path(stdout_path)
-#     results = {}
-#     results.update(read_orca_output0(stdout_path))
-
-#     # Does engrad always exist? - No!
-#     # Will there be other files -No -> We should just take engrad
-#     # as a direct argument.  Or maybe this function does not even need to
-#     # exist.
-#     engrad_path = stdout_path.with_suffix('.engrad')
-#     if engrad_path.is_file():
-#         results['forces'] = read_orca_engrad(engrad_path)
-#     return results
-
