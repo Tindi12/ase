@@ -92,6 +92,15 @@ MULLIKEN ATOMIC CHARGES AND SPIN POPULATIONS
 Sum of atomic charges         :   -0.0000000
 Sum of atomic spin populations:    1.0000000
 
+Number of atoms                             ...      3
+
+ ---------------------------------                                               
+ CARTESIAN COORDINATES (ANGSTROEM)                                               
+ ---------------------------------
+   O     0.0000000    0.0000000    0.0000000
+   H     1.8897261    0.0000000    0.0000000
+   H     0.0000000    1.8897261    0.0000000
+
  -------
 TIMINGS
 -------
@@ -120,6 +129,7 @@ Grid generation             ....       0.081 sec  (  2.1%)
 -------------------------   --------------------
 FINAL SINGLE POINT ENERGY       -76.422436201230
 -------------------------   --------------------
+ORCA TERMINATED NORMALLY
 """
 
     sample_engradfile = """\

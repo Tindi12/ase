@@ -121,6 +121,8 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     for line in lines:
         if 'Total Dipole Moment' in line:
             dipole = np.array([float(_) for _ in line.split()[-3:]])
+        else:
+            dipole = np.zeros(3)
     if dipole is not None:
         return dipole * Bohr  # Return the last match
     return dipole
@@ -275,7 +277,9 @@ def read_orca_outputs(directory, stdout_path):
     results['energy'] = atoms.get_total_energy()
     results['free_energy'] = atoms.get_total_energy()
 
-    if atoms.get_dipole_moment() is not None:
+    if (abs(atoms.get_dipole_moment()[0]) > 0
+        and abs(atoms.get_dipole_moment()[1]) > 0
+        and abs(atoms.get_dipole_moment()[2]) > 0):
         results['dipole'] = atoms.get_dipole_moment()
 
     # Does engrad always exist? - No!
@@ -286,3 +290,44 @@ def read_orca_outputs(directory, stdout_path):
     if engrad_path.is_file():
         results['forces'] = read_orca_engrad(engrad_path)
     return results
+
+
+# ### Old routines, need to be removed once I'm sure that they can be reproduced
+
+
+# def read_orca_output0(fd):
+#     """ From the ORCA output file: Read Energy and dipole moment
+#     in the frame of reference of the center of mass "
+#     """
+#     lines = fd.readlines()
+
+#     energy = read_energy(lines)
+#     charge = read_charge(lines)
+#     com = read_center_of_mass(lines)
+#     dipole = read_dipole(lines)
+
+#     results = {}
+#     results['energy'] = energy
+#     results['free_energy'] = energy
+
+#     if com is not None and dipole is not None:
+#         dipole = dipole + com * charge
+#         results['dipole'] = dipole
+
+#     return results
+
+
+# def read_orca_outputs0(directory, stdout_path):
+#     stdout_path = Path(stdout_path)
+#     results = {}
+#     results.update(read_orca_output0(stdout_path))
+
+#     # Does engrad always exist? - No!
+#     # Will there be other files -No -> We should just take engrad
+#     # as a direct argument.  Or maybe this function does not even need to
+#     # exist.
+#     engrad_path = stdout_path.with_suffix('.engrad')
+#     if engrad_path.is_file():
+#         results['forces'] = read_orca_engrad(engrad_path)
+#     return results
+
