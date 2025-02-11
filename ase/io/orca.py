@@ -126,10 +126,7 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     return dipole
 
 def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
-    """Read atomic positions and symbols. Create Atoms object.
-    
-    Based on FHI-aims interface.
-    """
+    """Read atomic positions and symbols. Create Atoms object."""
     line_start = -1
     natoms = 0
 
@@ -139,13 +136,13 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
         elif ('CARTESIAN COORDINATES (ANGSTROEM)' in line):
             line_start = ll + 2
 
-    # Check if atoms present and if their number is clear.
+    # Check if atoms present and if their number is given.
     if (line_start == -1):
         raise ORCAParseError(
-            "No information about the structure in the ORCA output file.")
+            'No information about the atomic structure in the ORCA output file.')
     elif (natoms == 0):
         raise ORCAParseError(
-            "No information about number of atoms in the ORCA output file.")
+            'No information about number of atoms in the ORCA output file.')
 
     positions = np.zeros((natoms,3))
     symbols = [""] * natoms
@@ -154,22 +151,23 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
         inp = line.split()
         positions[ll, :] = [float(pos) for pos in inp[1:4]]
         symbols[ll] = inp[0]
-    
+
     atoms = Atoms(symbols=symbols, positions=positions)
     atoms.set_pbc([False, False, False])
-    
-    # ORCA: cell?
-    #atoms.set_cell(input)
 
     return atoms
 
 def read_forces(lines: List[str]) -> Optional[np.ndarray]:
-    """Read forces from output file if available. 
-    
-    Else return None.
-    Taking the forces from the output files (instead of
-    the engrad-file) is more general. The forces can be 
-    present in general output even if the engrad file is not.
+    """Read forces from output file if available. Else return None.
+
+    Taking the forces from the output files (instead of the engrad-file) to
+    be more general. The forces can be present in general output even if
+    the engrad file is not there.
+
+    Note: If more than one geometry relaxation step is available, 
+          forces do not always exist for the first step. In this case, for
+          the first step an array of None will be returned. The following
+          relaxation steps will then have forces available.
     """
     line_start = -1
     natoms = 0
@@ -180,12 +178,12 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
         elif ('CARTESIAN GRADIENT' in line):
             line_start = ll + 3
 
-    # Check if atoms present and if their number is clear.
+    # Check if number of atoms is available.
     if (natoms == 0):
         raise ORCAParseError(
-            "No information about number of atoms in the ORCA output file.")
-    
-    #Forces are not always printed. If not printed, return None
+            'No information about number of atoms in the ORCA output file.')
+
+    #Forces are not always available. If not available, return None.
     if (line_start == -1):
         forces = np.full((natoms,3), None)
     else:
@@ -203,46 +201,48 @@ def get_chunks(lines):
     finished = False
     relaxation = False
 
-    line_numbers = []
+    chunk_lines = []
     for line in lines:
         if ('FINAL SINGLE POINT ENERGY' in line):
-            line_numbers.append(line)
-            yield line_numbers
-            line_numbers = []
+            chunk_lines.append(line)
+            yield chunk_lines
+            chunk_lines = []
         elif ('ORCA TERMINATED NORMALLY' in line):
             finished = True
             # Return the last part of the calculation
-            yield line_numbers
+            yield chunk_lines
         elif ('ORCA SCF GRADIENT CALCULATION' in line):
             relaxation = True
         elif ('FINAL SINGLE POINT ENERGY' not in line):
-            line_numbers.append(line)
+            chunk_lines.append(line)
         else:
             raise ORCAParseError(
-            "No information about chunk in output file.")
-    
-    # Give error/warning if calculation not finished.
+            'No information about chunk in output file.')
+
+    # Give error if calculation not finished for single-point calculations.
     if (not finished and not relaxation):
         raise ORCAParseError(
-            "Error: Calculation did not finish.")
+            'Error: Calculation did not finish!')
+    # Give warning if calculation not finished for geometry optimizations.
     elif (not finished and relaxation):
-        print("WARNING: Calculation did not finish!")
-    
+        print('WARNING: Calculation did not finish!')
+
 
 
 @reader
 def read_orca_output(fd, index):
-    """ From the ORCA output file: Read Energy and dipole moment
-    in the frame of reference of the center of mass
+    """From the ORCA output file: Read Energy, positions and forces,
+       and dipole moment in the frame of reference of the center of mass.
 
-    Create separated atoms object for each geometry frame.
+    Create separated atoms object for each geometry frame through
+    parsing the output file in chunks.
     """
     images = []
     lines = fd.readlines()
 
     #Get the chunks of the output file
     chunks = list(get_chunks(lines))
-    
+
     # Iterate over chunks and create a separate atoms object for each
     for i, chunk in enumerate(chunks[:-1]):
         energy = read_energy(chunk)
@@ -251,12 +251,12 @@ def read_orca_output(fd, index):
         atoms = read_atoms(chunk)
         forces = read_forces(chunk)
 
-        # Dipole moment seems to be only printed at the end of calculation.
+        # Dipole moment only printed at the end of calculation.
         if (i == len(chunks)-2):
             dipole = read_dipole(chunks[-1])
         else:
             dipole = np.zeros(3)
-               
+
         atoms.calc = SinglePointDFTCalculator(
                 atoms,
                 energy=energy,
@@ -273,8 +273,6 @@ def read_orca_output(fd, index):
         images.append(atoms)
 
     return images[index]
-
-    #return atoms
 
 
 @reader
