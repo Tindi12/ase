@@ -33,9 +33,9 @@ def read_geom_orcainp(fd):
         if line[1:].startswith('xyz '):
             startline = index + 1
             stopline = -1
-        elif (line.startswith('end') and stopline == -1):
+        elif line.startswith('end') and stopline == -1:
             stopline = index
-        elif (line.startswith('*') and stopline == -1):
+        elif line.startswith('*') and stopline == -1:
             stopline = index
     # Format and send to read_xyz.
     xyz_text = '%i\n' % (stopline - startline)
@@ -43,7 +43,7 @@ def read_geom_orcainp(fd):
     for line in lines[startline:stopline]:
         xyz_text += line
     atoms = read(StringIO(xyz_text), format='xyz')
-    atoms.set_cell((0., 0., 0.))  # no unit cell defined
+    atoms.set_cell((0.0, 0.0, 0.0))  # no unit cell defined
 
     return atoms
 
@@ -51,13 +51,13 @@ def read_geom_orcainp(fd):
 @writer
 def write_orca(fd, atoms, params):
     # conventional filename: '<name>.inp'
-    fd.write(f"! {params['orcasimpleinput']} \n")
-    fd.write(f"{params['orcablocks']} \n")
+    fd.write(f'! {params["orcasimpleinput"]} \n')
+    fd.write(f'{params["orcablocks"]} \n')
 
     if 'coords' not in params['orcablocks']:
         fd.write('*xyz')
-        fd.write(" %d" % params['charge'])
-        fd.write(" %d \n" % params['mult'])
+        fd.write(' %d' % params['charge'])
+        fd.write(' %d \n' % params['mult'])
         for atom in atoms:
             if atom.tag == 71:  # 71 is ascii G (Ghost)
                 symbol = atom.symbol + ' : '
@@ -66,11 +66,11 @@ def write_orca(fd, atoms, params):
             fd.write(
                 symbol
                 + str(atom.position[0])
-                + " "
+                + ' '
                 + str(atom.position[1])
-                + " "
+                + ' '
                 + str(atom.position[2])
-                + "\n"
+                + '\n'
             )
         fd.write('*\n')
 
@@ -89,7 +89,7 @@ def read_energy(lines: List[str]) -> Optional[float]:
     energy = None
     for line in lines:
         if 'FINAL SINGLE POINT ENERGY' in line:
-            if "Wavefunction not fully converged" in line:
+            if 'Wavefunction not fully converged' in line:
                 energy = float('nan')
             else:
                 energy = float(line.split()[-1])
@@ -99,7 +99,7 @@ def read_energy(lines: List[str]) -> Optional[float]:
 
 
 def read_center_of_mass(lines: List[str]) -> Optional[np.ndarray]:
-    """ Scan through text for the center of mass """
+    """Scan through text for the center of mass"""
     # Example:
     # 'The origin for moment calculation is the CENTER OF MASS  =
     # ( 0.002150, -0.296255  0.086315)'
@@ -134,23 +134,25 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
     natoms = 0
 
     for ll, line in enumerate(lines):
-        if ('Number of atoms' in line):
+        if 'Number of atoms' in line:
             natoms = int(line.split()[4])
-        elif ('CARTESIAN COORDINATES (ANGSTROEM)' in line):
+        elif 'CARTESIAN COORDINATES (ANGSTROEM)' in line:
             line_start = ll + 2
 
     # Check if atoms present and if their number is given.
-    if (line_start == -1):
+    if line_start == -1:
         raise ORCAParseError(
-            'No information about the structure in the ORCA output file.')
-    elif (natoms == 0):
+            'No information about the structure in the ORCA output file.'
+        )
+    elif natoms == 0:
         raise ORCAParseError(
-            'No information about number of atoms in the ORCA output file.')
+            'No information about number of atoms in the ORCA output file.'
+        )
 
     positions = np.zeros((natoms, 3))
-    symbols = [""] * natoms
+    symbols = [''] * natoms
 
-    for ll, line in enumerate(lines[line_start:line_start + natoms]):
+    for ll, line in enumerate(lines[line_start : line_start + natoms]):
         inp = line.split()
         positions[ll, :] = [float(pos) for pos in inp[1:4]]
         symbols[ll] = inp[0]
@@ -177,23 +179,24 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
     natoms = 0
 
     for ll, line in enumerate(lines):
-        if ('Number of atoms' in line):
+        if 'Number of atoms' in line:
             natoms = int(line.split()[4])
-        elif ('CARTESIAN GRADIENT' in line):
+        elif 'CARTESIAN GRADIENT' in line:
             line_start = ll + 3
 
     # Check if number of atoms is available.
-    if (natoms == 0):
+    if natoms == 0:
         raise ORCAParseError(
-            'No information about number of atoms in the ORCA output file.')
+            'No information about number of atoms in the ORCA output file.'
+        )
 
     # Forces are not always available. If not available, return None.
-    if (line_start == -1):
+    if line_start == -1:
         forces = np.full((natoms, 3), None)
     else:
         forces = np.zeros((natoms, 3))
 
-        for ll, line in enumerate(lines[line_start:line_start + natoms]):
+        for ll, line in enumerate(lines[line_start : line_start + natoms]):
             inp = line.split()
             forces[ll, :] = [float(pos) for pos in inp[3:6]]
         forces = -forces * Hartree / Bohr
@@ -208,28 +211,26 @@ def get_chunks(lines):
 
     chunk_lines = []
     for line in lines:
-        if ('FINAL SINGLE POINT ENERGY' in line):
+        if 'FINAL SINGLE POINT ENERGY' in line:
             chunk_lines.append(line)
             yield chunk_lines
             chunk_lines = []
-        elif ('ORCA TERMINATED NORMALLY' in line):
+        elif 'ORCA TERMINATED NORMALLY' in line:
             finished = True
             # Return the last part of the calculation
             yield chunk_lines
-        elif ('ORCA SCF GRADIENT CALCULATION' in line):
+        elif 'ORCA SCF GRADIENT CALCULATION' in line:
             relaxation = True
-        elif ('FINAL SINGLE POINT ENERGY' not in line):
+        elif 'FINAL SINGLE POINT ENERGY' not in line:
             chunk_lines.append(line)
         else:
-            raise ORCAParseError(
-            'No information about chunk in output file.')
+            raise ORCAParseError('No information about chunk in output file.')
 
     # Give error if calculation not finished for single-point calculations.
-    if (not finished and not relaxation):
-        raise ORCAParseError(
-            'Error: Calculation did not finish!')
+    if not finished and not relaxation:
+        raise ORCAParseError('Error: Calculation did not finish!')
     # Give warning if calculation not finished for geometry optimizations.
-    elif (not finished and relaxation):
+    elif not finished and relaxation:
         print('WARNING: Calculation did not finish!')
 
 
@@ -257,23 +258,23 @@ def read_orca_output(fd, index):
         # com = read_center_of_mass(chunk)
 
         # Dipole moment only printed at the end of calculation.
-        if (i == len(chunks) - 2):
+        if i == len(chunks) - 2:
             dipole = read_dipole(chunks[-1])
         else:
             dipole = np.zeros(3)
 
         atoms.calc = SinglePointDFTCalculator(
-                atoms,
-                energy=energy,
-                free_energy=energy,
-                forces=forces,
-                # stress=self.stress,
-                # stresses=self.stresses,
-                # magmom=self.magmom,
-                dipole=dipole,
-                # dielectric_tensor=self.dielectric_tensor,
-                # polarization=self.polarization,
-            )
+            atoms,
+            energy=energy,
+            free_energy=energy,
+            forces=forces,
+            # stress=self.stress,
+            # stresses=self.stresses,
+            # magmom=self.magmom,
+            dipole=dipole,
+            # dielectric_tensor=self.dielectric_tensor,
+            # polarization=self.polarization,
+        )
         # collect images
         images.append(atoms)
 
@@ -292,7 +293,7 @@ def read_orca_engrad(fd):
             gradients = []
             tempgrad = []
             continue
-        if getgrad and "#" not in line:
+        if getgrad and '#' not in line:
             grad = line.split()[-1]
             tempgrad.append(float(grad))
             if len(tempgrad) == 3:
@@ -314,9 +315,11 @@ def read_orca_outputs(directory, stdout_path):
     results['energy'] = atoms.get_total_energy()
     results['free_energy'] = atoms.get_total_energy()
 
-    if (abs(atoms.get_dipole_moment()[0]) > 0
+    if (
+        abs(atoms.get_dipole_moment()[0]) > 0
         and abs(atoms.get_dipole_moment()[1]) > 0
-        and abs(atoms.get_dipole_moment()[2]) > 0):
+        and abs(atoms.get_dipole_moment()[2]) > 0
+    ):
         results['dipole'] = atoms.get_dipole_moment()
 
     # Does engrad always exist? - No!
