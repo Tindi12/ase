@@ -5,13 +5,14 @@ from typing import List, Optional
 
 import numpy as np
 
+from ase import Atoms
+from ase.calculators.singlepoint import SinglePointDFTCalculator
 from ase.io import read
 from ase.units import Bohr, Hartree
 from ase.utils import reader, writer
-from ase import Atom, Atoms
-from ase.calculators.singlepoint import SinglePointDFTCalculator
 
 # Made from NWChem and FHI-aims interface
+
 
 class ORCAParseError(Exception):
     """Exception raised if an error occurs when parsing an ORCA output file"""
@@ -19,6 +20,7 @@ class ORCAParseError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
+
 
 @reader
 def read_geom_orcainp(fd):
@@ -125,6 +127,7 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
         return dipole * Bohr  # Return the last match
     return dipole
 
+
 def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
     """Read atomic positions and symbols. Create Atoms object."""
     line_start = -1
@@ -139,12 +142,12 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
     # Check if atoms present and if their number is given.
     if (line_start == -1):
         raise ORCAParseError(
-            'No information about the atomic structure in the ORCA output file.')
+            'No information about the structure in the ORCA output file.')
     elif (natoms == 0):
         raise ORCAParseError(
             'No information about number of atoms in the ORCA output file.')
 
-    positions = np.zeros((natoms,3))
+    positions = np.zeros((natoms, 3))
     symbols = [""] * natoms
 
     for ll, line in enumerate(lines[line_start:line_start + natoms]):
@@ -157,6 +160,7 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
 
     return atoms
 
+
 def read_forces(lines: List[str]) -> Optional[np.ndarray]:
     """Read forces from output file if available. Else return None.
 
@@ -164,7 +168,7 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
     be more general. The forces can be present in general output even if
     the engrad file is not there.
 
-    Note: If more than one geometry relaxation step is available, 
+    Note: If more than one geometry relaxation step is available,
           forces do not always exist for the first step. In this case, for
           the first step an array of None will be returned. The following
           relaxation steps will then have forces available.
@@ -183,11 +187,11 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
         raise ORCAParseError(
             'No information about number of atoms in the ORCA output file.')
 
-    #Forces are not always available. If not available, return None.
+    # Forces are not always available. If not available, return None.
     if (line_start == -1):
-        forces = np.full((natoms,3), None)
+        forces = np.full((natoms, 3), None)
     else:
-        forces = np.zeros((natoms,3))
+        forces = np.zeros((natoms, 3))
 
         for ll, line in enumerate(lines[line_start:line_start + natoms]):
             inp = line.split()
@@ -195,6 +199,7 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
         forces = -forces * Hartree / Bohr
 
     return forces
+
 
 def get_chunks(lines):
     """Separate out the chunks for each geometry relaxation step."""
@@ -228,11 +233,10 @@ def get_chunks(lines):
         print('WARNING: Calculation did not finish!')
 
 
-
 @reader
 def read_orca_output(fd, index):
-    """From the ORCA output file: Read Energy, positions and forces,
-       and dipole moment in the frame of reference of the center of mass.
+    """From the ORCA output file: Read Energy, positions, forces
+       and dipole moment.
 
     Create separated atoms object for each geometry frame through
     parsing the output file in chunks.
@@ -240,19 +244,20 @@ def read_orca_output(fd, index):
     images = []
     lines = fd.readlines()
 
-    #Get the chunks of the output file
+    # Get the chunks of the output file
     chunks = list(get_chunks(lines))
 
     # Iterate over chunks and create a separate atoms object for each
     for i, chunk in enumerate(chunks[:-1]):
         energy = read_energy(chunk)
-        charge = read_charge(chunk)
-        com = read_center_of_mass(chunk)
         atoms = read_atoms(chunk)
         forces = read_forces(chunk)
+        # Currently unused:
+        # charge = read_charge(chunk)
+        # com = read_center_of_mass(chunk)
 
         # Dipole moment only printed at the end of calculation.
-        if (i == len(chunks)-2):
+        if (i == len(chunks) - 2):
             dipole = read_dipole(chunks[-1])
         else:
             dipole = np.zeros(3)
@@ -262,14 +267,14 @@ def read_orca_output(fd, index):
                 energy=energy,
                 free_energy=energy,
                 forces=forces,
-                #stress=self.stress,
-                #stresses=self.stresses,
-                #magmom=self.magmom,
+                # stress=self.stress,
+                # stresses=self.stresses,
+                # magmom=self.magmom,
                 dipole=dipole,
-                #dielectric_tensor=self.dielectric_tensor,
-                #polarization=self.polarization,
+                # dielectric_tensor=self.dielectric_tensor,
+                # polarization=self.polarization,
             )
-        #collect images
+        # collect images
         images.append(atoms)
 
     return images[index]
@@ -304,7 +309,7 @@ def read_orca_outputs(directory, stdout_path):
     # Reproduce old functionality to keep backwards compatability.
     stdout_path = Path(stdout_path)
     results = {}
-    atoms = read_orca_output(stdout_path,index=-1)
+    atoms = read_orca_output(stdout_path, index=-1)
 
     results['energy'] = atoms.get_total_energy()
     results['free_energy'] = atoms.get_total_energy()
