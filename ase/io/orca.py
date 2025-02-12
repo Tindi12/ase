@@ -181,8 +181,11 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
     for ll, line in enumerate(lines):
         if 'Number of atoms' in line:
             natoms = int(line.split()[4])
-        elif 'CARTESIAN GRADIENT' in line:
+        # Read in forces, but ignore excited state forces.
+        elif ('CARTESIAN GRADIENT' in line
+              and 'EXCITED STATE GRADIENT DONE' not in lines[ll-4]):
             line_start = ll + 3
+            print(lines[ll-4].split())
 
     # Check if number of atoms is available.
     if natoms == 0:
