@@ -1,3 +1,4 @@
+# fmt: off
 # To avoid circular import
 from .. import plugins  # NOQA
 
