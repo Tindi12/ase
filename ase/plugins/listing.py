@@ -7,8 +7,7 @@ standard dict, they allow to better finding of their items
 from collections import defaultdict
 from collections.abc import Mapping
 from typing import Callable, Dict, Optional
-
-from ase.utils import lazyproperty
+from functools import cached_property
 
 
 def _item_attribute(obj, attribute):
@@ -40,7 +39,7 @@ class ListingView(Mapping):
         self.attribute = attribute
         self.mapping = mapping or (lambda x: x)
 
-    @lazyproperty
+    @cached_property
     def map(self):
         """ Return the followin mapping:
           <given attribute>:[list of objects having the attribute] """
@@ -113,7 +112,7 @@ class BaseListing(Mapping):
     def _sorting_key(i):
         return i.name.lower()
 
-    @lazyproperty
+    @cached_property
     def sorted(self):
         """ Return items in the listing, sorted by a predefined criteria """
         ins = list(self._items.values())
@@ -173,6 +172,6 @@ class LazyListing(BaseListing):
     def __init__(self, lazy):
         self._lazy = lazy
 
-    @lazyproperty
+    @cached_property
     def _items(self):
         return self._lazy()

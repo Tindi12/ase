@@ -4,8 +4,7 @@ to the classes/modules/function...whatever implements a given
 functionality, e.g. Calculators, IOFormats etc."""
 
 import importlib
-
-from ase.utils import lazyproperty
+from functools import cached_property
 
 from .listing import Listing
 
@@ -19,7 +18,7 @@ class BasePluggable:
         self.plugin = plugin
         self.plugin.add_pluggable(self)
 
-    @lazyproperty
+    @cached_property
     def lowercase_names(self):
         """ Some pluggables can be found not only by the name of the pluggable,
         but e.g. by the name of the implementing class """
@@ -59,7 +58,7 @@ class Pluggable(BasePluggable):
     def __repr__(self):
         return f"<ASE {self.class_type}: {self.name} provided by {self.cls}>"
 
-    @lazyproperty
+    @cached_property
     def names(self):
         name = getattr(self.cls, 'name', None)
         if isinstance(name, str):
@@ -75,7 +74,7 @@ class Pluggable(BasePluggable):
             name.append(cls)
         return name
 
-    @lazyproperty
+    @cached_property
     def lowercase_names(self):
         return {i.lower() for i in self.names}
 
@@ -90,7 +89,7 @@ class Pluggables(Listing):
         super().__init__()
         self.class_type = class_type
 
-    @lazyproperty
+    @cached_property
     def singular_name(self):
         """ Return the human readable name of pluggable it contains,
         for the purpose of the output. E.g.
@@ -105,7 +104,7 @@ class Pluggables(Listing):
 
 class CalculatorPluggable(Pluggable):
 
-    @lazyproperty
+    @cached_property
     def implementation(self):
         module, cls = self.cls.rsplit('.', 1)
         module = importlib.import_module(module)

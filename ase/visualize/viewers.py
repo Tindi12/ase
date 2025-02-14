@@ -21,11 +21,11 @@ from contextlib import contextmanager
 from importlib import import_module
 from io import BytesIO
 from pathlib import Path
+from functools import cached_property
 
 import ase.io
 from ase.plugins.listing import LazyListing
 from ase.plugins.pluggables import BasePluggable, Pluggables
-from ase.utils import lazyproperty
 
 
 class UnknownViewerError(Exception):
@@ -153,11 +153,11 @@ class ViewerPluggables(Pluggables):
                f"{prefix}--------\n" + \
                super().info(prefix + '  ', opts, filter)
 
-    @lazyproperty
+    @cached_property
     def cli_viewers(self):
         return self.filter(lambda item: isinstance(item, CLIViewer))
 
-    @lazyproperty
+    @cached_property
     def python_viewers(self):
         return self.filter(lambda item: isinstance(item, PyViewer))
 

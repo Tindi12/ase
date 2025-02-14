@@ -50,7 +50,7 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
-from ase.utils import lazyproperty
+from functools import cached_property
 
 from .listing import Listing
 
@@ -77,15 +77,15 @@ class Plugins(Listing):
     def all_pluggables(self):
         return self._pluggables.values()
 
-    @lazyproperty
+    @cached_property
     def calculators(self):
         return self.pluggables_of('calculators')
 
-    @lazyproperty
+    @cached_property
     def viewers(self):
         return self.pluggables_of('viewers')
 
-    @lazyproperty
+    @cached_property
     def io_formats(self):
         return self.pluggables_of('io_formats')
 

@@ -42,7 +42,8 @@ from ase.atoms import Atoms
 from ase.parallel import parallel_function, parallel_generator
 from ase.plugins.listing import ListingView
 from ase.plugins.pluggables import BasePluggable, Pluggables
-from ase.utils import lazyproperty, string2index
+from ase.utils import string2index
+from functools import cached_property
 
 PEEK_BYTES = 50000
 
@@ -213,7 +214,7 @@ class IOFormat(BasePluggable):
     def _writefunc(self):
         return getattr(self.module, 'write_' + self._formatname, None)
 
-    @lazyproperty
+    @cached_property
     def implementation(self):
         return self._readfunc(), self._writefunc()
 
@@ -363,7 +364,7 @@ class IOFormatPluggables(Pluggables):
                f"{prefix}-----------\n" + \
                super().info(prefix + '  ', opts, filter)
 
-    @lazyproperty
+    @cached_property
     def by_extension(self):
         return self.view_by('extensions')
 
