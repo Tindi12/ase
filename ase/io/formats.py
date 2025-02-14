@@ -488,7 +488,7 @@ def open_with_compression(filename: str, mode: str = 'r') -> IO:
     elif mode == 'a':
         mode = 'at'
 
-    root, compression = get_compression(filename)
+    _root, compression = get_compression(filename)
 
     if compression == 'gz':
         import gzip
@@ -848,7 +848,7 @@ def filetype(
             return 'mysql'
 
         # strip any compression extensions that can be read
-        root, compression = get_compression(filename)
+        root, _compression = get_compression(filename)
         basename = os.path.basename(root)
 
         if '.' in basename:

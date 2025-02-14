@@ -40,7 +40,7 @@ Supported calculators
 
 The calculators can be divided in four groups:
 
-1) Abacus_, ALIGNN_, AMS_, Asap_, BigDFT_, CHGNet_, DeePMD-kit_, DFTD3_, DFTD4_, DFTK_, FLEUR_, GPAW_, Hotbit_, M3GNet_, MACE_, TBLite_, and XTB_
+1) Abacus_, ALIGNN_, AMS_, Asap_, BigDFT_, CHGNet_, DeePMD-kit_, DFTD3_, DFTD4_, DFTK_, EquiFormerV2_, FLEUR_, GPAW_, Hotbit_, M3GNet_, MACE_, OrbModels_, SevenNet_, TBLite_, and XTB_
    have their own native or external ASE interfaces.
 
 2) ABINIT, AMBER, CP2K, CASTEP, deMon2k, DFTB+, ELK, EXCITING, FHI-aims, GAUSSIAN,
@@ -52,15 +52,22 @@ The calculators can be divided in four groups:
    Lennard-Jones, Morse and HarmonicCalculator.
 
 4) Calculators that wrap others, included in the ASE package:
-   :class:`ase.calculators.checkpoint.CheckpointCalculator`,
-   the :class:`ase.calculators.loggingcalc.LoggingCalculator`,
-   the :class:`ase.calculators.mixing.LinearCombinationCalculator`,
-   the :class:`ase.calculators.mixing.MixedCalculator`,
-   the :class:`ase.calculators.mixing.SumCalculator`,
-   the :class:`ase.calculators.mixing.AverageCalculator`,
-   the :class:`ase.calculators.socketio.SocketIOCalculator`,
-   the :ref:`Grimme-D3 <grimme>` potential, and the qmmm calculators
-   :class:`~ase.calculators.qmmm.EIQMMM`,  and :class:`~ase.calculators.qmmm.SimpleQMMM`.
+
+   - :class:`ase.calculators.checkpoint.CheckpointCalculator`
+   - :class:`ase.calculators.fd.FiniteDifferenceCalculator`
+   - :class:`ase.calculators.loggingcalc.LoggingCalculator`
+   - :class:`ase.calculators.mixing.LinearCombinationCalculator`
+   - :class:`ase.calculators.mixing.MixedCalculator`
+   - :class:`ase.calculators.mixing.SumCalculator`
+   - :class:`ase.calculators.mixing.AverageCalculator`
+   - :class:`ase.calculators.socketio.SocketIOCalculator`
+
+   - :ref:`Grimme-D3 <grimme>` potential
+
+   - QM/MM calculators
+
+     - :class:`~ase.calculators.qmmm.EIQMMM`
+     - :class:`~ase.calculators.qmmm.SimpleQMMM`
 
 ========================================= ===========================================
 name                                      description
@@ -75,11 +82,14 @@ DeePMD-kit_                               A deep learning package for many-body 
 DFTD3_                                    London-dispersion correction
 DFTD4_                                    Charge-dependent London-dispersion correction
 DFTK_                                     Plane-wave code for DFT and related models
+EquiFormerV2_                             Equivariant graph-based denoising transformer universal potential
 FLEUR_                                    Full Potential LAPW code
 GPAW_                                     Real-space/plane-wave/LCAO PAW code
 Hotbit_                                   DFT based tight binding
 M3GNet_                                   Materials 3-body Graph Network universal potential
 MACE_                                     Many-body potential using higher-order equivariant message passing
+OrbModels_                                Fast, scalable, universal GNN potentials with diffusion pretraining
+SevenNet_                                 Scalable EquiVariance Enabled Neural Network interatomic potential
 TBLite_                                   Light-weight tight-binding framework
 XTB_                                      Semiemprical extended tight-binding program package
 :mod:`~ase.calculators.abinit`            Plane-wave pseudopotential code
@@ -119,8 +129,9 @@ elk                                       Full Potential LAPW code
 lj                                        Lennard-Jones potential
 morse                                     Morse potential
 :mod:`~ase.calculators.checkpoint`        Checkpoint calculator
-:mod:`~ase.calculators.socketio`          Socket-based interface to calculators
+:mod:`~ase.calculators.fd`                Finite-difference calculator
 :mod:`~ase.calculators.loggingcalc`       Logging calculator
+:mod:`~ase.calculators.socketio`          Socket-based interface to calculators
 :mod:`~ase.calculators.dftd3`             DFT-D3 dispersion correction calculator
 :class:`~ase.calculators.qmmm.EIQMMM`     Explicit Interaction QM/MM
 :class:`~ase.calculators.qmmm.SimpleQMMM` Subtractive (ONIOM style) QM/MM
@@ -148,15 +159,18 @@ where ``abc`` is the module name and ``ABC`` is the class name.
 .. _Asap: https://wiki.fysik.dtu.dk/asap
 .. _BigDFT: https://l_sim.gitlab.io/bigdft-suite/tutorials/Interoperability-Simulation.html#ASE-Interoperability
 .. _CHGNet: https://github.com/CederGroupHub/chgnet/blob/e2a2b82bf2c64e5a3d39cd75d0addfa864a2771a/chgnet/model/dynamics.py#L63
-.. _GPAW: https://wiki.fysik.dtu.dk/gpaw
+.. _GPAW: https://gpaw.readthedocs.io
 .. _Hotbit: https://github.com/pekkosk/hotbit
 .. _DFTK: https://dftk.org
 .. _DeePMD-kit: https://github.com/deepmodeling/deepmd-kit
 .. _DFTD4: https://github.com/dftd4/dftd4/tree/main/python
 .. _DFTD3: https://dftd3.readthedocs.io/en/latest/api/python.html#module-dftd3.ase
+.. _EquiFormerV2: https://github.com/FAIR-Chem/fairchem#quick-start
 .. _FLEUR: https://github.com/JuDFTteam/ase-fleur
 .. _M3GNet: https://matgl.ai/matgl.ext.html#class-matglextasem3gnetcalculatorpotential-potential-state_attr-torchtensor--none--none-stress_weight-float--10-kwargs
 .. _MACE: https://mace-docs.readthedocs.io/en/latest/guide/ase.html
+.. _OrbModels: https://github.com/orbital-materials/orb-models/tree/main#usage-with-ase-calculator
+.. _SevenNet: https://github.com/MDIL-SNU/SevenNet#ase-calculator
 .. _TBLite: https://tblite.readthedocs.io/en/latest/users/ase.html
 .. _XTB: https://xtb-python.readthedocs.io/en/latest/ase-calculator.html
 
@@ -255,8 +269,9 @@ to set the ``ASE_CONFIG_PATH`` to an empty string.
    vasp
    qmmm
    checkpointing
-   mixing
+   fd
    loggingcalc
+   mixing
    dftd3
    others
    test

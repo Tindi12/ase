@@ -144,6 +144,22 @@ def test_cell_metric_twice_larger_lattice_vector(cell, target_shape):
     assert np.isclose(cell_metric, cell_metric_ref)
 
 
+@pytest.mark.parametrize('target_shape', ['sc', 'fcc'])
+def test_multiple_cells(target_shape: str) -> None:
+    """Test if multiple cells can be evaluated at one time."""
+    func = get_deviation_from_optimal_cell_shape
+    cells = np.array([
+        [[1, 0, 0], [0, 1, 0], [0, 0, 2]],
+        [[0, 1, 1], [1, 0, 1], [2, 2, 0]],
+    ])
+    metrics_separate = []
+    for i in range(cells.shape[0]):
+        metric = func(cells[i], target_shape)
+        metrics_separate.append(metric)
+    metrics_together = func(cells, target_shape)
+    np.testing.assert_allclose(metrics_separate, metrics_together)
+
+
 @pytest.mark.parametrize(
     'cell, target_shape', (
         ([[-1, 0, 0], [0, -1, 0], [0, 0, -1]], 'sc'),
@@ -160,46 +176,39 @@ def test_cell_metric_negative_determinant(cell, target_shape):
     assert np.isclose(cell_metric, 0.0)
 
 
-def test_find_optimal_cell_shape_sc2sc():
-    """Test `find_optimal_cell_shape` from `sc` to `sc`."""
-    cell = np.diag([1.0, 2.0, 4.0])
-    target_size = 8
-    target_shape = 'sc'
-    supercell_matrix = find_optimal_cell_shape(cell, target_size, target_shape)
+@pytest.mark.parametrize('cell, target_shape, target_size, ref_lengths', [
+    (np.diag([1.0, 2.0, 4.0]), 'sc', 8, 4.0),
+    ([[1, 0, 0], [0, 1, 0], [0, 0, 1]], 'fcc', 2, np.sqrt(2.0)),
+    ([[0, 1, 1], [1, 0, 1], [1, 1, 0]], 'sc', 4, 2.0),
+])
+def test_find_optimal_cell_shape(
+        cell, target_shape, target_size, ref_lengths):
+    """Test `find_optimal_cell_shape`.
+
+    We test from sc to sc; from sc to fcc; and from fcc to sc."""
+    supercell_matrix = find_optimal_cell_shape(cell, target_size, target_shape,
+                                               lower_limit=-1, upper_limit=1)
     cell_metric = get_deviation_from_optimal_cell_shape(
         supercell_matrix @ cell,
         target_shape,
     )
     assert np.isclose(cell_metric, 0.0)
     cell_lengths = np.linalg.norm(np.dot(supercell_matrix, cell), axis=1)
-    assert np.allclose(cell_lengths, 4.0)
+    assert np.allclose(cell_lengths, ref_lengths)
 
 
-def test_find_optimal_cell_shape_sc2fcc():
-    """Test `find_optimal_cell_shape` from `sc` to `fcc`."""
+def test_ideal_orientation() -> None:
+    """Test if the ideal orientation is selected among candidates."""
     cell = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     target_size = 2
     target_shape = 'fcc'
+    supercell_matrix_ref = [[0, 1, 1], [1, 0, 1], [1, 1, 0]]
     supercell_matrix = find_optimal_cell_shape(cell, target_size, target_shape)
-    cell_metric = get_deviation_from_optimal_cell_shape(
-        supercell_matrix @ cell,
-        target_shape,
-    )
-    assert np.isclose(cell_metric, 0.0)
-    cell_lengths = np.linalg.norm(np.dot(supercell_matrix, cell), axis=1)
-    assert np.allclose(cell_lengths, np.sqrt(2.0))
+    np.testing.assert_array_equal(supercell_matrix, supercell_matrix_ref)
 
-
-def test_find_optimal_cell_shape_fcc2sc():
-    """Test `find_optimal_cell_shape` from `fcc` to `sc`."""
     cell = [[0, 1, 1], [1, 0, 1], [1, 1, 0]]
     target_size = 4
     target_shape = 'sc'
+    supercell_matrix_ref = [[-1, 1, 1], [1, -1, 1], [1, 1, -1]]
     supercell_matrix = find_optimal_cell_shape(cell, target_size, target_shape)
-    cell_metric = get_deviation_from_optimal_cell_shape(
-        supercell_matrix @ cell,
-        target_shape,
-    )
-    assert np.isclose(cell_metric, 0.0)
-    cell_lengths = np.linalg.norm(np.dot(supercell_matrix, cell), axis=1)
-    assert np.allclose(cell_lengths, 2.0)
+    np.testing.assert_array_equal(supercell_matrix, supercell_matrix_ref)

@@ -51,7 +51,7 @@ named_minerals = [
 def test_mineral_spacegroups(datadir, mineral):
     atoms = read(datadir / mineral.datafile)
     dataset = check_symmetry(atoms)
-    assert dataset["number"] == mineral.spacegroup
+    assert dataset.number == mineral.spacegroup
 
 
 @pytest.mark.parametrize('mineral,rngseed', product(
@@ -66,18 +66,18 @@ def test_mineral_symmetrization(datadir, mineral, rngseed):
     atoms.set_cell(cell.array + rng.normal(scale=0.01, size=(3, 3)))
     atoms.rattle(0.01, rng=rng)
     rattled_dataset = check_symmetry(atoms)
-    assert rattled_dataset["number"] == 1
+    assert rattled_dataset.number == 1
 
     # Find a symmetry precision that recovers the original symmetry
     symprec = 1e-5
-    symatoms, dataset = get_symmetrized_atoms(atoms, symprec=symprec)
-    while dataset["number"] != mineral.spacegroup:
+    _symatoms, dataset = get_symmetrized_atoms(atoms, symprec=symprec)
+    while dataset.number != mineral.spacegroup:
         if symprec > 0.5:
             raise ValueError('Could not recover original symmetry of the'
                              f'mineral {mineral.name}')
         symprec *= 1.2
         try:
-            symatoms, dataset = get_symmetrized_atoms(
+            _symatoms, dataset = get_symmetrized_atoms(
                 atoms, symprec=symprec, final_symprec=1e-5)
         except IntermediateDatasetError:
             continue
