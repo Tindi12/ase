@@ -10,9 +10,9 @@ import warnings
 
 
 def modules():
-    """ Return all the plugin packages, that are present in this
+    """Return all the plugin packages, that are present in this
     package (each of them represent one built-in plugin, or register
-    the external plugins) """
+    the external plugins)"""
     modules = []
 
     def mod_name(mod):
@@ -23,18 +23,22 @@ def modules():
             module = importlib.import_module(name)
             return module
         except ImportError:
-            warnings.warn(f"Can not import {name} in {path}."
-                          " This ASE plugin is probably broken.")
+            warnings.warn(
+                f'Can not import {name} in {path}.'
+                ' This ASE plugin is probably broken.'
+            )
 
-    modules = (import_plugin_module(mod_name(mod), mod.module_finder.path)
-               for mod in pkgutil.iter_modules(__path__))
+    modules = (
+        import_plugin_module(mod_name(mod), mod.module_finder.path)
+        for mod in pkgutil.iter_modules(__path__)
+    )
 
     modules = (i for i in modules if i)
     return modules
 
 
 def register_plugins():
-    """ This function register the plugins in modules of this subpackage. """
+    """This function register the plugins in modules of this subpackage."""
     from .. import plugins
 
     for module in modules():

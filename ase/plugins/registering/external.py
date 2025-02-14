@@ -36,21 +36,23 @@ plugin_name = 'external'
 
 
 def register_external_io_format(plugin, entry_point):
-    """ Used in test """
+    """Used in test"""
 
     fmt = entry_point.load()
     # if entry_point.name in ioformats:
     #    raise ValueError(f'Format {entry_point.name} already defined')
     if not isinstance(fmt, ExternalIOFormat):
-        raise TypeError('Wrong type for registering external IO formats '
-                        f'in format {entry_point.name}, expected '
-                        'ExternalIOFormat')
-    return plugin.register_io_format(name=entry_point.name, **fmt._asdict(),
-                                     external=True)
+        raise TypeError(
+            'Wrong type for registering external IO formats '
+            f'in format {entry_point.name}, expected '
+            'ExternalIOFormat'
+        )
+    return plugin.register_io_format(
+        name=entry_point.name, **fmt._asdict(), external=True
+    )
 
 
 def _register_external_io_formats(plugin, group):
-
     if hasattr(entry_points(), 'select'):
         fmt_entry_points = entry_points().select(group=group)
     else:
@@ -67,7 +69,6 @@ def _register_external_io_formats(plugin, group):
 
 
 def _register_external_viewer_formats(plugin, group):
-
     def define_external_viewer(entry_point):
         """Define external viewer"""
 
@@ -76,15 +77,15 @@ def _register_external_viewer_formats(plugin, group):
         #    raise ValueError(f"Format {entry_point.name} already defined")
         if not isinstance(viewer_def, ExternalViewer):
             raise TypeError(
-                "Wrong type for registering external Viewer"
-                f"in format {entry_point.name}, expected "
-                "ExternalViewer"
+                'Wrong type for registering external Viewer'
+                f'in format {entry_point.name}, expected '
+                'ExternalViewer'
             )
-        return plugin.register_viewer(name=entry_point.name,
-                                      **viewer_def._asdict(),
-                                      external=True)
+        return plugin.register_viewer(
+            name=entry_point.name, **viewer_def._asdict(), external=True
+        )
 
-    if hasattr(entry_points(), "select"):
+    if hasattr(entry_points(), 'select'):
         viewer_entry_points = entry_points().select(group=group)
     else:
         viewer_entry_points = entry_points().get(group, ())
@@ -94,15 +95,14 @@ def _register_external_viewer_formats(plugin, group):
             define_external_viewer(entry_point)
         except Exception as exc:
             warnings.warn(
-                "Failed to register external "
-                f"Viewer {entry_point.name}: {exc}"
+                f'Failed to register external Viewer {entry_point.name}: {exc}'
             )
 
 
 def ase_register(plugin):
-    plugin.register_calculator("asap3.EMT", 'asap')
-    plugin.register_calculator("gpaw.GPAW")
-    plugin.register_calculator("hotbit.Calculator", name='hotbit')
+    plugin.register_calculator('asap3.EMT', 'asap')
+    plugin.register_calculator('gpaw.GPAW')
+    plugin.register_calculator('hotbit.Calculator', name='hotbit')
 
     # Register IO formats exposed through the ase.ioformats entry point
     _register_external_io_formats(plugin, 'ase.ioformats')

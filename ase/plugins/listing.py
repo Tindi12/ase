@@ -1,4 +1,4 @@
-""" Listings are containers used for plugins. In addition to
+"""Listings are containers used for plugins. In addition to
 standard dict, they allow to better finding of their items
 (e.g. by a given attribute) and creating "filtered views"
 (see the ``filter``  method).
@@ -11,7 +11,7 @@ from typing import Callable, Dict, Optional
 
 
 def _item_attribute(obj, attribute):
-    """ Return item attribute. If it is a list (or set), yield
+    """Return item attribute. If it is a list (or set), yield
     all the list items.
     """
     if hasattr(obj, attribute):
@@ -31,8 +31,8 @@ def _item_has_attribute(obj, attribute, value) -> bool:
 
 
 class ListingView(Mapping):
-    """ View, that lists items in a given listing according an
-    given attribute (e.g. extensions of an IO_Format) """
+    """View, that lists items in a given listing according an
+    given attribute (e.g. extensions of an IO_Format)"""
 
     def __init__(self, listing, attribute, mapping=None):
         self.listing = listing
@@ -41,8 +41,8 @@ class ListingView(Mapping):
 
     @cached_property
     def map(self):
-        """ Return the followin mapping:
-          <given attribute>:[list of objects having the attribute] """
+        """Return the followin mapping:
+        <given attribute>:[list of objects having the attribute]"""
         out = defaultdict(lambda: [])
         for item in self.listing.values():
             for attr in _item_attribute(item, self.attribute):
@@ -57,7 +57,7 @@ class ListingView(Mapping):
         return iter(self.map)
 
     def get_items(self, name):
-        """ Return a list of all the items having the attribute """
+        """Return a list of all the items having the attribute"""
         return self.map.get(name)
 
     def __len__(self):
@@ -65,7 +65,7 @@ class ListingView(Mapping):
 
 
 class BaseListing(Mapping):
-    """ Class, that lists something, e.g. Plugins or Pluggables
+    """Class, that lists something, e.g. Plugins or Pluggables
     (of calculators or formats etc...).
     The added items are required to have a name attribute.
 
@@ -74,11 +74,15 @@ class BaseListing(Mapping):
     """
 
     def add(self, item):
-        """ Add an item """
+        """Add an item"""
         self._items[item.name] = item
 
-    def info(self, prefix: str = '', opts: Dict = {},
-             filter: Optional[Callable[[object], bool]] = None) -> str:
+    def info(
+        self,
+        prefix: str = '',
+        opts: Dict = {},
+        filter: Optional[Callable[[object], bool]] = None,
+    ) -> str:
         """
         Parameters
         ----------
@@ -103,10 +107,11 @@ class BaseListing(Mapping):
         return '  \n'.join(out)
 
     def filter(self, filter):
-        """ Return a mapping with only the items thas pass through
-        the filter """
-        return LazyListing(lambda: {k: v for k, v in self._items.items()
-                                    if filter(v)})
+        """Return a mapping with only the items thas pass through
+        the filter"""
+        return LazyListing(
+            lambda: {k: v for k, v in self._items.items() if filter(v)}
+        )
 
     @staticmethod
     def _sorting_key(i):
@@ -114,7 +119,7 @@ class BaseListing(Mapping):
 
     @cached_property
     def sorted(self):
-        """ Return items in the listing, sorted by a predefined criteria """
+        """Return items in the listing, sorted by a predefined criteria"""
         ins = list(self._items.values())
         ins.sort(key=self._sorting_key)
         return ins
@@ -125,7 +130,7 @@ class BaseListing(Mapping):
     def __getitem__(self, name):
         out = self.find_by_name(name)
         if not out:
-            raise KeyError(f"There is no {name} in {self}")
+            raise KeyError(f'There is no {name} in {self}')
         return out
 
     def __iter__(self):
@@ -138,21 +143,22 @@ class BaseListing(Mapping):
         return self._items.keys()
 
     def find_by(self, attribute, value):
-        """ Find plugin according the given attribute.
+        """Find plugin according the given attribute.
         The attribute can be given by list of alternative values,
         or not at all - in this case, the default value for the attribute
-        will be used """
+        will be used"""
         for i in self.values():
             if _item_has_attribute(i, attribute, value):
                 return i
 
     def find_all_by(self, attribute, value):
-        """ Find plugin according the given attribute.
+        """Find plugin according the given attribute.
         The attribute can be given by list of alternative values,
         or not at all - in this case, the default value for the attribute
-        will be used """
-        return (i for i in self.values() if
-                _item_has_attribute(i, attribute, value))
+        will be used"""
+        return (
+            i for i in self.values() if _item_has_attribute(i, attribute, value)
+        )
 
     def find_by_name(self, name):
         return self._items.get(name, None)
@@ -162,13 +168,13 @@ class BaseListing(Mapping):
 
 
 class Listing(BaseListing):
-    """ Listing holds its own datas """
+    """Listing holds its own datas"""
+
     def __init__(self):
         self._items = {}
 
 
 class LazyListing(BaseListing):
-
     def __init__(self, lazy):
         self._lazy = lazy
 

@@ -34,11 +34,13 @@ from .pluggables import CalculatorPluggables
 from .plugin import Plugins
 from .registering import register_plugins  # NOQA
 
-plugins = Plugins({
-    'calculators': CalculatorPluggables,
-    'io_formats': _formats.IOFormatPluggables,
-    'viewers': _viewers.ViewerPluggables
-})
+plugins = Plugins(
+    {
+        'calculators': CalculatorPluggables,
+        'io_formats': _formats.IOFormatPluggables,
+        'viewers': _viewers.ViewerPluggables,
+    }
+)
 
 calculators: CalculatorPluggables = plugins.calculators
 io_formats: _formats.IOFormatPluggables = plugins.io_formats
