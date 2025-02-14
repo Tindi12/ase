@@ -23,6 +23,7 @@ import os
 import re
 import sys
 import warnings
+from functools import cached_property
 from importlib import import_module
 from pathlib import Path, PurePath
 from typing import (
@@ -43,7 +44,6 @@ from ase.parallel import parallel_function, parallel_generator
 from ase.plugins.listing import ListingView
 from ase.plugins.pluggables import BasePluggable, Pluggables
 from ase.utils import string2index
-from functools import cached_property
 
 PEEK_BYTES = 50000
 

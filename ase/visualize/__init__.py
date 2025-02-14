@@ -1,6 +1,7 @@
 # fmt: off
 
 import ase.parallel as parallel
+
 # To avoid circular import
 from .. import plugins  # NOQA: F401
 

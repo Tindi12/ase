@@ -6,8 +6,8 @@ standard dict, they allow to better finding of their items
 
 from collections import defaultdict
 from collections.abc import Mapping
-from typing import Callable, Dict, Optional
 from functools import cached_property
+from typing import Callable, Dict, Optional
 
 
 def _item_attribute(obj, attribute):

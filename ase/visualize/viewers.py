@@ -18,10 +18,10 @@ import subprocess
 import sys
 import tempfile
 from contextlib import contextmanager
+from functools import cached_property
 from importlib import import_module
 from io import BytesIO
 from pathlib import Path
-from functools import cached_property
 
 import ase.io
 from ase.plugins.listing import LazyListing

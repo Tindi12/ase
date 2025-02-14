@@ -46,11 +46,10 @@ To register a plugin, see a docstring of
 """
 
 import warnings
+from functools import cached_property
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
-
-from functools import cached_property
 
 from .listing import Listing
 
