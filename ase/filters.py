@@ -6,6 +6,7 @@ from itertools import product
 from warnings import warn
 
 import numpy as np
+import scipy as sp
 
 from ase.calculators.calculator import PropertyNotImplementedError
 from ase.stress import full_3x3_to_voigt_6_stress, voigt_6_to_full_3x3_stress
@@ -423,7 +424,8 @@ class UnitCellFilter(Filter):
 
         natoms = len(self.atoms)
         new_atom_positions = new[:natoms]
-        new_deform_grad = new[natoms:] / self.cell_factor
+        new_deform_grad = sp.linalg.polar(new[natoms:] / self.cell_factor)[1]
+        #new_deform_grad = new[natoms:] / self.cell_factor
         deform = (new_deform_grad - np.eye(3)) * self.mask
         # Set the new cell from the original cell and the new
         # deformation gradient.  Both current and final structures should

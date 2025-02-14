@@ -1,6 +1,7 @@
 from itertools import product
 
 import numpy as np
+import scipy as sp
 import pytest
 
 import ase
@@ -87,7 +88,9 @@ def test_cellfilter_stress(
     natoms = len(atoms)
     pos0 = filter.get_positions()
     np.random.seed(0)
-    pos0[natoms:, :] += 1e-2 * np.random.randn(3, 3)
+    pos0[natoms:, :] = sp.linalg.polar(
+        1e-2 * np.random.randn(3, 3) + pos0[natoms:, :]
+        )[1]
     filter.set_positions(pos0)
     grads_actual = -filter.get_forces()
 
