@@ -217,7 +217,7 @@ FINAL SINGLE POINT ENERGY      -815.959737266080
     energy_ref = -815.959737266080 * Hartree
     assert energy == energy_ref
 
-def test_read_orca_outout_file():
+def test_read_orca_output_file():
     sample_outputfile = """\
     
                                  *****************
