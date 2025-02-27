@@ -124,10 +124,8 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     dipole = None
     for line in lines:
         if 'Total Dipole Moment' in line:
-            dipole = np.array([float(_) for _ in line.split()[-3:]])
-    if dipole is not None:
-        return dipole * Bohr  # Return the last match
-    return dipole
+            dipole = np.array([float(_) for _ in line.split()[-3:]])*Bohr
+    return dipole # Return the last match
 
 
 def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
@@ -199,7 +197,8 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
 
     # Forces are not always available. If not available, return None.
     if line_start == -1:
-        forces = np.full((natoms, 3), None)
+        #forces = np.full((natoms, 3), None)
+        forces = None
     else:
         forces = np.zeros((natoms, 3))
 
@@ -210,29 +209,34 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
 
     return forces
 
-chunk_endings = ["ORCA TERMINATED NORMALLY",
-                 "ORCA GEOMETRY RELAXATION STEP"]
 
 def get_chunks(lines):
     """Separate out the chunks for each geometry relaxation step."""
     finished = False
-    relaxation = False
     relaxation_finished = False
+    relaxation = False
 
+    chunk_endings = ['ORCA TERMINATED NORMALLY',
+                    'ORCA GEOMETRY RELAXATION STEP']
     chunk_lines = []
     for line in lines:
-        if any([str in line for str in chunk_endings]): 
+        # Assemble chunks
+        if any([str in line for str in chunk_endings]):
             chunk_lines.append(line)
             yield chunk_lines
             chunk_lines = []
         else:
             chunk_lines.append(line)
+
         if 'ORCA TERMINATED NORMALLY' in line:
             finished = True
-        if 'ORCA SCF GRADIENT CALCULATION' in line:
-            relaxation = True
+
         if 'THE OPTIMIZATION HAS CONVERGED' in line:
             relaxation_finished = True
+
+        # Check if calculation is an optimization.
+        if 'ORCA SCF GRADIENT CALCULATION' in line:
+            relaxation = True
 
     # Give error if calculation not finished for single-point calculations.
     if not finished and not relaxation:
@@ -240,8 +244,11 @@ def get_chunks(lines):
     # Give warning if calculation not finished for geometry optimizations.
     elif not finished and relaxation:
         print('WARNING: Calculation did not finish!')
+        yield chunk_lines
+    # Calculation may have finished, but relaxation may have not.
     elif not relaxation_finished and relaxation:
         print('WARNING: Geometry optimization did not converge!')
+        yield chunk_lines
 
 @reader
 def read_orca_output(fd, index=slice(None)):
@@ -263,9 +270,6 @@ def read_orca_output(fd, index=slice(None)):
         atoms = read_atoms(chunk)
         forces = read_forces(chunk)
         dipole = read_dipole(chunk)
-        # Currently unused:
-        # charge = read_charge(chunk)
-        # com = read_center_of_mass(chunk)
 
         atoms.calc = SinglePointDFTCalculator(
             atoms,
@@ -310,21 +314,39 @@ def read_orca_engrad(fd):
     return forces
 
 
+@reader
+def read_orca_output_deprecated(fd):
+    """ From the ORCA output file: Read Energy and dipole moment
+    in the frame of reference of the center of mass 
+    This routine is deprecated, it reproduces the old functionality 
+    of reading energy, forces etc, directly from output without 
+    creation of atoms object. 
+    It is kept to ensure backwards compatability.
+    """
+    lines = fd.readlines()
+
+    energy = read_energy(lines)
+    charge = read_charge(lines)
+    com = read_center_of_mass(lines)
+    dipole = read_dipole(lines)
+
+    results = {}
+    results['energy'] = energy
+    results['free_energy'] = energy
+
+    if com is not None and dipole is not None:
+        dipole = dipole + com * charge
+        results['dipole'] = dipole
+
+    return results
+
 def read_orca_outputs(directory, stdout_path):
-    # Reproduce old functionality to keep backwards compatability.
+    """Reproduces old functionality of reading energy, forces etc
+       directly from output without creation of atoms object.
+       This is kept to ensure backwards compatability"""
     stdout_path = Path(stdout_path)
     results = {}
-    atoms = read_orca_output(stdout_path, index=-1)
-
-    results['energy'] = atoms.get_total_energy()
-    results['free_energy'] = atoms.get_total_energy()
-
-    if (
-        abs(atoms.get_dipole_moment()[0]) > 0
-        and abs(atoms.get_dipole_moment()[1]) > 0
-        and abs(atoms.get_dipole_moment()[2]) > 0
-    ):
-        results['dipole'] = atoms.get_dipole_moment()
+    results.update(read_orca_output_deprecated(stdout_path))
 
     # Does engrad always exist? - No!
     # Will there be other files -No -> We should just take engrad
