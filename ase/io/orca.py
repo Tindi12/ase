@@ -124,8 +124,8 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     dipole = None
     for line in lines:
         if 'Total Dipole Moment' in line:
-            dipole = np.array([float(_) for _ in line.split()[-3:]])*Bohr
-    return dipole # Return the last match
+            dipole = np.array([float(_) for _ in line.split()[-3:]]) * Bohr
+    return dipole   # Return the last match
 
 
 def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
@@ -197,7 +197,6 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
 
     # Forces are not always available. If not available, return None.
     if line_start == -1:
-        #forces = np.full((natoms, 3), None)
         forces = None
     else:
         forces = np.zeros((natoms, 3))
@@ -249,6 +248,7 @@ def get_chunks(lines):
     elif not relaxation_finished and relaxation:
         print('WARNING: Geometry optimization did not converge!')
         yield chunk_lines
+
 
 @reader
 def read_orca_output(fd, index=slice(None)):
@@ -317,10 +317,10 @@ def read_orca_engrad(fd):
 @reader
 def read_orca_output_deprecated(fd):
     """ From the ORCA output file: Read Energy and dipole moment
-    in the frame of reference of the center of mass 
-    This routine is deprecated, it reproduces the old functionality 
-    of reading energy, forces etc, directly from output without 
-    creation of atoms object. 
+    in the frame of reference of the center of mass
+    This routine is deprecated, it reproduces the old functionality
+    of reading energy, forces etc, directly from output without
+    creation of atoms object.
     It is kept to ensure backwards compatability.
     """
     lines = fd.readlines()
@@ -339,6 +339,7 @@ def read_orca_output_deprecated(fd):
         results['dipole'] = dipole
 
     return results
+
 
 def read_orca_outputs(directory, stdout_path):
     """Reproduces old functionality of reading energy, forces etc
