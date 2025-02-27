@@ -121,7 +121,7 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
 
     Note that the read dipole moment is for the COM frame of reference.
     """
-    dipole = np.zeros(3)
+    dipole = None
     for line in lines:
         if 'Total Dipole Moment' in line:
             dipole = np.array([float(_) for _ in line.split()[-3:]])
@@ -210,28 +210,29 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
 
     return forces
 
+chunk_endings = ["ORCA TERMINATED NORMALLY",
+                 "ORCA GEOMETRY RELAXATION STEP"]
 
 def get_chunks(lines):
     """Separate out the chunks for each geometry relaxation step."""
     finished = False
     relaxation = False
+    relaxation_finished = False
 
     chunk_lines = []
     for line in lines:
-        if 'FINAL SINGLE POINT ENERGY' in line:
+        if any([str in line for str in chunk_endings]): 
             chunk_lines.append(line)
             yield chunk_lines
             chunk_lines = []
-        elif 'ORCA TERMINATED NORMALLY' in line:
-            finished = True
-            # Return the last part of the calculation
-            yield chunk_lines
-        elif 'ORCA SCF GRADIENT CALCULATION' in line:
-            relaxation = True
-        elif 'FINAL SINGLE POINT ENERGY' not in line:
-            chunk_lines.append(line)
         else:
-            raise ORCAParseError('No information about chunk in output file.')
+            chunk_lines.append(line)
+        if 'ORCA TERMINATED NORMALLY' in line:
+            finished = True
+        if 'ORCA SCF GRADIENT CALCULATION' in line:
+            relaxation = True
+        if 'THE OPTIMIZATION HAS CONVERGED' in line:
+            relaxation_finished = True
 
     # Give error if calculation not finished for single-point calculations.
     if not finished and not relaxation:
@@ -239,10 +240,11 @@ def get_chunks(lines):
     # Give warning if calculation not finished for geometry optimizations.
     elif not finished and relaxation:
         print('WARNING: Calculation did not finish!')
-
+    elif not relaxation_finished and relaxation:
+        print('WARNING: Geometry optimization did not converge!')
 
 @reader
-def read_orca_output(fd, index):
+def read_orca_output(fd, index=slice(None)):
     """From the ORCA output file: Read Energy, positions, forces
        and dipole moment.
 
@@ -256,19 +258,14 @@ def read_orca_output(fd, index):
     chunks = list(get_chunks(lines))
 
     # Iterate over chunks and create a separate atoms object for each
-    for i, chunk in enumerate(chunks[:-1]):
+    for i, chunk in enumerate(chunks):
         energy = read_energy(chunk)
         atoms = read_atoms(chunk)
         forces = read_forces(chunk)
+        dipole = read_dipole(chunk)
         # Currently unused:
         # charge = read_charge(chunk)
         # com = read_center_of_mass(chunk)
-
-        # Dipole moment only printed at the end of calculation.
-        if i == len(chunks) - 2:
-            dipole = read_dipole(chunks[-1])
-        else:
-            dipole = np.zeros(3)
 
         atoms.calc = SinglePointDFTCalculator(
             atoms,
@@ -285,7 +282,7 @@ def read_orca_output(fd, index):
         # collect images
         images.append(atoms)
 
-    return images[index]
+    yield from images[index]
 
 
 @reader
