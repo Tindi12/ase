@@ -1095,7 +1095,7 @@ class FixInternalsS(FixConstraint):
                 return
             Amatrix = self.get_Amatrix(time_mass, newpos)
             lamdas = self.get_lagrangian_multipliers(Amatrix)
-            dnewpos = -time_mass * np.sum(lamda *
+            dnewpos = -time_mass * np.sum(lamdas * self.jacobian, axis=0)
             newpos += dnewpos
 
 
@@ -1153,10 +1153,9 @@ class FixInternalsS(FixConstraint):
             self.projected_force = np.dot(self.jacobian, forces.ravel())  # * self.jacobian??
             self.jacobian /= np.linalg.norm(self.jacobian)
 
-        class FixBondCombo(FixInternalsBase):
+    class FixBondCombo(FixInternalsBase):
         """Constraint subobject for fixing linear combination of bond lengths
         within FixInternals.
-
         sum_i( coef_i * bond_length_i ) = constant
         """
         def prepare_jacobianOLD(self, pos):
@@ -1490,7 +1489,7 @@ class FixInternals(FixConstraint):
         self.initialize(atoms)
         for constraint in self.constraints:
             constraint.setup_jacobian(atoms.positions)
-        for _ in range(50):
+        for j in range(50):
             maxerr = 0.0
             for constraint in self.constraints:
                 constraint.adjust_positions(atoms.positions, newpos)
