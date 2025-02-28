@@ -1,3 +1,5 @@
+# fmt: off
+
 """Reads Quantum ESPRESSO files.
 
 Read multiple structures and results from pw.x output files. Read
@@ -198,7 +200,7 @@ def read_espresso_out(fileobj, index=slice(None), results_required=True):
         else:
             if _PW_CELL in pwo_lines[image_index - 5]:
                 # CELL_PARAMETERS would be just before positions if present
-                cell, cell_alat = get_cell_parameters(
+                cell, _ = get_cell_parameters(
                     pwo_lines[image_index - 5:image_index])
             else:
                 cell = prev_structure.cell

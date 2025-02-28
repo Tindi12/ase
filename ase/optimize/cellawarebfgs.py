@@ -1,3 +1,5 @@
+# fmt: off
+
 import time
 from typing import IO, Optional, Union
 
@@ -103,7 +105,7 @@ class CellAwareBFGS(BFGS):
         self.fmax = fmax
         self.smax = smax
         if steps is not None:
-            self.max_steps = steps
+            return Dynamics.run(self, steps=steps)
         return Dynamics.run(self)
 
     def log(self, forces=None):
