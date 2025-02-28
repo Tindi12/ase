@@ -1290,9 +1290,218 @@ class FixInternalsS(FixConstraint):
             return 'FixDihedral({}, {})'.format(self.targetvalue, *self.indices)
 
 
+class FixInternals(FixConstraint):
+    """Constraint object for fixing multiple internal coordinates using Lagrangian multipliers.
+
+    Allows fixing bond lengths, angles, and dihedrals as well as linear
+    combinations of bond lengths.
+    """
+
+    def __init__(self, bonds=None, angles=None, dihedrals=None, bondcombos=None, mic=False, epsilon=1.e-7):
+        self.bonds = bonds or []
+        self.angles = angles or []
+        self.dihedrals = dihedrals or []
+        self.bondcombos = bondcombos or []
+        self.mic = mic
+        self.epsilon = epsilon
+
+        self.n = (len(self.bonds) + len(self.angles) + len(self.dihedrals) + len(self.bondcombos))
+
+        # Initialize these at run-time:
+        self.constraints = []
+        self.initialized = False
+
+    def get_removed_dof(self, atoms):
+        return self.n
+
+    def initialize(self, atoms):
+        if self.initialized:
+            return
+        self.initialized = True
+        masses = atoms.get_masses()
+        cell = atoms.cell
+        pbc = atoms.pbc
+
+        for bond in self.bonds:
+            self.constraints.append(self.FixBondLength(bond[0], bond[1], masses, cell, pbc))
+        for angle in self.angles:
+            self.constraints.append(self.FixAngle(angle[0], angle[1], masses, cell, pbc))
+        for dihedral in self.dihedrals:
+            self.constraints.append(self.FixDihedral(dihedral[0], dihedral[1], masses, cell, pbc))
+        for bondcombo in self.bondcombos:
+            self.constraints.append(self.FixBondCombo(bondcombo[0], bondcombo[1], masses, cell, pbc))
+
+    def adjust_positions(self, atoms, newpos):
+        self.initialize(atoms)
+        pos = atoms.get_positions()
+
+        # determine timestep dt
+        dpos = newpos - pos
+        veloc = atoms.get_velocities()
+        vv = (veloc != 0.)
+        dt = 1.
+        if vv.any():
+            dt = np.mean(np.linalg.norm(dpos[vv], axis=1) / np.linalg.norm(veloc[vv], axis1))
+        time_mass = 0.5 * dt**2 / atoms.get_masses()[:, None]
+
+        for j in range(50):
+            sigma = self.get_total_sigma(newpos)
+            if sigma < self.epsilon:
+                return
+            Amatrix = self.get_Amatrix(time_mass, newpos)
+            lamdas = self.get_lagrangian_multipliers(Amatrix)
+            dnewpos = -time_mass * np.sum(lamdas * self.jacobian, axis=0)
+            newpos += dnewpos
+
+        raise ValueError('FixInternals.adjust_positions did not converge.')
+
+    def get_total_sigma(self, pos):
+        sigma = 0.0
+        for constraint in self.constraints:
+            constraint.prepare_jacobian(pos)
+            sigma += constraint.sigma**2
+        return sigma
+
+    def get_Amatrix(self, time_mass, pos):
+        Amatrix = np.zeros((self.n, self.n))
+        for i, constraint in enumerate(self.constraints):
+            jacobian = constraint.get_jacobian(pos)
+            Amatrix[i, :] = jacobian @ time_mass @ jacobian.T
+        return Amatrix
+
+    def get_lagrangian_multipliers(self, Amatrix):
+        return np.linalg.solve(Amatrix, np.ones(self.n))
+
+    class FixInternalsBase:
+        """Base class for subclasses of FixInternals."""
+
+        def __init__(self, targetvalue, indices, masses, cell, pbc):
+            self.targetvalue = targetvalue
+            self.indices = [defin[0:-1] for defin in indices]
+            self.coefs = np.asarray([defin[-1] for defin in indices])
+            self.masses = masses
+            self.jacobian = []
+            self.sigma = 1.
+            self.projected_force = None
+            self.cell = cell
+            self.pbc = pbc
+
+        def finalize_jacobian(self, pos, n_internals, n, derivs):
+            jacobian = np.zeros((n_internals, *pos.shape))
+            for i, idx in enumerate(self.indices):
+                for j in range(n):
+                    jacobian[i, idx[j]] = derivs[i, j]
+            jacobian = jacobian.reshape((n_internals, 3 * len(pos)))
+            self.jacobian = self.coefs @ jacobian
+
+        def finalize_positions(self, newpos):
+            jacobian = self.jacobian / self.masses
+            lamda = -self.sigma / np.dot(jacobian, self.jacobian)
+            dnewpos = lamda * jacobian
+            newpos += dnewpos.reshape(newpos.shape)
+
+    class FixBondLength(FixInternalsBase):
+        """Constraint subobject for fixing bond length within FixInternals."""
+
+        def __init__(self, targetvalue, indices, masses, cell, pbc):
+            indices = [list(indices) + [1.]]
+            super().__init__(targetvalue, indices, masses, cell, pbc)
+
+        def prepare_jacobian(self, pos):
+            bondvectors = [pos[k] - pos[h] for h, k in self.indices]
+            derivs = get_distances_derivatives(bondvectors, cell=self.cell, pbc=self.pbc)
+            self.finalize_jacobian(pos, len(bondvectors), 2, derivs)
+
+        def adjust_positions(self, oldpos, newpos):
+            bondvectors = [newpos[k] - newpos[h] for h, k in self.indices]
+            (_, ), (dists, ) = conditional_find_mic([bondvectors], cell=self.cell, pbc=self.pbc)
+            value = self.coefs @ dists
+            self.sigma = value**2 - self.targetvalue**2
+            self.finalize_positions(newpos)
+
+        @staticmethod
+        def get_value(atoms, indices, mic):
+            return atoms.get_distance(*indices, mic=mic)
+
+        def __repr__(self):
+            return f'FixBondLength({self.targetvalue}, {self.indices})'
+
+    class FixAngle(FixInternalsBase):
+        """Constraint subobject for fixing an angle within FixInternals."""
+
+        def __init__(self, targetvalue, indices, masses, cell, pbc):
+            indices = [list(indices) + [1.]]
+            super().__init__(targetvalue, indices, masses, cell, pbc)
+
+        def prepare_jacobian(self, pos):
+            v0, v1 = self.gather_vectors(pos)
+            derivs = get_angles_derivatives(v0, v1, cell=self.cell, pbc=self.pbc)
+            self.finalize_jacobian(pos, len(v0), 3, derivs)
+
+        def adjust_positions(self, oldpos, newpos):
+            v0, v1 = self.gather_vectors(newpos)
+            value = get_angles(v0, v1, cell=self.cell, pbc=self.pbc)
+            self.sigma = value - self.targetvalue
+            self.finalize_positions(newpos)
+
+        @staticmethod
+        def get_value(atoms, indices, mic):
+            return atoms.get_angle(*indices, mic=mic)
+
+        def __repr__(self):
+            return f'FixAngle({self.targetvalue}, {self.indices})'
+
+    class FixDihedral(FixInternalsBase):
+        """Constraint subobject for fixing a dihedral angle within FixInternals."""
+
+        def __init__(self, targetvalue, indices, masses, cell, pbc):
+            indices = [list(indices) + [1.]]
+            super().__init__(targetvalue, indices, masses, cell, pbc)
+
+        def prepare_jacobian(self, pos):
+            v0, v1, v2 = self.gather_vectors(pos)
+            derivs = get_dihedrals_derivatives(v0, v1, v2, cell=self.cell, pbc=self.pbc)
+            self.finalize_jacobian(pos, len(v0), 4, derivs)
+
+        def adjust_positions(self, oldpos, newpos):
+            v0, v1, v2 = self.gather_vectors(newpos)
+            value = get_dihedrals(v0, v1, v2, cell=self.cell, pbc=self.pbc)
+            self.sigma = (value - self.targetvalue + 180) % 360 - 180
+            self.finalize_positions(newpos)
+
+        @staticmethod
+        def get_value(atoms, indices, mic):
+            return atoms.get_dihedral(*indices, mic=mic)
+
+        def __repr__(self):
+            return f'FixDihedral({self.targetvalue}, {self.indices})'
+
+    class FixBondCombo(FixInternalsBase):
+        """Constraint subobject for fixing linear combination of bond lengths within FixInternals."""
+
+        def prepare_jacobian(self, pos):
+            bondvectors = [pos[k] - pos[h] for h, k in self.indices]
+            derivs = get_distances_derivatives(bondvectors, cell=self.cell, pbc=self.pbc)
+            (_, ), (dists, ) = conditional_find_mic([bondvectors], cell=self.cell, pbc=self.pbc)
+            derivs *= 2 * dists[:, None, None]
+            self.finalize_jacobian(pos, len(bondvectors), 2, derivs)
+
+        def adjust_positions(self, oldpos, newpos):
+            bondvectors = [newpos[k] - newpos[h] for h, k in self.indices]
+            (_, ), (dists, ) = conditional_find_mic([bondvectors], cell=self.cell, pbc=self.pbc)
+            value = self.coefs @ dists
+            self.sigma = value**2 - self.targetvalue**2
+            self.finalize_positions(newpos)
+
+        @staticmethod
+        def get_value(atoms, indices, mic):
+            return FixInternals.get_bondcombo(atoms, indices, mic)
+
+        def __repr__(self):
+            return f'FixBondCombo({self.targetvalue}, {self.indices}, {self.coefs})'
 # TODO: Better interface might be to use dictionaries in place of very
 # nested lists/tuples
-class FixInternals(FixConstraint):
+class FixInternalsorig(FixConstraint):
     """Constraint object for fixing multiple internal coordinates.
 
     Allows fixing bonds, angles, dihedrals as well as linear combinations
