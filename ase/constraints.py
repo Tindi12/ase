@@ -952,14 +952,41 @@ class FixInternalsS(FixConstraint):
             cell = atoms.cell
             pbc = atoms.pbc
         self.constraints = []
-        for data, make_constr in [(self.bonds, self.FixBondLengthAlt),
+        for data, ConstrClass in [(self.bonds, self.FixBondLengthAlt),
                                   (self.angles, self.FixAngle),
                                   (self.dihedrals, self.FixDihedral),
                                   (self.bondcombos, self.FixBondCombo)]:
             for datum in data:
-                constr = make_constr(datum[0], datum[1], masses, cell, pbc)
+                targetvalue = datum [0]
+                if targetvalue is None: # set to current value
+                    targetvalue = ConstrClass.get_value(atoms, datum[1], self.mic)
+                constr = ConstrClass(datum[0], datum[1], masses, cell, pbc)
                 self.constraints.append(constr)
         self.initialized = True
+
+    @staticmethod
+    def get_bondcombo(atoms, indices, mic=False):
+        """Convenience function to return the value of the bondcombo coordinate
+        (linear combination of bond lengths) for the given Atoms object 'atoms'.
+        Example: Get the current value of the linear combination of two bond
+        lengths defined as `bondcombo = [[0, 1, 1.0], [2, 3, -1.0]]`."""
+        c = sum(df[2] * atoms.get_distance(*df[:2], mic=mic) for df in indices)
+        return c
+
+    def get_subconstraint(self, atoms, definition):
+        """Get pointer to a specific subconstraint.
+        Identification by its definition via indices (and coefficients)."""
+        self.initialize(atoms)
+        for subconstr in self.constraints:
+            if isinstance(definition[0], Sequence):  # Combo constraint
+                defin = [d + [c] for d, c in zip(subconstr.indices,
+                                                 subconstr.coefs)]
+                if defin == definition:
+                    return subconstr
+            else:  # identify primitive constraints by their indices
+                if subconstr.indices == [definition]:
+                    return subconstr
+        raise ValueError('Given `definition` not found on Atoms object.')
 
     def shuffle_definitions(self, shuffle_dic, internal_type):
         dfns = []  # definitions
@@ -1039,9 +1066,9 @@ class FixInternalsS(FixConstraint):
             ai = aconstr.indices
             for bconstr in self.constraints:
                 bi = bconstr.indices
-                    for ax in ai:
-                        for bx in bi:
-                            mat[ax, bx] = aconstr.get_dsigma(pos) * time_mass * bconstr.get_dsigma(pos)
+                for ax in ai:
+                    for bx in bi:
+                        mat[ax, bx] = aconstr.get_dsigma(pos) * time_mass * bconstr.get_dsigma(pos)
         return mat
 
     def get_lagrangian_multipliers(Amatrix):
@@ -1088,16 +1115,13 @@ class FixInternalsS(FixConstraint):
         pass
 
     def __repr__(self):
-        constraints = repr(self.constraints)
-        return 'FixInternals(_copy_init=%s, epsilon=%s)' % (constraints,
-                                                            repr(self.epsilon))
-
-    def __str__(self):
-        return '\n'.join([repr(c) for c in self.constraints])
+        constraints = [repr(constr) for constr in self.constraints]
+        return f'FixInternals(_copy_init={constraints}, epsilon={self.epsilon})'
 
     # Classes for internal use in FixInternals
     class FixInternalsBase:
         """Base class for subclasses of FixInternals."""
+
         def __init__(self, targetvalue, indices, masses, cell, pbc):
             self.targetvalue = targetvalue  # constant target value
             self.indices = [defin[0:-1] for defin in indices]  # indices, defs
@@ -1117,7 +1141,7 @@ class FixInternalsS(FixConstraint):
                 for j in range(n):
                     jacobian[i, idx[j]] = derivs[i, j]
             jacobian = jacobian.reshape((n_internals, 3 * len(pos)))
-            self.jacobian = self.coefs @ jacobian
+            self.jacobian = self.coefs @ jacobian  ###return?
 
         def finalize_positions(self, newpos):
             jacobian = self.jacobian / self.masses
@@ -1126,7 +1150,7 @@ class FixInternalsS(FixConstraint):
             newpos += dnewpos.reshape(newpos.shape)
 
         def adjust_forces(self, positions, forces):
-            self.projected_force = np.dot(self.jacobian, forces.ravel())
+            self.projected_force = np.dot(self.jacobian, forces.ravel())  # * self.jacobian??
             self.jacobian /= np.linalg.norm(self.jacobian)
 
         class FixBondCombo(FixInternalsBase):
@@ -1169,6 +1193,10 @@ class FixInternalsS(FixConstraint):
             self.sigma = value**2 - self.targetvalue**2
             self.finalize_positions(newpos)
 
+        @staticmethod
+        def get_value(atoms, indices, mic):
+            return FixInternals.get_bondcombo(atoms, indices, mic)
+
         def __repr__(self):
             return 'FixBondCombo({}, {}, {})'.format(repr(self.targetvalue),
                                                      self.indices, self.coefs)
@@ -1179,6 +1207,10 @@ class FixInternalsS(FixConstraint):
         def __init__(self, targetvalue, indices, masses, cell, pbc):
             indices = [list(indices) + [1.]]  # bond definition with coef 1.
             super().__init__(targetvalue, indices, masses, cell=cell, pbc=pbc)
+
+        @staticmethod
+        def get_value(atoms, indices, mic):
+            return atoms.get_distance(*indices, mic=mic)
 
         def __repr__(self):
             return 'FixBondLengthAlt({}, {})'.format(self.targetvalue,
@@ -1213,6 +1245,10 @@ class FixInternalsS(FixConstraint):
             self.sigma = value - self.targetvalue
             self.finalize_positions(newpos)
 
+        @staticmethod
+        def get_value(atoms, indices, mic):
+            return atoms.get_angle(*indices, mic=mic)
+
         def __repr__(self):
             return 'FixAngle({}, {})'.format(self.targetvalue, *self.indices)
 
@@ -1246,6 +1282,10 @@ class FixInternalsS(FixConstraint):
             # apply minimum dihedral difference 'convention': (diff <= 180)
             self.sigma = (value - self.targetvalue + 180) % 360 - 180
             self.finalize_positions(newpos)
+
+        @staticmethod
+        def get_value(atoms, indices, mic):
+            return atoms.get_dihedral(*indices, mic=mic)
 
         def __repr__(self):
             return 'FixDihedral({}, {})'.format(self.targetvalue, *self.indices)
