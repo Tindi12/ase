@@ -286,7 +286,8 @@ def read_orca_output(fd, index=slice(None)):
         # collect images
         images.append(atoms)
 
-    yield from images[index]
+    #yield from images[index]
+    return images[index]
 
 
 @reader
