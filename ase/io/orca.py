@@ -253,11 +253,8 @@ def read_orca_output(fd, index=slice(None)):
     """
     images = []
 
-    # Get the chunks of the output file
-    chunks = list(get_chunks(fd.readlines()))
-
     # Iterate over chunks and create a separate atoms object for each
-    for i, chunk in enumerate(chunks):
+    for chunk in get_chunks(fd):
         energy = read_energy(chunk)
         atoms = read_atoms(chunk)
         forces = read_forces(chunk)
