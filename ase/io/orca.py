@@ -121,7 +121,7 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     return dipole   # Return the last match
 
 
-def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
+def read_atoms(lines: List[str]) -> Atoms:
     """Read atomic positions and symbols. Create Atoms object."""
     line_start = -1
     natoms = 0
