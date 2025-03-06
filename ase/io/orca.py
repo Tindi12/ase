@@ -119,7 +119,8 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     dipole = None
     for line in lines:
         if 'Total Dipole Moment' in line:
-            dipole = np.array([float(_) for _ in line.split()[-3:]]) * Bohr
+            #dipole = np.array([float(_) for _ in line.split()[-3:]]) * Bohr
+            dipole = np.array([float(x) for x in line.split()[-3:]]) * Bohr
     return dipole   # Return the last match
 
 
