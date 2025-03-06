@@ -4,6 +4,7 @@ import re
 from io import StringIO
 from pathlib import Path
 from typing import List, Optional
+import warnings
 
 import numpy as np
 
@@ -242,12 +243,11 @@ def get_chunks(lines):
         raise ORCAParseError('Error: Calculation did not finish!')
     # Give warning if calculation not finished for geometry optimizations.
     elif not finished and relaxation:
-        print('WARNING: Calculation did not finish!')
+        warnings.warn('Calculation did not finish!')
         yield chunk_lines
     # Calculation may have finished, but relaxation may have not.
     elif not relaxation_finished and relaxation:
-        print('WARNING: Geometry optimization did not converge!')
-        yield chunk_lines
+        warnings.warn('Geometry optimization did not converge!')
 
 
 @reader
