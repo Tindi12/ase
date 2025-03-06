@@ -13,17 +13,9 @@ from ase.calculators.singlepoint import SinglePointDFTCalculator
 from ase.io import read
 from ase.units import Bohr, Hartree
 from ase.utils import reader, writer
+from ase.io import ParseError
 
 # Made from NWChem and FHI-aims interface
-
-
-class ORCAParseError(Exception):
-    """Exception raised if an error occurs when parsing an ORCA output file"""
-
-    def __init__(self, message):
-        self.message = message
-        super().__init__(self.message)
-
 
 @reader
 def read_geom_orcainp(fd):
@@ -142,11 +134,11 @@ def read_atoms(lines: List[str]) -> Optional[np.ndarray]:
 
     # Check if atoms present and if their number is given.
     if line_start == -1:
-        raise ORCAParseError(
+        raise ParseError(
             'No information about the structure in the ORCA output file.'
         )
     elif natoms == 0:
-        raise ORCAParseError(
+        raise ParseError(
             'No information about number of atoms in the ORCA output file.'
         )
 
@@ -192,7 +184,7 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
 
     # Check if number of atoms is available.
     if natoms == 0:
-        raise ORCAParseError(
+        raise ParseError(
             'No information about number of atoms in the ORCA output file.'
         )
 
@@ -240,11 +232,10 @@ def get_chunks(lines):
 
     # Give error if calculation not finished for single-point calculations.
     if not finished and not relaxation:
-        raise ORCAParseError('Error: Calculation did not finish!')
+        raise ParseError('Error: Calculation did not finish!')
     # Give warning if calculation not finished for geometry optimizations.
     elif not finished and relaxation:
         warnings.warn('Calculation did not finish!')
-        yield chunk_lines
     # Calculation may have finished, but relaxation may have not.
     elif not relaxation_finished and relaxation:
         warnings.warn('Geometry optimization did not converge!')
