@@ -252,10 +252,9 @@ def read_orca_output(fd, index=slice(None)):
     parsing the output file in chunks.
     """
     images = []
-    lines = fd.readlines()
 
     # Get the chunks of the output file
-    chunks = list(get_chunks(lines))
+    chunks = list(get_chunks(fd.readlines()))
 
     # Iterate over chunks and create a separate atoms object for each
     for i, chunk in enumerate(chunks):
