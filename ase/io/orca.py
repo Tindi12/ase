@@ -4,6 +4,7 @@ import re
 from io import StringIO
 from pathlib import Path
 from typing import List, Optional
+from collections.abc import Iterator, Iterable
 import warnings
 
 import numpy as np
@@ -202,7 +203,8 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
     return forces
 
 
-def get_chunks(lines):
+#def get_chunks(lines):
+def get_chunks(lines:Iterable[str]) -> Iterator[list[str]]:
     """Separate out the chunks for each geometry relaxation step."""
     finished = False
     relaxation_finished = False
