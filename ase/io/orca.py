@@ -15,6 +15,7 @@ from ase.io import read
 from ase.units import Bohr, Hartree
 from ase.utils import reader, writer
 from ase.io import ParseError
+from ase.utils import deprecated
 
 # Made from NWChem and FHI-aims interface
 
@@ -242,7 +243,6 @@ def get_chunks(lines:Iterable[str]) -> Iterator[list[str]]:
     elif not relaxation_finished and relaxation:
         warnings.warn('Geometry optimization did not converge!')
 
-
 @reader
 def read_orca_output(fd, index=slice(None)):
     """From the ORCA output file: Read Energy, positions, forces
@@ -305,13 +305,22 @@ def read_orca_engrad(fd):
 
 
 @reader
-def read_orca_output_deprecated(fd):
+@deprecated('Please use ase.io.read instead, e.g.,\n'
+            'from ase.io import read \n'
+            'read("orca.out")',
+            DeprecationWarning)
+def read_orca_output_results(fd):
     """ From the ORCA output file: Read Energy and dipole moment
     in the frame of reference of the center of mass
     This routine is deprecated, it reproduces the old functionality
     of reading energy, forces etc, directly from output without
     creation of atoms object.
     It is kept to ensure backwards compatability.
+   
+   .. deprecated:: 3.24.0
+       Use of read_orca_output_results is deprected, please
+       process ORCA output by using ase.io.read,
+       e.g., read('orca.out')"
     """
     lines = fd.readlines()
 
@@ -331,13 +340,23 @@ def read_orca_output_deprecated(fd):
     return results
 
 
+@deprecated('Please use ase.io.read instead, e.g.,\n'
+            'from ase.io import read \n'
+            'read("orca.out")',
+            DeprecationWarning)
 def read_orca_outputs(directory, stdout_path):
     """Reproduces old functionality of reading energy, forces etc
        directly from output without creation of atoms object.
-       This is kept to ensure backwards compatability"""
+       This is kept to ensure backwards compatability
+    
+    .. deprecated:: 3.24.0
+       Use of read_orca_outputs is deprected, please
+       process ORCA output by using ase.io.read
+       e.g., read('orca.out')" 
+    """
     stdout_path = Path(stdout_path)
     results = {}
-    results.update(read_orca_output_deprecated(stdout_path))
+    results.update(read_orca_output_results(stdout_path))
 
     # Does engrad always exist? - No!
     # Will there be other files -No -> We should just take engrad
