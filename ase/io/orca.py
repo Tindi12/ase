@@ -215,7 +215,7 @@ def get_chunks(lines:Iterable[str]) -> Iterator[list[str]]:
     chunk_lines = []
     for line in lines:
         # Assemble chunks
-        if any([str in line for str in chunk_endings]):
+        if any([ending in line for ending in chunk_endings]):
             chunk_lines.append(line)
             yield chunk_lines
             chunk_lines = []
