@@ -3,7 +3,7 @@
 import re
 from io import StringIO
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from collections.abc import Iterator, Iterable
 import warnings
 
@@ -124,7 +124,7 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     return dipole   # Return the last match
 
 
-def read_atoms(lines: List[str]) -> Atoms:
+def _read_atoms(lines: Sequence[str]) -> Atoms:
     """Read atomic positions and symbols. Create Atoms object."""
     line_start = -1
     natoms = 0
@@ -257,7 +257,7 @@ def read_orca_output(fd, index=slice(None)):
     # Iterate over chunks and create a separate atoms object for each
     for chunk in get_chunks(fd):
         energy = read_energy(chunk)
-        atoms = read_atoms(chunk)
+        atoms = _read_atoms(chunk)
         forces = read_forces(chunk)
         dipole = read_dipole(chunk)
 
