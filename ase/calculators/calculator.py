@@ -205,6 +205,8 @@ def get_calculator_class(name):
         from ase.calculators.acemolecule import ACE as Calculator
     elif name == 'Psi4':
         from ase.calculators.psi4 import Psi4 as Calculator
+    elif name == 'mattersim':
+        from mattersim.forcefield import MatterSimCalculator as Calculator
     elif name in external_calculators:
         Calculator = external_calculators[name]
     else:
