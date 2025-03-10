@@ -176,7 +176,8 @@ ORCA TERMINATED NORMALLY
 
     results_sample['free_energy'] = results_sample['energy']
 
-    results = read_orca_outputs('.', 'orcamolecule_test.out')
+    with pytest.warns(DeprecationWarning):
+        results = read_orca_outputs('.', 'orcamolecule_test.out')
 
     keys = set(results)
     assert keys == set(results_sample)
