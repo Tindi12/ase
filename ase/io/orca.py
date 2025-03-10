@@ -193,17 +193,16 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
 
     # Forces are not always available. If not available, return None.
     if line_start == -1:
-        forces = None
-    else:
-        forces = np.zeros((natoms, 3))
+        return None
 
-        for ll, line in enumerate(lines[line_start : line_start + natoms]):
-            inp = line.split()
-            forces[ll, :] = [float(pos) for pos in inp[3:6]]
-        forces = -forces * Hartree / Bohr
+    forces = np.zeros((natoms, 3))
 
+    for ll, line in enumerate(lines[line_start : line_start + natoms]):
+        inp = line.split()
+        forces[ll, :] = [float(pos) for pos in inp[3:6]]
+
+    forces *= -Hartree / Bohr
     return forces
-
 
 #def get_chunks(lines):
 def get_chunks(lines:Iterable[str]) -> Iterator[list[str]]:
