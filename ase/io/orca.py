@@ -1,23 +1,20 @@
 # fmt: off
 
 import re
+import warnings
+from collections.abc import Iterable, Iterator
 from io import StringIO
 from pathlib import Path
 from typing import List, Optional, Sequence
-from collections.abc import Iterator, Iterable
-import warnings
 
 import numpy as np
 
 from ase import Atoms
 from ase.calculators.singlepoint import SinglePointDFTCalculator
-from ase.io import read
+from ase.io import ParseError, read
 from ase.units import Bohr, Hartree
-from ase.utils import reader, writer
-from ase.io import ParseError
-from ase.utils import deprecated
+from ase.utils import deprecated, reader, writer
 
-# Made from NWChem and FHI-aims interface
 
 @reader
 def read_geom_orcainp(fd):
@@ -119,7 +116,6 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     dipole = None
     for line in lines:
         if 'Total Dipole Moment' in line:
-            #dipole = np.array([float(_) for _ in line.split()[-3:]]) * Bohr
             dipole = np.array([float(x) for x in line.split()[-3:]]) * Bohr
     return dipole   # Return the last match
 
@@ -205,7 +201,7 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
     return forces
 
 
-def get_chunks(lines:Iterable[str]) -> Iterator[list[str]]:
+def get_chunks(lines: Iterable[str]) -> Iterator[list[str]]:
     """Separate out the chunks for each geometry relaxation step."""
     finished = False
     relaxation_finished = False
@@ -243,6 +239,7 @@ def get_chunks(lines:Iterable[str]) -> Iterator[list[str]]:
     elif not relaxation_finished and relaxation:
         warnings.warn('Geometry optimization did not converge!')
 
+
 @reader
 def read_orca_output(fd, index=slice(None)):
     """From the ORCA output file: Read Energy, positions, forces
@@ -275,7 +272,6 @@ def read_orca_output(fd, index=slice(None)):
         # collect images
         images.append(atoms)
 
-    #yield from images[index]
     return images[index]
 
 
@@ -316,7 +312,7 @@ def read_orca_output_results(fd):
     of reading energy, forces etc, directly from output without
     creation of atoms object.
     It is kept to ensure backwards compatability.
-   
+
    .. deprecated:: 3.24.0
        Use of read_orca_output_results is deprected, please
        process ORCA output by using ase.io.read,
@@ -348,11 +344,10 @@ def read_orca_outputs(directory, stdout_path):
     """Reproduces old functionality of reading energy, forces etc
        directly from output without creation of atoms object.
        This is kept to ensure backwards compatability
-    
     .. deprecated:: 3.24.0
        Use of read_orca_outputs is deprected, please
        process ORCA output by using ase.io.read
-       e.g., read('orca.out')" 
+       e.g., read('orca.out')"
     """
     stdout_path = Path(stdout_path)
     results = {}
