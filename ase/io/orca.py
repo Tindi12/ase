@@ -1,5 +1,3 @@
-# fmt: off
-
 import re
 import warnings
 from collections.abc import Iterable, Iterator
@@ -144,7 +142,7 @@ def _read_atoms(lines: Sequence[str]) -> Atoms:
     positions = np.zeros((natoms, 3))
     symbols = [''] * natoms
 
-    for ll, line in enumerate(lines[line_start : line_start + natoms]):
+    for ll, line in enumerate(lines[line_start:(line_start + natoms)]):
         inp = line.split()
         positions[ll, :] = [float(pos) for pos in inp[1:4]]
         symbols[ll] = inp[0]
@@ -193,7 +191,7 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
 
     forces = np.zeros((natoms, 3))
 
-    for ll, line in enumerate(lines[line_start : line_start + natoms]):
+    for ll, line in enumerate(lines[line_start:(line_start + natoms)]):
         inp = line.split()
         forces[ll, :] = [float(pos) for pos in inp[3:6]]
 
@@ -208,7 +206,7 @@ def get_chunks(lines: Iterable[str]) -> Iterator[list[str]]:
     relaxation = False
 
     chunk_endings = ['ORCA TERMINATED NORMALLY',
-                    'ORCA GEOMETRY RELAXATION STEP']
+                     'ORCA GEOMETRY RELAXATION STEP']
     chunk_lines = []
     for line in lines:
         # Assemble chunks
