@@ -204,7 +204,7 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
     forces *= -Hartree / Bohr
     return forces
 
-#def get_chunks(lines):
+
 def get_chunks(lines:Iterable[str]) -> Iterator[list[str]]:
     """Separate out the chunks for each geometry relaxation step."""
     finished = False
