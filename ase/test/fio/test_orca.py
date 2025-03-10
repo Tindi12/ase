@@ -131,7 +131,7 @@ Grid generation             ....       0.081 sec  (  2.1%)
 FINAL SINGLE POINT ENERGY       -76.422436201230
 -------------------------   --------------------
 ORCA TERMINATED NORMALLY
-"""
+"""  # noqa: E501, W291
 
     sample_engradfile = """\
 #
@@ -218,6 +218,7 @@ FINAL SINGLE POINT ENERGY      -815.959737266080
     energy_ref = -815.959737266080 * Hartree
     assert energy == energy_ref
 
+
 def test_read_orca_output_file():
     sample_outputfile = """\
     
@@ -255,7 +256,7 @@ CARTESIAN GRADIENT
 FINAL SINGLE POINT ENERGY       -76.422436201230
 -------------------------   --------------------
 ORCA TERMINATED NORMALLY
-"""
+"""  # noqa: W293
     with open('orca_test.out', 'w') as fd:
         fd.write(sample_outputfile)
 
