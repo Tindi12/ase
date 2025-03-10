@@ -115,7 +115,7 @@ def read_dipole(lines: List[str]) -> Optional[np.ndarray]:
     for line in lines:
         if 'Total Dipole Moment' in line:
             dipole = np.array([float(x) for x in line.split()[-3:]]) * Bohr
-    return dipole   # Return the last match
+    return dipole  # Return the last match
 
 
 def _read_atoms(lines: Sequence[str]) -> Atoms:
@@ -142,7 +142,7 @@ def _read_atoms(lines: Sequence[str]) -> Atoms:
     positions = np.zeros((natoms, 3))
     symbols = [''] * natoms
 
-    for ll, line in enumerate(lines[line_start:(line_start + natoms)]):
+    for ll, line in enumerate(lines[line_start : (line_start + natoms)]):
         inp = line.split()
         positions[ll, :] = [float(pos) for pos in inp[1:4]]
         symbols[ll] = inp[0]
@@ -191,7 +191,7 @@ def read_forces(lines: List[str]) -> Optional[np.ndarray]:
 
     forces = np.zeros((natoms, 3))
 
-    for ll, line in enumerate(lines[line_start:(line_start + natoms)]):
+    for ll, line in enumerate(lines[line_start : (line_start + natoms)]):
         inp = line.split()
         forces[ll, :] = [float(pos) for pos in inp[3:6]]
 
@@ -205,8 +205,10 @@ def get_chunks(lines: Iterable[str]) -> Iterator[list[str]]:
     relaxation_finished = False
     relaxation = False
 
-    chunk_endings = ['ORCA TERMINATED NORMALLY',
-                     'ORCA GEOMETRY RELAXATION STEP']
+    chunk_endings = [
+        'ORCA TERMINATED NORMALLY',
+        'ORCA GEOMETRY RELAXATION STEP',
+    ]
     chunk_lines = []
     for line in lines:
         # Assemble chunks
@@ -299,22 +301,24 @@ def read_orca_engrad(fd):
 
 
 @reader
-@deprecated('Please use ase.io.read instead, e.g.,\n'
-            'from ase.io import read \n'
-            'read("orca.out")',
-            DeprecationWarning)
+@deprecated(
+    'Please use ase.io.read instead, e.g.,\n'
+    'from ase.io import read \n'
+    'read("orca.out")',
+    DeprecationWarning,
+)
 def read_orca_output_results(fd):
-    """ From the ORCA output file: Read Energy and dipole moment
-    in the frame of reference of the center of mass
-    This routine is deprecated, it reproduces the old functionality
-    of reading energy, forces etc, directly from output without
-    creation of atoms object.
-    It is kept to ensure backwards compatability.
+    """From the ORCA output file: Read Energy and dipole moment
+     in the frame of reference of the center of mass
+     This routine is deprecated, it reproduces the old functionality
+     of reading energy, forces etc, directly from output without
+     creation of atoms object.
+     It is kept to ensure backwards compatability.
 
-   .. deprecated:: 3.24.0
-       Use of read_orca_output_results is deprected, please
-       process ORCA output by using ase.io.read,
-       e.g., read('orca.out')"
+    .. deprecated:: 3.24.0
+        Use of read_orca_output_results is deprected, please
+        process ORCA output by using ase.io.read,
+        e.g., read('orca.out')"
     """
     lines = fd.readlines()
 
@@ -334,10 +338,12 @@ def read_orca_output_results(fd):
     return results
 
 
-@deprecated('Please use ase.io.read instead, e.g.,\n'
-            'from ase.io import read \n'
-            'read("orca.out")',
-            DeprecationWarning)
+@deprecated(
+    'Please use ase.io.read instead, e.g.,\n'
+    'from ase.io import read \n'
+    'read("orca.out")',
+    DeprecationWarning,
+)
 def read_orca_outputs(directory, stdout_path):
     """Reproduces old functionality of reading energy, forces etc
        directly from output without creation of atoms object.
