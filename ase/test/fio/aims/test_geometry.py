@@ -2,6 +2,7 @@ import warnings
 
 import numpy as np
 import pytest
+pyfhiaims = pytest.importorskip("pyfhiaims")
 
 from ase.atoms import Atoms
 from ase.build import bulk
@@ -12,6 +13,9 @@ from ase.constraints import (
     FixScaledParametricRelations,
 )
 from ase.io.aims import read_aims as read
+
+
+
 
 format = "aims"
 

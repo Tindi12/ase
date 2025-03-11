@@ -23,6 +23,7 @@ from ase.test.factories import (
 from ase.test.factories import factory as factory_deco
 from ase.utils import get_python_package_path_description, seterr, workdir
 
+
 helpful_message = """\
  * Use --calculators option to select calculators.
 

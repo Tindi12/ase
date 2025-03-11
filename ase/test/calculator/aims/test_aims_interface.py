@@ -2,6 +2,7 @@ import os
 import tempfile
 
 import pytest
+pyfhiaims = pytest.importorskip("pyfhiaims")
 
 from ase import Atoms
 from ase.calculators.aims import Aims

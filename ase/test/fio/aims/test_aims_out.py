@@ -3,6 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+pyfhiaims = pytest.importorskip("pyfhiaims")
 
 from ase.io import ParseError, read
 from ase.io.aims import read_aims_results, read_aims_output

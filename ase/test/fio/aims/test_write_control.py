@@ -10,6 +10,8 @@ import re
 
 # Third party imports.
 import pytest
+pyfhiaims = pytest.importorskip("pyfhiaims")
+
 from pyfhiaims.control.cube import AimsCube
 
 import ase.build

@@ -9,7 +9,6 @@ import pytest
 
 from ase import Atoms
 from ase.calculators.abinit import Abinit, AbinitTemplate
-from ase.calculators.aims import Aims, AimsTemplate
 from ase.calculators.calculator import get_calculator_class
 from ase.calculators.castep import Castep, get_castep_version
 from ase.calculators.cp2k import CP2K, Cp2kShell
@@ -156,12 +155,21 @@ class AbinitFactory:
 @factory('aims')
 class AimsFactory:
     def __init__(self, cfg):
-        self.profile = AimsTemplate().load_profile(cfg)
+        try:
+            from ase.calculators.aims import AimsTemplate
+            self.profile = AimsTemplate().load_profile(cfg)
+        except ModuleNotFoundError:
+            self.profile = None
 
     def calc(self, **kwargs):
+        try:
+            from ase.calculators.aims import Aims
+        except ModuleNotFoundError:
+            return None
         kwargs1 = dict(xc='LDA')
         kwargs1.update(kwargs)
         return Aims(profile=self.profile, **kwargs1)
+
 
     def version(self):
         return self.profile.version()
