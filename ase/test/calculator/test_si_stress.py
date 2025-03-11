@@ -24,6 +24,7 @@ calc = pytest.mark.calculator
                   "system": {"ecutwfc": 350 / u.Ry}})
 @calc('siesta')
 def test_si_stress(factory):
+    pyfhiaims = pytest.importorskip("pyfhiaims")
     atoms = bulk('Si')
     atoms.calc = factory.calc(kpts=[4, 4, 4])
     atoms.cell[0] *= 0.85

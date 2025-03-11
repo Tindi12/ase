@@ -51,5 +51,6 @@ calc = pytest.mark.calculator
 # @pytest.mark.calculator('dftb', Hamiltonian_MaxAngularMomentum_H='"s"')
 def test_socketio_h2(factory):
     """SocketIO integration test; fit coarse binding curve of H2 molecule."""
+    pyfhiaims = pytest.importorskip("pyfhiaims")
     with factory.socketio(unixsocket=f'ase_test_h2_{factory.name}') as calc:
         run(calc)
