@@ -10,13 +10,14 @@ import re
 
 # Third party imports.
 import pytest
-pyfhiaims = pytest.importorskip("pyfhiaims")
-
-from pyfhiaims.control.cube import AimsCube
 
 import ase.build
-import ase.calculators.aims
-import ase.io.aims
+
+pyfhiaims = pytest.importorskip("pyfhiaims")
+from pyfhiaims.control.cube import AimsCube  # noqa: E402
+
+import ase.calculators.aims  # noqa: E402
+import ase.io.aims  # noqa: E402
 
 
 @pytest.fixture()

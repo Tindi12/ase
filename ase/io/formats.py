@@ -25,6 +25,7 @@ import sys
 import warnings
 from importlib import import_module
 from importlib.metadata import entry_points
+from importlib.util import find_spec
 from pathlib import Path, PurePath
 from typing import (
     IO,
@@ -358,13 +359,11 @@ F('abinit-in', 'ABINIT input file', '1F',
 F('abinit-out', 'ABINIT output file', '1F',
   module='abinit', magic=b'*.Version * of ABINIT')
 
-try:
-    from pyfhiaims import __version__ as pyfhiaims_version
+if find_spec("pyfhiaims") is not None:
     F('aims', 'FHI-aims geometry file', '1S', ext='in')
     F('aims-output', 'FHI-aims output', '+S',
     module='aims', magic=b'*Invoking FHI-aims ...')
-except ModuleNotFoundError:
-    pass
+
 F('bundletrajectory', 'ASE bundle trajectory', '+S')
 F('castep-castep', 'CASTEP output file', '+F',
   module='castep', ext='castep')

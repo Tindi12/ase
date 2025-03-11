@@ -3,22 +3,20 @@
 """Defines class/functions to write input and parse output for FHI-aims."""
 import os
 import time
-import warnings
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, TextIO
 
 import numpy as np
+from pyfhiaims.control.control import AimsControl
+from pyfhiaims.geometry.geometry import AimsGeometry
+from pyfhiaims.outputs.stdout import AimsParseError, AimsStdout
+
 from ase import Atoms
 from ase.calculators.calculator import kpts2mp
 from ase.calculators.singlepoint import SinglePointDFTCalculator
 from ase.units import Ang, fs
 from ase.utils import deprecated, reader, writer
-
-from pyfhiaims.control.control import AimsControl
-from pyfhiaims.geometry.atom import FHIAimsAtom
-from pyfhiaims.geometry.geometry import AimsGeometry
-from pyfhiaims.outputs.stdout import AimsParseError, AimsStdout
 
 v_unit = Ang / (1000.0 * fs)
 
@@ -275,7 +273,7 @@ def read_aims_output(
         atoms = image.geometry.ase_atoms
         atoms.calc = SinglePointDFTCalculator(
             atoms,
-            energy=image.free_energy, # TARP: This is the force-consistent energy
+            energy=image.free_energy,  # TARP: The force-consistent energy
             free_energy=image.free_energy,
             forces=image.forces,
             stress=image.stress,

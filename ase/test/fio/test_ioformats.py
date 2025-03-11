@@ -18,6 +18,7 @@ def excitingtools():
     """If we cannot import excitingtools we skip tests with this fixture."""
     return pytest.importorskip('excitingtools')
 
+
 @pytest.fixture()
 def pyfhiaims():
     """If we cannot import pyfhiaims we skip tests with this fixture."""

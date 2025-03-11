@@ -1,9 +1,10 @@
 import pytest
-pyfhiaims = pytest.importorskip("pyfhiaims")
 
 from ase import Atoms
-from ase.calculators.aims import AimsCube
 from ase.optimize import QuasiNewton
+
+pyfhiaims = pytest.importorskip("pyfhiaims")
+from ase.calculators.aims import AimsCube  # noqa: E402
 
 
 @pytest.mark.calculator('aims')

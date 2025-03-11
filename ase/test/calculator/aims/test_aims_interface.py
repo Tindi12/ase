@@ -2,10 +2,11 @@ import os
 import tempfile
 
 import pytest
-pyfhiaims = pytest.importorskip("pyfhiaims")
 
 from ase import Atoms
-from ase.calculators.aims import Aims
+
+pyfhiaims = pytest.importorskip("pyfhiaims")
+from ase.calculators.aims import Aims  # noqa: E402
 
 
 @pytest.mark.skip('legacy test with hardcoded paths and commands')

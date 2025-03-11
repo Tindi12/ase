@@ -170,7 +170,6 @@ class AimsFactory:
         kwargs1.update(kwargs)
         return Aims(profile=self.profile, **kwargs1)
 
-
     def version(self):
         return self.profile.version()
 

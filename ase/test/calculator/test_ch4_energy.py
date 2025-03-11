@@ -35,7 +35,7 @@ omx_par = {'definition_of_atomic_species': [['C', 'C6.0', 'C_CA19'],
 @calc('gamess_us', label='ch4')
 @calc('gaussian', xc='lda', basis='3-21G')
 def test_ch4_reaction(factory):
-    pyfhiaims = pytest.importorskip("pyfhiaims")
+    _ = pytest.importorskip("pyfhiaims")
 
     e_ch4 = _calculate(factory, 'CH4')
     e_c2h2 = _calculate(factory, 'C2H2')
