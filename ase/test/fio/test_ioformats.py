@@ -18,9 +18,14 @@ def excitingtools():
     """If we cannot import excitingtools we skip tests with this fixture."""
     return pytest.importorskip('excitingtools')
 
+@pytest.fixture()
+def pyfhiaims():
+    """If we cannot import pyfhiaims we skip tests with this fixture."""
+    return pytest.importorskip('pyfhiaims')
+
 
 @pytest.mark.parametrize('name', ioformats)
-def test_ioformat(name, excitingtools):
+def test_ioformat(name, excitingtools, pyfhiaims):
     """Test getting the full description of each ioformat."""
     ioformat = ioformats[name]
     print(name)

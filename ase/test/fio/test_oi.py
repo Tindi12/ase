@@ -88,6 +88,12 @@ def all_tested_formats():
     except ModuleNotFoundError:
         skip += ['exciting']
 
+    # Check if pyfhiaims is installed, if not skip exciting tests.
+    try:
+        import pyfhiaims  # noqa
+    except ModuleNotFoundError:
+        skip += ['aims', 'aims-output']
+
     return sorted(set(all_formats) - set(skip))
 
 
