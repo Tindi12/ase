@@ -357,9 +357,14 @@ F('abinit-in', 'ABINIT input file', '1F',
   module='abinit', magic=b'*znucl *')
 F('abinit-out', 'ABINIT output file', '1F',
   module='abinit', magic=b'*.Version * of ABINIT')
-F('aims', 'FHI-aims geometry file', '1S', ext='in')
-F('aims-output', 'FHI-aims output', '+S',
-  module='aims', magic=b'*Invoking FHI-aims ...')
+
+try:
+    from pyfhiaims import __version__ as pyfhiaims_version
+    F('aims', 'FHI-aims geometry file', '1S', ext='in')
+    F('aims-output', 'FHI-aims output', '+S',
+    module='aims', magic=b'*Invoking FHI-aims ...')
+except ModuleNotFoundError:
+    pass
 F('bundletrajectory', 'ASE bundle trajectory', '+S')
 F('castep-castep', 'CASTEP output file', '+F',
   module='castep', ext='castep')
