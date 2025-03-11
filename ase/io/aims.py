@@ -264,7 +264,7 @@ def read_aims_output(
     if isinstance(index, int):
         loop_inds = [index]
     else:
-        loop_inds = range(output.n_images)
+        loop_inds = list(range(output.n_images))
         loop_inds = loop_inds[index]
 
     atoms_list = []
@@ -321,7 +321,7 @@ def read_aims_results(
     if isinstance(index, int):
         loop_inds = [index]
     else:
-        loop_inds = range(output.n_images)
+        loop_inds = list(range(output.n_images))
         loop_inds = loop_inds[index]
 
     results = []
