@@ -338,8 +338,12 @@ class BaseNEB:
                 raise RuntimeError(
                     "Cannot use shared calculators in parallel in NEB.")
         self.real_forces = None  # ndarray of shape (nimages, natom, 3)
-        self.energies = None  # ndarray of shape (nimages,)
+        self.energies = np.empty(self.nimages)
         self.residuals = None  # ndarray of shape (nimages,)
+
+        if self.method != 'aseneb':
+            self.energies[0] = self.images[0].get_potential_energy()
+            self.energies[-1] = self.images[-1].get_potential_energy()
 
     def __ase_optimizable__(self):
         return NEBOptimizable(self)
@@ -439,9 +443,7 @@ class BaseNEB:
             for i in range(1, self.nimages):
                 minimize_rotation_and_translation(images[i - 1], images[i])
 
-        if self.method != 'aseneb':
-            energies[0] = images[0].get_potential_energy()
-            energies[-1] = images[-1].get_potential_energy()
+        energies[[0, -1]] = self.energies[[0, -1]]
 
         if not self.parallel:
             # Do all images - one at a time:
