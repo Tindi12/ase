@@ -5,10 +5,17 @@ from ase.calculators.lj import LennardJones
 from ase.mep import NEB, NEBTools, idpp_interpolate
 from ase.optimize import BFGS, FIRE
 
+methods = ['aseneb', 'eb', 'improvedtangent', 'spline']
 
+
+@pytest.mark.parametrize('method', methods)
 @pytest.mark.optimize()
 @pytest.mark.slow()
-def test_neb_tr(testdir):
+def test_neb_tr(testdir, method):
+    """Test if `remove_rotation_and_translation` works as expected.
+
+    https://gitlab.com/ase/ase/-/merge_requests/138
+    """
     nimages = 3
     fmax = 0.01
 
@@ -46,7 +53,9 @@ def test_neb_tr(testdir):
         # and rotational degrees of freedom
         neb = NEB(
             images,
-            remove_rotation_and_translation=remove_rotation_and_translation)
+            remove_rotation_and_translation=remove_rotation_and_translation,
+            method=method,
+        )
         neb.interpolate()
         # Test used these old defaults which are not optimial, but work
         # in this particular system
@@ -59,7 +68,9 @@ def test_neb_tr(testdir):
         # Also specify the linearly varying spring constants
         neb = NEB(
             images, climb=True,
-            remove_rotation_and_translation=remove_rotation_and_translation)
+            remove_rotation_and_translation=remove_rotation_and_translation,
+            method=method,
+        )
         qn = FIRE(neb, dt=0.005, maxstep=0.05, dtmax=0.1)
         qn.run(fmax=fmax)
 
@@ -73,4 +84,6 @@ def test_neb_tr(testdir):
             nsteps_neb_0 = nsteps_neb
 
     assert abs(Ef_neb - Ef_neb_0) < 1e-2
-    assert nsteps_neb_0 < nsteps_neb * 0.7
+
+    # Test if `remove_rotation_and_translation` reduces iterations
+    assert nsteps_neb_0 < nsteps_neb * 0.9
