@@ -1,0 +1,5 @@
+Bugfixes
+--------
+
+- Fixed :class:`~ase.mep.neb.NEB` to work with ``method != 'aseneb'`` and
+  ``remove_rotation_and_translation == True`` (:mr:`3636`)
