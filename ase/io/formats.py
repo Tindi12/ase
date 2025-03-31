@@ -1,5 +1,3 @@
-# fmt: off
-
 """File formats.
 
 This module implements the read(), iread() and write() functions in ase.io.
@@ -51,8 +49,14 @@ class UnknownFileTypeError(Exception):
 
 
 class IOFormat:
-    def __init__(self, name: str, desc: str, code: str, module_name: str,
-                 encoding: str = None) -> None:
+    def __init__(
+        self,
+        name: str,
+        desc: str,
+        code: str,
+        module_name: str,
+        encoding: str = None,
+    ) -> None:
         self.name = name
         self.description = desc
         assert len(code) == 2
@@ -74,14 +78,17 @@ class IOFormat:
         if mode not in list('rwa'):
             raise ValueError("Only modes allowed are 'r', 'w', and 'a'")
         if mode == 'r' and not self.can_read:
-            raise NotImplementedError('No reader implemented for {} format'
-                                      .format(self.name))
+            raise NotImplementedError(
+                'No reader implemented for {} format'.format(self.name)
+            )
         if mode == 'w' and not self.can_write:
-            raise NotImplementedError('No writer implemented for {} format'
-                                      .format(self.name))
+            raise NotImplementedError(
+                'No writer implemented for {} format'.format(self.name)
+            )
         if mode == 'a' and not self.can_append:
-            raise NotImplementedError('Appending not supported by {} format'
-                                      .format(self.name))
+            raise NotImplementedError(
+                'Appending not supported by {} format'.format(self.name)
+            )
 
         if self.isbinary:
             mode += 'b'
@@ -110,8 +117,9 @@ class IOFormat:
         else:
             return io.StringIO
 
-    def parse_images(self, data: Union[str, bytes],
-                     **kwargs) -> Sequence[Atoms]:
+    def parse_images(
+        self, data: Union[str, bytes], **kwargs
+    ) -> Sequence[Atoms]:
         with self._buf_as_filelike(data) as fd:
             outputs = self.read(fd, **kwargs)
             if self.single:
@@ -138,8 +146,7 @@ class IOFormat:
         return self.can_write and 'append' in writefunc.__code__.co_varnames
 
     def __repr__(self) -> str:
-        tokens = [f'{name}={value!r}'
-                  for name, value in vars(self).items()]
+        tokens = [f'{name}={value!r}' for name, value in vars(self).items()]
         return 'IOFormat({})'.format(', '.join(tokens))
 
     def __getitem__(self, i):
@@ -182,11 +189,13 @@ class IOFormat:
         return function(*args, **kwargs)
 
     def _warn_none(self, action):
-        msg = ('Accessing the IOFormat.{action} property on a format '
-               'without {action} support will change behaviour in the '
-               'future and return a callable instead of None.  '
-               'Use IOFormat.can_{action} to check whether {action} '
-               'is supported.')
+        msg = (
+            'Accessing the IOFormat.{action} property on a format '
+            'without {action} support will change behaviour in the '
+            'future and return a callable instead of None.  '
+            'Use IOFormat.can_{action} to check whether {action} '
+            'is supported.'
+        )
         warnings.warn(msg.format(action=action), FutureWarning)
 
     @property
@@ -213,15 +222,17 @@ class IOFormat:
         return modes
 
     def full_description(self) -> str:
-        lines = [f'Name:        {self.name}',
-                 f'Description: {self.description}',
-                 f'Modes:       {self.modes}',
-                 f'Encoding:    {self.encoding}',
-                 f'Module:      {self.module_name}',
-                 f'Code:        {self.code}',
-                 f'Extensions:  {self.extensions}',
-                 f'Globs:       {self.globs}',
-                 f'Magic:       {self.magic}']
+        lines = [
+            f'Name:        {self.name}',
+            f'Description: {self.description}',
+            f'Modes:       {self.modes}',
+            f'Encoding:    {self.encoding}',
+            f'Module:      {self.module_name}',
+            f'Code:        {self.code}',
+            f'Extensions:  {self.extensions}',
+            f'Globs:       {self.globs}',
+            f'Magic:       {self.magic}',
+        ]
         return '\n'.join(lines)
 
     @property
@@ -238,12 +249,13 @@ class IOFormat:
             return import_module(self.module_name)
         except ImportError as err:
             raise UnknownFileTypeError(
-                f'File format not recognized: {self.name}.  Error: {err}')
+                f'File format not recognized: {self.name}.  Error: {err}'
+            )
 
     def match_name(self, basename: str) -> bool:
         from fnmatch import fnmatch
-        return any(fnmatch(basename, pattern)
-                   for pattern in self.globs)
+
+        return any(fnmatch(basename, pattern) for pattern in self.globs)
 
     def match_magic(self, data: bytes) -> bool:
         if self.magic_regex:
@@ -252,6 +264,7 @@ class IOFormat:
             return match is not None
 
         from fnmatch import fnmatchcase
+
         return any(
             fnmatchcase(data, magic + b'*')  # type: ignore[operator, type-var]
             for magic in self.magic
@@ -266,9 +279,19 @@ all_formats = ioformats  # Aliased for compatibility only.  Please do not use.
 format2modulename = {}  # Left for compatibility only.
 
 
-def define_io_format(name, desc, code, *, module=None, ext=None,
-                     glob=None, magic=None, encoding=None,
-                     magic_regex=None, external=False):
+def define_io_format(
+    name,
+    desc,
+    code,
+    *,
+    module=None,
+    ext=None,
+    glob=None,
+    magic=None,
+    encoding=None,
+    magic_regex=None,
+    external=False,
+):
     if module is None:
         module = name.replace('-', '_')
         format2modulename[name] = module
@@ -285,8 +308,7 @@ def define_io_format(name, desc, code, *, module=None, ext=None,
             strings = list(strings)
         return strings
 
-    fmt = IOFormat(name, desc, code, module_name=module,
-                   encoding=encoding)
+    fmt = IOFormat(name, desc, code, module_name=module, encoding=encoding)
     fmt.extensions = normalize_patterns(ext)
     fmt.globs = normalize_patterns(glob)
     fmt.magic = normalize_patterns(magic)
@@ -330,14 +352,15 @@ def register_external_io_formats(group):
 
 
 def define_external_io_format(entry_point):
-
     fmt = entry_point.load()
     if entry_point.name in ioformats:
         raise ValueError(f'Format {entry_point.name} already defined')
     if not isinstance(fmt, ExternalIOFormat):
-        raise TypeError('Wrong type for registering external IO formats '
-                        f'in format {entry_point.name}, expected '
-                        'ExternalIOFormat')
+        raise TypeError(
+            'Wrong type for registering external IO formats '
+            f'in format {entry_point.name}, expected '
+            'ExternalIOFormat'
+        )
     F(entry_point.name, **fmt._asdict(), external=True)
 
 
@@ -351,128 +374,184 @@ def define_external_io_format(entry_point):
 # B=like F, but opens in binary mode
 
 F = define_io_format
-F('abinit-gsr', 'ABINIT GSR file', '1S',
-  module='abinit', glob='*o_GSR.nc')
-F('abinit-in', 'ABINIT input file', '1F',
-  module='abinit', magic=b'*znucl *')
-F('abinit-out', 'ABINIT output file', '1F',
-  module='abinit', magic=b'*.Version * of ABINIT')
+F('abinit-gsr', 'ABINIT GSR file', '1S', module='abinit', glob='*o_GSR.nc')
+F('abinit-in', 'ABINIT input file', '1F', module='abinit', magic=b'*znucl *')
+F(
+    'abinit-out',
+    'ABINIT output file',
+    '1F',
+    module='abinit',
+    magic=b'*.Version * of ABINIT',
+)
 F('aims', 'FHI-aims geometry file', '1S', ext='in')
-F('aims-output', 'FHI-aims output', '+S',
-  module='aims', magic=b'*Invoking FHI-aims ...')
+F(
+    'aims-output',
+    'FHI-aims output',
+    '+S',
+    module='aims',
+    magic=b'*Invoking FHI-aims ...',
+)
 F('bundletrajectory', 'ASE bundle trajectory', '+S')
-F('castep-castep', 'CASTEP output file', '+F',
-  module='castep', ext='castep')
-F('castep-cell', 'CASTEP geom file', '1F',
-  module='castep', ext='cell')
-F('castep-geom', 'CASTEP trajectory file', '+F',
-  module='castep', ext='geom')
-F('castep-md', 'CASTEP molecular dynamics file', '+F',
-  module='castep', ext='md')
-F('castep-phonon', 'CASTEP phonon file', '1F',
-  module='castep', ext='phonon')
+F('castep-castep', 'CASTEP output file', '+F', module='castep', ext='castep')
+F('castep-cell', 'CASTEP geom file', '1F', module='castep', ext='cell')
+F('castep-geom', 'CASTEP trajectory file', '+F', module='castep', ext='geom')
+F(
+    'castep-md',
+    'CASTEP molecular dynamics file',
+    '+F',
+    module='castep',
+    ext='md',
+)
+F('castep-phonon', 'CASTEP phonon file', '1F', module='castep', ext='phonon')
 F('cfg', 'AtomEye configuration', '1F')
 F('cif', 'CIF-file', '+B', ext='cif')
 F('cmdft', 'CMDFT-file', '1F', glob='*I_info')
 F('cjson', 'Chemical json file', '1F', ext='cjson')
-F('cp2k-dcd', 'CP2K DCD file', '+B',
-  module='cp2k', ext='dcd')
-F('cp2k-restart', 'CP2K restart file', '1F',
-  module='cp2k', ext='restart')
-F('crystal', 'Crystal fort.34 format', '1F',
-  ext=['f34', '34'], glob=['f34', '34'])
+F('cp2k-dcd', 'CP2K DCD file', '+B', module='cp2k', ext='dcd')
+F('cp2k-restart', 'CP2K restart file', '1F', module='cp2k', ext='restart')
+F(
+    'crystal',
+    'Crystal fort.34 format',
+    '1F',
+    ext=['f34', '34'],
+    glob=['f34', '34'],
+)
 F('cube', 'CUBE file', '1F', ext='cube')
-F('dacapo-text', 'Dacapo text output', '1F',
-  module='dacapo', magic=b'*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n')
+F(
+    'dacapo-text',
+    'Dacapo text output',
+    '1F',
+    module='dacapo',
+    magic=b'*&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n',
+)
 F('db', 'ASE SQLite database file', '+S')
 F('dftb', 'DftbPlus input file', '1S', magic=b'Geometry')
-F('dlp4', 'DL_POLY_4 CONFIG file', '1F',
-  module='dlp4', ext='config', glob=['*CONFIG*'])
-F('dlp-history', 'DL_POLY HISTORY file', '+F',
-  module='dlp4', glob='HISTORY')
-F('dmol-arc', 'DMol3 arc file', '+S',
-  module='dmol', ext='arc')
-F('dmol-car', 'DMol3 structure file', '1S',
-  module='dmol', ext='car')
-F('dmol-incoor', 'DMol3 structure file', '1S',
-  module='dmol')
-F('elk', 'ELK atoms definition from GEOMETRY.OUT', '1F',
-  glob=['GEOMETRY.OUT'])
+F(
+    'dlp4',
+    'DL_POLY_4 CONFIG file',
+    '1F',
+    module='dlp4',
+    ext='config',
+    glob=['*CONFIG*'],
+)
+F('dlp-history', 'DL_POLY HISTORY file', '+F', module='dlp4', glob='HISTORY')
+F('dmol-arc', 'DMol3 arc file', '+S', module='dmol', ext='arc')
+F('dmol-car', 'DMol3 structure file', '1S', module='dmol', ext='car')
+F('dmol-incoor', 'DMol3 structure file', '1S', module='dmol')
+F('elk', 'ELK atoms definition from GEOMETRY.OUT', '1F', glob=['GEOMETRY.OUT'])
 F('elk-in', 'ELK input file', '1F', module='elk')
-F('eon', 'EON CON file', '+F',
-  ext='con')
+F('eon', 'EON CON file', '+F', ext='con')
 F('eps', 'Encapsulated Postscript', '1S')
-F('espresso-in', 'Quantum espresso in file', '1F',
-  module='espresso', ext='pwi', magic=[b'*\n&system', b'*\n&SYSTEM'])
-F('espresso-out', 'Quantum espresso out file', '+F',
-  module='espresso', ext=['pwo', 'out'], magic=b'*Program PWSCF')
+F(
+    'espresso-in',
+    'Quantum espresso in file',
+    '1F',
+    module='espresso',
+    ext='pwi',
+    magic=[b'*\n&system', b'*\n&SYSTEM'],
+)
+F(
+    'espresso-out',
+    'Quantum espresso out file',
+    '+F',
+    module='espresso',
+    ext=['pwo', 'out'],
+    magic=b'*Program PWSCF',
+)
 F('exciting', 'exciting input', '1F', module='exciting', glob='input.xml')
 F('exciting', 'exciting output', '1F', module='exciting', glob='INFO.out')
 F('extxyz', 'Extended XYZ file', '+F', ext='xyz')
 F('findsym', 'FINDSYM-format', '+F')
-F('gamess-us-out', 'GAMESS-US output file', '1F',
-  module='gamess_us', magic=b'*GAMESS')
-F('gamess-us-in', 'GAMESS-US input file', '1F',
-  module='gamess_us')
-F('gamess-us-punch', 'GAMESS-US punchcard file', '1F',
-  module='gamess_us', magic=b' $DATA', ext='dat')
-F('gaussian-in', 'Gaussian com (input) file', '1F',
-  module='gaussian', ext=['com', 'gjf'])
-F('gaussian-out', 'Gaussian output file', '+F',
-  module='gaussian', ext='log', magic=b'*Entering Gaussian System')
-F('acemolecule-out', 'ACE output file', '1S',
-  module='acemolecule')
-F('acemolecule-input', 'ACE input file', '1S',
-  module='acemolecule')
+F(
+    'gamess-us-out',
+    'GAMESS-US output file',
+    '1F',
+    module='gamess_us',
+    magic=b'*GAMESS',
+)
+F('gamess-us-in', 'GAMESS-US input file', '1F', module='gamess_us')
+F(
+    'gamess-us-punch',
+    'GAMESS-US punchcard file',
+    '1F',
+    module='gamess_us',
+    magic=b' $DATA',
+    ext='dat',
+)
+F(
+    'gaussian-in',
+    'Gaussian com (input) file',
+    '1F',
+    module='gaussian',
+    ext=['com', 'gjf'],
+)
+F(
+    'gaussian-out',
+    'Gaussian output file',
+    '+F',
+    module='gaussian',
+    ext='log',
+    magic=b'*Entering Gaussian System',
+)
+F('acemolecule-out', 'ACE output file', '1S', module='acemolecule')
+F('acemolecule-input', 'ACE input file', '1S', module='acemolecule')
 F('gen', 'DFTBPlus GEN format', '1F')
-F('gif', 'Graphics interchange format', '+S',
-  module='animation')
-F('gpaw-out', 'GPAW text output', '+F',
-  magic=b'*  ___ ___ ___ _ _ _')
+F('gif', 'Graphics interchange format', '+S', module='animation')
+F('gpaw-out', 'GPAW text output', '+F', magic=b'*  ___ ___ ___ _ _ _')
 F('gpumd', 'GPUMD input file', '1F', glob='xyz.in')
-F('gpw', 'GPAW restart-file', '1S',
-  magic=[b'- of UlmGPAW', b'AFFormatGPAW'])
-F('gromacs', 'Gromacs coordinates', '1F',
-  ext='gro')
+F('gpw', 'GPAW restart-file', '1S', magic=[b'- of UlmGPAW', b'AFFormatGPAW'])
+F('gromacs', 'Gromacs coordinates', '1F', ext='gro')
 F('gromos', 'Gromos96 geometry file', '1F', ext='g96')
 F('html', 'X3DOM HTML', '1F', module='x3d')
 F('json', 'ASE JSON database file', '+F', ext='json', module='db')
 F('jsv', 'JSV file format', '1F')
-F('lammps-dump-text', 'LAMMPS text dump file', '+F',
-  module='lammpsrun', magic_regex=b'.*?^ITEM: TIMESTEP$')
-F('lammps-dump-binary', 'LAMMPS binary dump file', '+B',
-  module='lammpsrun')
-F('lammps-data', 'LAMMPS data file', '1F', module='lammpsdata',
-  encoding='ascii')
+F(
+    'lammps-dump-text',
+    'LAMMPS text dump file',
+    '+F',
+    module='lammpsrun',
+    magic_regex=b'.*?^ITEM: TIMESTEP$',
+)
+F('lammps-dump-binary', 'LAMMPS binary dump file', '+B', module='lammpsrun')
+F(
+    'lammps-data',
+    'LAMMPS data file',
+    '1F',
+    module='lammpsdata',
+    encoding='ascii',
+)
 F('magres', 'MAGRES ab initio NMR data file', '1F')
 F('mol', 'MDL Molfile', '1F')
-F('mp4', 'MP4 animation', '+S',
-  module='animation')
-F('mustem', 'muSTEM xtl file', '1F',
-  ext='xtl')
-F('mysql', 'ASE MySQL database file', '+S',
-  module='db')
-F('netcdftrajectory', 'AMBER NetCDF trajectory file', '+S',
-  magic=b'CDF')
-F('nomad-json', 'JSON from Nomad archive', '+F',
-  ext='nomad-json')
-F('nwchem-in', 'NWChem input file', '1F',
-  module='nwchem', ext='nwi')
-F('nwchem-out', 'NWChem output file', '+F',
-  module='nwchem', ext='nwo',
-  magic=b'*Northwest Computational Chemistry Package')
-F('octopus-in', 'Octopus input file', '1F',
-  module='octopus', glob='inp')
-F('onetep-out', 'ONETEP output file', '+F',
-  module='onetep',
-  magic=b'*Linear-Scaling Ab Initio Total Energy Program*')
-F('onetep-in', 'ONETEP input file', '1F',
-  module='onetep',
-  magic=[b'*lock species ',
-         b'*LOCK SPECIES ',
-         b'*--- INPUT FILE ---*'])
-F('proteindatabank', 'Protein Data Bank', '+F',
-  ext='pdb')
+F('mp4', 'MP4 animation', '+S', module='animation')
+F('mustem', 'muSTEM xtl file', '1F', ext='xtl')
+F('mysql', 'ASE MySQL database file', '+S', module='db')
+F('netcdftrajectory', 'AMBER NetCDF trajectory file', '+S', magic=b'CDF')
+F('nomad-json', 'JSON from Nomad archive', '+F', ext='nomad-json')
+F('nwchem-in', 'NWChem input file', '1F', module='nwchem', ext='nwi')
+F(
+    'nwchem-out',
+    'NWChem output file',
+    '+F',
+    module='nwchem',
+    ext='nwo',
+    magic=b'*Northwest Computational Chemistry Package',
+)
+F('octopus-in', 'Octopus input file', '1F', module='octopus', glob='inp')
+F(
+    'onetep-out',
+    'ONETEP output file',
+    '+F',
+    module='onetep',
+    magic=b'*Linear-Scaling Ab Initio Total Energy Program*',
+)
+F(
+    'onetep-in',
+    'ONETEP input file',
+    '1F',
+    module='onetep',
+    magic=[b'*lock species ', b'*LOCK SPECIES ', b'*--- INPUT FILE ---*'],
+)
+F('proteindatabank', 'Protein Data Bank', '+F', ext='pdb')
 F('png', 'Portable Network Graphics', '1B')
 F('postgresql', 'ASE PostgreSQL database file', '+S', module='db')
 F('pov', 'Persistance of Vision', '1S')
@@ -481,38 +560,59 @@ F('pov', 'Persistance of Vision', '1S')
 F('prismatic', 'prismatic and computem XYZ-file', '1F')
 F('py', 'Python file', '+F')
 F('sys', 'qball sys file', '1F')
-F('qbox', 'QBOX output file', '+F',
-  magic=b'*:simulation xmlns:')
+F('qbox', 'QBOX output file', '+F', magic=b'*:simulation xmlns:')
 F('res', 'SHELX format', '1S', ext='shelx')
 F('rmc6f', 'RMCProfile', '1S', ext='rmc6f')
 F('sdf', 'SDF format', '1F')
-F('siesta-xv', 'Siesta .XV file', '1F',
-  glob='*.XV', module='siesta')
+F('siesta-xv', 'Siesta .XV file', '1F', glob='*.XV', module='siesta')
 F('struct', 'WIEN2k structure file', '1S', module='wien2k')
 F('struct_out', 'SIESTA STRUCT file', '1F', module='siesta')
-F('traj', 'ASE trajectory', '+B', module='trajectory', ext='traj',
-  magic=[b'- of UlmASE-Trajectory', b'AFFormatASE-Trajectory'])
-F('turbomole', 'TURBOMOLE coord file', '1F', glob='coord',
-  magic=b'$coord')
-F('turbomole-gradient', 'TURBOMOLE gradient file', '+F',
-  module='turbomole', glob='gradient', magic=b'$grad')
+F(
+    'traj',
+    'ASE trajectory',
+    '+B',
+    module='trajectory',
+    ext='traj',
+    magic=[b'- of UlmASE-Trajectory', b'AFFormatASE-Trajectory'],
+)
+F('turbomole', 'TURBOMOLE coord file', '1F', glob='coord', magic=b'$coord')
+F(
+    'turbomole-gradient',
+    'TURBOMOLE gradient file',
+    '+F',
+    module='turbomole',
+    glob='gradient',
+    magic=b'$grad',
+)
 F('v-sim', 'V_Sim ascii file', '1F', ext='ascii')
-F('vasp', 'VASP POSCAR/CONTCAR', '1F',
-  ext='poscar', glob=['*POSCAR*', '*CONTCAR*', '*CENTCAR*'])
-F('vasp-out', 'VASP OUTCAR file', '+F',
-  module='vasp', glob='*OUTCAR*')
-F('vasp-xdatcar', 'VASP XDATCAR file', '+F',
-  module='vasp', glob='*XDATCAR*')
-F('vasp-xml', 'VASP vasprun.xml file', '+F',
-  module='vasp', glob='*vasp*.xml')
+F(
+    'vasp',
+    'VASP POSCAR/CONTCAR',
+    '1F',
+    ext='poscar',
+    glob=['*POSCAR*', '*CONTCAR*', '*CENTCAR*'],
+)
+F('vasp-out', 'VASP OUTCAR file', '+F', module='vasp', glob='*OUTCAR*')
+F('vasp-xdatcar', 'VASP XDATCAR file', '+F', module='vasp', glob='*XDATCAR*')
+F('vasp-xml', 'VASP vasprun.xml file', '+F', module='vasp', glob='*vasp*.xml')
 F('vti', 'VTK XML Image Data', '1F', module='vtkxml')
 F('vtu', 'VTK XML Unstructured Grid', '1F', module='vtkxml', ext='vtu')
 F('wout', 'Wannier90 output', '1F', module='wannier90')
 F('x3d', 'X3D', '1S')
 F('xsd', 'Materials Studio file', '1F')
-F('xsf', 'XCrySDen Structure File', '+F',
-  magic=[b'*\nANIMSTEPS', b'*\nCRYSTAL', b'*\nSLAB', b'*\nPOLYMER',
-         b'*\nMOLECULE', b'*\nATOMS'])
+F(
+    'xsf',
+    'XCrySDen Structure File',
+    '+F',
+    magic=[
+        b'*\nANIMSTEPS',
+        b'*\nCRYSTAL',
+        b'*\nSLAB',
+        b'*\nPOLYMER',
+        b'*\nMOLECULE',
+        b'*\nATOMS',
+    ],
+)
 F('xtd', 'Materials Studio file', '+F')
 # xyz: No `ext='xyz'` in the definition below.
 #      The .xyz files are handled by the extxyz module by default.
@@ -596,12 +696,15 @@ def open_with_compression(filename: str, mode: str = 'r') -> IO:
 
     if compression == 'gz':
         import gzip
+
         return gzip.open(filename, mode=mode)  # type: ignore[return-value]
     elif compression == 'bz2':
         import bz2
+
         return bz2.open(filename, mode=mode)
     elif compression == 'xz':
         import lzma
+
         return lzma.open(filename, mode)
     else:
         # Either None or unknown string
@@ -617,12 +720,15 @@ def is_compressed(fd: io.BufferedIOBase) -> bool:
     # protect against that:
     if 'gzip' in sys.modules:
         import gzip
+
         compressed = compressed or isinstance(fd, gzip.GzipFile)
     if 'bz2' in sys.modules:
         import bz2
+
         compressed = compressed or isinstance(fd, bz2.BZ2File)
     if 'lzma' in sys.modules:
         import lzma
+
         compressed = compressed or isinstance(fd, lzma.LZMAFile)
     return compressed
 
@@ -639,12 +745,12 @@ NameOrFile = Union[str, PurePath, IO]
 
 
 def write(
-        filename: NameOrFile,
-        images: Union[Atoms, Sequence[Atoms]],
-        format: str = None,
-        parallel: bool = True,
-        append: bool = False,
-        **kwargs: Any
+    filename: NameOrFile,
+    images: Union[Atoms, Sequence[Atoms]],
+    format: str = None,
+    parallel: bool = True,
+    append: bool = False,
+    **kwargs: Any,
 ) -> None:
     """Write Atoms object(s) to file.
 
@@ -700,20 +806,30 @@ def write(
 
     io = get_ioformat(format)
 
-    return _write(filename, fd, format, io, images,
-                  parallel=parallel, append=append, **kwargs)
+    return _write(
+        filename,
+        fd,
+        format,
+        io,
+        images,
+        parallel=parallel,
+        append=append,
+        **kwargs,
+    )
 
 
 @parallel_function
-def _write(filename, fd, format, io, images, parallel=None, append=False,
-           **kwargs):
+def _write(
+    filename, fd, format, io, images, parallel=None, append=False, **kwargs
+):
     if isinstance(images, Atoms):
         images = [images]
 
     if io.single:
         if len(images) > 1:
-            raise ValueError('{}-format can only store 1 Atoms object.'
-                             .format(format))
+            raise ValueError(
+                '{}-format can only store 1 Atoms object.'.format(format)
+            )
         images = images[0]
 
     if not io.can_write:
@@ -723,11 +839,13 @@ def _write(filename, fd, format, io, images, parallel=None, append=False,
     if format == 'json' and (len(images) > 1 or append):
         if filename is not None:
             return io.write(filename, images, append=append, **kwargs)
-        raise ValueError("Can't write more than one image to file-descriptor "
-                         'using json-format.')
+        raise ValueError(
+            "Can't write more than one image to file-descriptor "
+            'using json-format.'
+        )
 
     if io.acceptsfd:
-        open_new = (fd is None)
+        open_new = fd is None
         try:
             if open_new:
                 mode = 'wb' if io.isbinary else 'w'
@@ -742,25 +860,27 @@ def _write(filename, fd, format, io, images, parallel=None, append=False,
                 fd.close()
     else:
         if fd is not None:
-            raise ValueError("Can't write {}-format to file-descriptor"
-                             .format(format))
+            raise ValueError(
+                "Can't write {}-format to file-descriptor".format(format)
+            )
         if io.can_append:
             return io.write(filename, images, append=append, **kwargs)
         elif append:
-            raise ValueError("Cannot append to {}-format, write-function "
-                             "does not support the append keyword."
-                             .format(format))
+            raise ValueError(
+                'Cannot append to {}-format, write-function '
+                'does not support the append keyword.'.format(format)
+            )
         else:
             return io.write(filename, images, **kwargs)
 
 
 def read(
-        filename: NameOrFile,
-        index: Any = None,
-        format: Optional[str] = None,
-        parallel: bool = True,
-        do_not_split_by_at_sign: bool = False,
-        **kwargs
+    filename: NameOrFile,
+    index: Any = None,
+    format: Optional[str] = None,
+    parallel: bool = True,
+    do_not_split_by_at_sign: bool = False,
+    **kwargs,
 ) -> Union[Atoms, List[Atoms]]:
     """Read Atoms object(s) from file.
 
@@ -805,20 +925,29 @@ def read(
 
     io = get_ioformat(format)
     if isinstance(index, (slice, str)):
-        return list(_iread(filename, index, format, io, parallel=parallel,
-                           **kwargs))
+        return list(
+            _iread(filename, index, format, io, parallel=parallel, **kwargs)
+        )
     else:
-        return next(_iread(filename, slice(index, None), format, io,
-                           parallel=parallel, **kwargs))
+        return next(
+            _iread(
+                filename,
+                slice(index, None),
+                format,
+                io,
+                parallel=parallel,
+                **kwargs,
+            )
+        )
 
 
 def iread(
-        filename: NameOrFile,
-        index: Any = None,
-        format: str = None,
-        parallel: bool = True,
-        do_not_split_by_at_sign: bool = False,
-        **kwargs
+    filename: NameOrFile,
+    index: Any = None,
+    format: str = None,
+    parallel: bool = True,
+    do_not_split_by_at_sign: bool = False,
+    **kwargs,
 ) -> Iterable[Atoms]:
     """Iterator for reading Atoms objects from file.
 
@@ -842,14 +971,13 @@ def iread(
     format = format or filetype(filename, read=isinstance(filename, str))
     io = get_ioformat(format)
 
-    yield from _iread(filename, index, format, io, parallel=parallel,
-                      **kwargs)
+    yield from _iread(filename, index, format, io, parallel=parallel, **kwargs)
 
 
 @parallel_generator
-def _iread(filename, index, format, io, parallel=None, full_output=False,
-           **kwargs):
-
+def _iread(
+    filename, index, format, io, parallel=None, full_output=False, **kwargs
+):
     if not io.can_read:
         raise ValueError(f"Can't read from {format}-format")
 
@@ -902,10 +1030,12 @@ def parse_filename(filename, index=None, do_not_split_by_at_sign=False):
     try:
         newindex = string2index(newindex)
     except ValueError:
-        warnings.warn('Can not parse index for path \n'
-                      ' "%s" \nConsider set '
-                      'do_not_split_by_at_sign=True \nif '
-                      'there is no index.' % filename)
+        warnings.warn(
+            'Can not parse index for path \n'
+            ' "%s" \nConsider set '
+            'do_not_split_by_at_sign=True \nif '
+            'there is no index.' % filename
+        )
     return newfilename, newindex
 
 
@@ -918,9 +1048,9 @@ def match_magic(data: bytes) -> IOFormat:
 
 
 def filetype(
-        filename: NameOrFile,
-        read: bool = True,
-        guess: bool = True,
+    filename: NameOrFile,
+    read: bool = True,
+    guess: bool = True,
 ) -> str:
     """Try to guess the type of the file.
 
