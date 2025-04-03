@@ -338,7 +338,7 @@ class BaseNEB:
                 raise RuntimeError(
                     "Cannot use shared calculators in parallel in NEB.")
         self.real_forces = None  # ndarray of shape (nimages, natom, 3)
-        self.energies = np.empty(self.nimages)
+        self.energies = np.full(self.nimages, np.nan)
         self.residuals = None  # ndarray of shape (nimages,)
 
         if self.method != 'aseneb':
