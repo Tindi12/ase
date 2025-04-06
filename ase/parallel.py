@@ -198,39 +198,48 @@ class MPI4PY:
         return self._returnval(a, b)
 
 
-world = None
+def determine_world():
+    world = None
 
-# Check for special MPI-enabled Python interpreters:
-if '_gpaw' in sys.builtin_module_names:
-    # http://gpaw.readthedocs.io
-    import _gpaw
-    world = _gpaw.Communicator()
-elif '_asap' in sys.builtin_module_names:
-    # Modern version of Asap
-    # http://wiki.fysik.dtu.dk/asap
-    # We cannot import asap3.mpi here, as that creates an import deadlock
-    import _asap
-    world = _asap.Communicator()
-
-# Check if MPI implementation has been imported already:
-elif '_gpaw' in sys.modules:
-    # Same thing as above but for the module version
-    import _gpaw
-    try:
+    # Check for special MPI-enabled Python interpreters:
+    if '_gpaw' in sys.builtin_module_names:
+        # http://gpaw.readthedocs.io
+        import _gpaw
         world = _gpaw.Communicator()
-    except AttributeError:
-        pass
-elif '_asap' in sys.modules:
-    import _asap
-    try:
+    elif '_asap' in sys.builtin_module_names:
+        # Modern version of Asap
+        # http://wiki.fysik.dtu.dk/asap
+        # We cannot import asap3.mpi here, as that creates an import deadlock
+        import _asap
         world = _asap.Communicator()
-    except AttributeError:
-        pass
-elif 'mpi4py' in sys.modules:
-    world = MPI4PY()
+    # Check if MPI implementation has been imported already:
+    elif '_gpaw' in sys.modules:
+        # Same thing as above but for the module version
+        import _gpaw
+        try:
+            world = _gpaw.Communicator()
+        except AttributeError:
+            pass
+    elif '_asap' in sys.modules:
+        import _asap
+        try:
+            world = _asap.Communicator()
+        except AttributeError:
+            pass
+    elif 'mpi4py' in sys.modules:
+        world = MPI4PY()
 
-if world is None:
+    if world is None:
+        world = MPI()
+
+    return world
+
+ASE_SERIAL = bool(int(os.environ.get('ASE_SERIAL') or 0))
+
+if ASE_SERIAL:
     world = MPI()
+else:
+    world = determine_world()
 
 
 def barrier():
