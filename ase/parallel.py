@@ -92,8 +92,9 @@ class MPI:
 
     """
 
-    def __init__(self):
+    def __init__(self, serial=False):
         self.comm = None
+        self.serial = serial
 
     def __getattr__(self, name):
         # Pickling of objects that carry instances of MPI class
@@ -107,12 +108,14 @@ class MPI:
             raise AttributeError(name)
 
         if self.comm is None:
-            self.comm = _get_comm()
+            self.comm = _get_comm(serial=self.serial)
         return getattr(self.comm, name)
 
 
-def _get_comm():
+def _get_comm(serial=False):
     """Get the correct MPI world object."""
+    if serial:
+        return DummyMPI()
     if 'mpi4py' in sys.modules:
         return MPI4PY()
     if '_gpaw' in sys.modules:
@@ -237,7 +240,7 @@ def determine_world():
 ASE_SERIAL = bool(int(os.environ.get('ASE_SERIAL') or 0))
 
 if ASE_SERIAL:
-    world = MPI()
+    world = MPI(serial=True)
 else:
     world = determine_world()
 
