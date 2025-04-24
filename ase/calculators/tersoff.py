@@ -18,11 +18,39 @@ _MIN_EXP_ARG = -69.0776e0
 
 @dataclass
 class TersoffParameters:
-    """Parameters for 3 element Tersoff potential interaction.
+    """14 parameters for each three-body Tersoff potential interaction.
 
-    Can be instantiated with either positional or keyword arguments:
-        TersoffParameters(1.0, 2.0, ...) or
+    Can be instantiated with either positional arguments
+
+    .. code-block::
+
+        TersoffParameters(1.0, 2.0, ...)
+
+    or keyword arguments:
+
+    .. code-block::
+
         TersoffParameters(m=1.0, gamma=2.0, ...)
+
+    ========= ===================================
+    Parameter Description
+    ========= ===================================
+    A         Repulsive pair potential prefactor
+    B         Attractive pair potential prefactor
+    lambda1   Decay length for repulsive term
+    lambda2   Decay length for attractive term
+    lambda3   Decay length for angular term
+    beta      Angular strength parameter
+    n         Angular exponent
+    c         Angular coefficient
+    d         Angular parameter
+    h         Cosine of angle parameter
+    gamma     Angular scaling
+    m         Bond order exponent
+    R         Cutoff distance
+    D         Cutoff width
+    ========= ===================================
+
     """
 
     m: float

@@ -77,28 +77,8 @@ For a complete description of the functional forms and parameters, see the
 Parameters
 ----------
 
-The Tersoff potential is defined by 14 parameters for each three-body interaction:
-
-========= ===================================
-Parameter Description
-========= ===================================
-A         Repulsive pair potential prefactor
-B         Attractive pair potential prefactor
-lambda1   Decay length for repulsive term
-lambda2   Decay length for attractive term
-lambda3   Decay length for angular term
-beta      Angular strength parameter
-n         Angular exponent
-c         Angular coefficient
-d         Angular parameter
-h         Cosine of angle parameter
-gamma     Angular scaling
-m         Bond order exponent
-R         Cutoff distance
-D         Cutoff width
-========= ===================================
-
-See :class:`ase.calculators.tersoff.TersoffParameters` for details.
+.. autoclass:: ase.calculators.tersoff.TersoffParameters
+    :class-doc-from: class
 
 Examples
 --------
@@ -182,9 +162,6 @@ Read parameters from a `LAMMPS-style Tersoff file
 
 Tersoff Calculator Class
 ++++++++++++++++++++++++
-
-.. autoclass:: ase.calculators.tersoff.TersoffParameters
-    :class-doc-from: class
 
 .. autoclass:: ase.calculators.tersoff.Tersoff
     :members: from_lammps, read_lammps_format, set_parameters
