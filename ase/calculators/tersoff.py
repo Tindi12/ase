@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple, Type, Union
+from typing import Union
 
 import numpy as np
 
@@ -41,7 +41,7 @@ class TersoffParameters:
     A: float
 
     @classmethod
-    def from_list(cls, params: List[float]) -> 'TersoffParameters':
+    def from_list(cls, params: list[float]) -> 'TersoffParameters':
         """Create TersoffParameters from a list of 14 parameter values."""
         if len(params) != 14:
             raise ValueError(f'Expected 14 parameters, got {len(params)}')
@@ -79,7 +79,7 @@ class Tersoff(Calculator):
 
     def __init__(
         self,
-        parameters: Dict[Tuple[str, str, str], TersoffParameters] | None = None,
+        parameters: Union[dict[tuple, TersoffParameters], None] = None,
         skin: float = 0.3,
         **kwargs,
     ) -> None:
@@ -113,7 +113,7 @@ class Tersoff(Calculator):
 
     @classmethod
     def from_lammps(
-        cls: Type['Tersoff'],
+        cls: type['Tersoff'],
         potential_file: Union[str, Path],
         skin: float = 0.3,
         **kwargs,
@@ -142,7 +142,7 @@ class Tersoff(Calculator):
     @staticmethod
     def read_lammps_format(
         potential_file: Union[str, Path],
-    ) -> Dict[Tuple[str, str, str], TersoffParameters]:
+    ) -> dict[tuple[str, str, str], TersoffParameters]:
         """Read the Tersoff potential parameters from a LAMMPS-style file.
 
         Parameters
@@ -171,7 +171,7 @@ class Tersoff(Calculator):
                 'The potential file does not have the correct LAMMPS format.'
             )
 
-        parameters: Dict[Tuple[str, str, str], TersoffParameters] = {}
+        parameters: dict[tuple[str, str, str], TersoffParameters] = {}
         for i in range(0, len(content), block_size):
             block = content[i : i + block_size]
             e1, e2, e3 = block[0], block[1], block[2]
@@ -183,7 +183,7 @@ class Tersoff(Calculator):
 
     def set_parameters(
         self,
-        key: Tuple[str, str, str],
+        key: tuple[str, str, str],
         params: TersoffParameters = None,
         **kwargs,
     ) -> None:
@@ -191,7 +191,7 @@ class Tersoff(Calculator):
 
         Parameters
         ----------
-        key: Tuple[str, str, str]
+        key: tuple[str, str, str]
             The element combination key of the parameters to be updated
         params: TersoffParameters, optional
             A TersoffParameters instance to completely replace the parameters
