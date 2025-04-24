@@ -51,21 +51,42 @@ class TersoffParameters:
 class Tersoff(Calculator):
     """ASE Calculator for Tersoff interatomic potential.
 
+    .. [1] `J. Tersoff, Phys. Rev. B 37, 6991 (1988).
+       <https://doi.org/10.1103/PhysRevB.37.6991>`_
     .. versionadded:: 3.25.0
     """
 
     implemented_properties = ['free_energy', 'energy', 'forces', 'stress']
 
+    default_parameters = {
+        ('Si', 'Si', 'Si'): TersoffParameters(
+            A=3264.7,
+            B=95.373,
+            lambda1=3.2394,
+            lambda2=1.3258,
+            lambda3=1.3258,
+            beta=0.33675,
+            gamma=1.00,
+            m=3.00,
+            n=22.956,
+            c=4.8381,
+            d=2.0417,
+            h=0.0000,
+            R=3.00,
+            D=0.20,
+        )
+    }
+
     def __init__(
         self,
-        parameters: Dict[Tuple[str, str, str], TersoffParameters],
+        parameters: Dict[Tuple[str, str, str], TersoffParameters] | None = None,
         skin: float = 0.3,
         **kwargs,
     ) -> None:
         """
         Parameters
         ----------
-        parameters : dict
+        parameters : dict[tuple[str, str, str], TersoffParameters], optional
             Mapping element combinations to TersoffParameters objects::
 
                 {
@@ -76,6 +97,8 @@ class Tersoff(Calculator):
                 }
 
             where ('A', 'B', 'C') are the elements involved in the interaction.
+            If :py:obj:`None`, the default values for Si given by Tersoff
+            [1]_ are set.
         skin : float, default 0.3
             The skin distance for neighbor list calculations.
         **kwargs : dict
@@ -85,7 +108,8 @@ class Tersoff(Calculator):
         """
         Calculator.__init__(self, **kwargs)
         self.cutoff_skin = skin
-        self.parameters = parameters
+        if parameters is not None:
+            self.parameters = parameters
 
     @classmethod
     def from_lammps(
