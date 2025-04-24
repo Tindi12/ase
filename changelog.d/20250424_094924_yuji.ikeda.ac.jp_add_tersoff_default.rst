@@ -1,0 +1,5 @@
+Calculators
+-----------
+
+- Added default paramters for Si to :class:`~ase.calculators.tersoff.Tersoff`
+  (:mr:`3658`)
