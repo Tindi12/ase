@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple, Type, Union
@@ -46,6 +47,14 @@ class TersoffParameters:
         if len(params) != 14:
             raise ValueError(f'Expected 14 parameters, got {len(params)}')
         return cls(*map(float, params))
+
+    def update(self, other: Mapping | None = None, **kwargs) -> None:
+        """Update :class:`TersoffParameters` from a dict."""
+        if other is not None:
+            for k, v in other.items():
+                self[k] = v
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
 
 class Tersoff(Calculator):
@@ -156,37 +165,6 @@ class Tersoff(Calculator):
             parameters[current_elements] = TersoffParameters(*params)
 
         return parameters
-
-    def set_parameters(
-        self,
-        key: Tuple[str, str, str],
-        params: TersoffParameters = None,
-        **kwargs,
-    ) -> None:
-        """Update parameters for a specific element combination.
-
-        Parameters
-        ----------
-        key: Tuple[str, str, str]
-            The element combination key of the parameters to be updated
-        params: TersoffParameters, optional
-            A TersoffParameters instance to completely replace the parameters
-        **kwargs:
-            Individual parameter values to update, e.g. R=2.9
-
-        """
-        if key not in self.parameters:
-            raise KeyError(f"Key '{key}' not found in parameters.")
-
-        if params is not None:
-            if kwargs:
-                raise ValueError('Cannot provide both params and kwargs.')
-            self.parameters[key] = params
-        else:
-            for name, value in kwargs.items():
-                if not hasattr(self.parameters[key], name):
-                    raise ValueError(f'Invalid parameter name: {name}')
-                setattr(self.parameters[key], name, value)
 
     def _update_nl(self, atoms) -> None:
         """Update the neighbor list with the parameter R+D cutoffs.

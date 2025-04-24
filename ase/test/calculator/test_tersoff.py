@@ -68,14 +68,13 @@ def test_set_parameters(si_parameters: dict[tuple, TersoffParameters]) -> None:
     calc = Tersoff(si_parameters)
     key = ('Si', 'Si', 'Si')
 
-    calc.set_parameters(key, m=2.0)
-    assert calc.parameters[key].m == 2.0
+    calc.parameters[key].m = 2.0
 
-    calc.set_parameters(key, R=2.90, D=0.25)
+    calc.parameters[key].update(R=2.90, D=0.25)
     assert calc.parameters[key].R == 2.90
     assert calc.parameters[key].D == 0.25
 
-    new_params = TersoffParameters(
+    calc.parameters[key] = TersoffParameters(
         m=si_parameters[key].m,
         gamma=si_parameters[key].gamma,
         lambda3=si_parameters[key].lambda3,
@@ -91,8 +90,6 @@ def test_set_parameters(si_parameters: dict[tuple, TersoffParameters]) -> None:
         lambda1=si_parameters[key].lambda1,
         A=si_parameters[key].A,
     )
-    calc.set_parameters(key, params=new_params)
-    assert calc.parameters[key] == new_params
 
 
 def test_properties(atoms_si: Atoms) -> None:

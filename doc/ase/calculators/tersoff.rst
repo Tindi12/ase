@@ -152,12 +152,19 @@ The calculator parameters can be updated after initialization:
 
 .. code-block:: python
 
-    # Update single parameters
-    calc.set_parameters(("Si", "Si", "Si"), R=2.9, D=0.25)
+    key = "Si", "Si", "Si"
 
-    # Or replace entire parameter set
+    # update single parameters
+    params = calc.parameters[key]
+    params.R = 2.9
+    params.D = 0.25
+
+    # update part of parameters
+    calc.parameters[key].update(R=2.9, D=0.25)
+
+    # replace entire parameter set
     new_params = TersoffParameters(...)
-    calc.set_parameters(("Si", "Si", "Si"), params=new_params)
+    calc.parameters[key] = new_params
 
 Interface to LAMMPS Files
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -187,7 +194,7 @@ Tersoff Calculator Class
     :class-doc-from: class
 
 .. autoclass:: ase.calculators.tersoff.Tersoff
-    :members: from_lammps, read_lammps_format, set_parameters
+    :members: from_lammps, read_lammps_format
 
 References
 ----------
