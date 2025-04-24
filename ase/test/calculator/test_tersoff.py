@@ -53,7 +53,7 @@ def fixture_atoms_si(
     return atoms
 
 
-def test_initialize_from_params_from_dict(si_parameters):
+def test_initialize_from_params_from_dict(si_parameters: dict) -> None:
     """Test initializing Tersoff calculator from dictionary of parameters."""
     calc = Tersoff(si_parameters)
     assert calc.parameters == si_parameters
