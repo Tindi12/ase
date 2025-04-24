@@ -427,6 +427,12 @@ class EMTFactory(BuiltinCalculatorFactory):
     pass
 
 
+@factory('tersoff')
+class TersoffFactory(BuiltinCalculatorFactory):
+    def __init__(self, cfg):
+        self.potentials_path = cfg.parser['lammps']['potentials']
+
+
 @factory('lammpsrun')
 class LammpsRunFactory:
     def __init__(self, cfg):
@@ -645,6 +651,7 @@ class Factories:
         'elk',
         'espresso',
         'eam',
+        'tersoff'
         'lammpsrun',
         'lammpslib',
         'openmx',

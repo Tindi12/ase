@@ -153,7 +153,9 @@ def test_unary(atoms_si: Atoms) -> None:
     np.testing.assert_allclose(stress, stress_ref, rtol=1e-5)
 
 
-def test_binary(datadir) -> None:
+@pytest.mark.calculator('tersoff')
+@pytest.mark.calculator_lite()
+def test_binary(factory) -> None:
     """Test if energy, forces, and stress of a binary system agree with LAMMPS.
 
     The reference values are obtained in the following way.
@@ -179,8 +181,9 @@ def test_binary(datadir) -> None:
     # pertubate first atom to get substantial forces
     atoms.positions[0] += [0.03, 0.02, 0.01]
 
-    potential_file = datadir / 'tersoff' / 'SiC.tersoff'
-    atoms.calc = Tersoff.from_lammps(potential_file)
+    potential_file = f'{factory.factory.potentials_path}/SiC.tersoff'
+    parameters = Tersoff.read_lammps_format(potential_file)
+    atoms.calc = factory.calc(parameters=parameters)
 
     energy_ref = -28.780184609451915
     forces_ref = [
