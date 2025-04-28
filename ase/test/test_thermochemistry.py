@@ -57,6 +57,31 @@ def test_ideal_gas_thermo_n2(testdir):
         thermo.get_enthalpy(1000) - 1000 * thermo.get_entropy(1000, 1e8)
     )
 
+@pytest.mark.parametrize('vib_energies',[
+    [19j, 19j, 0j, 34, 36, 2126], # Correct order, realistic energies
+    [1000j, 800j, 0j, 34, 36, 900], # Correct order, largest imaginary frequency is absolutely bigger than largest real
+    [2126, 36, 34, 0j, 19j, 19j] # Out of order
+    ])
+def test_wrong_vibration_order(vib_energies):
+    vib_energies = np.array(vib_energies)
+    vib_energies /= 1.24e4
+    
+    CO = molecule('CO')
+    
+    ref_energies = sorted(vib_energies, key=lambda f: (f**2).real)
+    #print(vib_energies)
+    #print(energies)
+    
+    
+    thermo = IdealGasThermo(vib_energies=vib_energies,
+                            geometry='linear',
+                            atoms=CO,
+                            symmetrynumber=1,
+                            spin=0,
+                            potentialenergy=0.0,
+                           )
+    assert np.isclose(thermo.vib_energies[-1],ref_energies[-1])
+    #vfdgshjt
 
 def ideal_gas_thermo_ch3(
     vib_energies,

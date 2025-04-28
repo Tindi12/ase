@@ -476,7 +476,8 @@ class IdealGasThermo(ThermoChem):
 
         # Sort the vibrations
         vib_energies = list(vib_energies)
-        vib_energies.sort(key=np.abs)
+        #vib_energies.sort(key=np.abs)
+        vib_energies = sorted(vib_energies, key=lambda f: (f**2).real)
 
         # Cut the vibrations to those needed from the geometry.
         if natoms:
