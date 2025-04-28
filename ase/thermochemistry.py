@@ -430,13 +430,13 @@ class IdealGasThermo(ThermoChem):
         atoms. If more are specified than are needed, then the lowest
         numbered vibrations are neglected. If either atoms or natoms is
         unspecified, then uses the entire list. Units are eV.
-    geometry : 'monatomic', 'linear', or 'nonlinear'
-        geometry of the molecule
+    geometry : 'monatomic', 'linear', 'nonlinear', or None
+        geometry of the molecule. If None, it will be detected from 'atoms'
     potentialenergy : float
         the potential energy in eV (e.g., from atoms.get_potential_energy)
         (if potentialenergy is unspecified, then the methods of this
         class can be interpreted as the energy corrections)
-    natoms : integer
+    natoms : integer or None
         the number of atoms, used along with 'geometry' to determine how
         many vibrations to use. (Not needed if an atoms object is supplied
         in 'atoms' or if the user desires the entire list of vibrations
