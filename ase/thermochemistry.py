@@ -461,18 +461,22 @@ class IdealGasThermo(ThermoChem):
         any imaginary frequencies remain after the 3N-5/3N-6 cut.
     """
 
-    def __init__(self, vib_energies, geometry, potentialenergy=0.,
+    def __init__(self, vib_energies, geometry=None, potentialenergy=0.,
                  atoms=None, symmetrynumber=None, spin=None, natoms=None,
                  ignore_imag_modes=False):
-        self.potentialenergy = potentialenergy
+
+        if atoms is not None:
+            if geometry is None:
+                geometry = self.get_geometry(atoms)
+            if natoms is None:
+                natoms = len(atoms)
         self.geometry = geometry
+        self.natoms = natoms
+        self.potentialenergy = potentialenergy
         self.atoms = atoms
         self.sigma = symmetrynumber
         self.spin = spin
         self.ignore_imag_modes = ignore_imag_modes
-        if natoms is None and atoms:
-            natoms = len(atoms)
-        self.natoms = natoms
 
         # Sort the vibrations
         vib_energies = list(vib_energies)
@@ -497,6 +501,28 @@ class IdealGasThermo(ThermoChem):
         self.n_imag = n_imag
 
         self.referencepressure = 1.0e5  # Pa
+
+    def get_geometry(self, atoms, max_angle=0.0174):
+        """Returns the geometry of atoms. max_angle is the tolerance
+        for angle deviation (in radians) between distance vectors,
+        above which the structure is determined as non-linear
+        """
+        n = len(atoms)
+        assert n >= 1
+        if n == 1:
+            return 'monatomic'
+        elif n == 2:
+            return 'linear'
+        else:
+            # Test if all distance vectors are parallel
+            dist_vecs = atoms.get_distances(0, list(range(1, n)), vector=True)
+            dists = atoms.get_distances(0, list(range(1, n)))
+            dots = np.dot(dist_vecs[0], dist_vecs.T)
+            cos_angles = dots / dists / dists[0]
+            if (np.abs(cos_angles) >= np.cos(max_angle)).all():
+                return 'linear'
+            else:
+                return 'nonlinear'
 
     def get_enthalpy(self, temperature, verbose=True):
         """Returns the enthalpy, in eV, in the ideal gas approximation

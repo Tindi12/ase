@@ -16,6 +16,26 @@ from ase.thermochemistry import (
 from ase.vibrations import Vibrations
 
 
+@pytest.mark.parametrize(('mol', 'ref_geom'),
+    [('H2', 'linear'),
+     ('CO', 'linear'),
+     ('CH3OH', 'nonlinear'),
+     ('H2O', 'nonlinear'),
+     ('CO2', 'linear'),
+     ('Li', 'monatomic'),
+    ])
+def test_geometry_detection(mol, ref_geom):
+    atoms = molecule(mol)
+    padding_vib_energies = [3000] * 3 * (max(len(atoms), 0) - 2)
+    vib_energies = [30j, 30j, 10j, 34, 36, 2500] + padding_vib_energies
+    vib_energies = [en / 1.24e4 for en in vib_energies]
+    thermo = IdealGasThermo(
+        vib_energies=vib_energies,
+        atoms=atoms,
+        )
+    assert thermo.geometry == ref_geom
+
+
 def test_ideal_gas_thermo_n2(testdir):
     "We do a basic test on N2"
     atoms = Atoms("N2", positions=[(0, 0, 0), (0, 0, 1.1)])
