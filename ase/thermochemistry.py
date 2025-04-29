@@ -9,7 +9,7 @@ from warnings import warn
 
 import numpy as np
 from scipy.integrate import trapezoid
-
+from typing import Literal
 from ase import units
 
 
@@ -502,13 +502,16 @@ class IdealGasThermo(ThermoChem):
 
         self.referencepressure = 1.0e5  # Pa
 
-    def get_geometry(self, atoms, max_angle=0.0174):
+    def get_geometry(
+        self, atoms, max_angle=0.0174
+    )->Literal['monatomic', 'linear', 'nonlinear']:
         """Returns the geometry of atoms. max_angle is the tolerance
         for angle deviation (in radians) between distance vectors,
         above which the structure is determined as non-linear
         """
         n = len(atoms)
-        assert n >= 1
+        if not n:
+            raise ValueError('Empty atoms has no valid geometry')
         if n == 1:
             return 'monatomic'
         elif n == 2:
