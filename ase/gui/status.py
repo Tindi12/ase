@@ -83,8 +83,12 @@ class Status:  # Status is used as a mixin in GUI
             magmoms = get_magmoms(self.atoms)
             if magmoms.any():
                 # TRANSLATORS: mom refers to magnetic moment
-                text += _(' mom={:1.2f}'.format(
-                    magmoms[indices][0]))
+                if isinstance(magmoms[indices][0], (int, float)):
+                    magmom_str = round(magmoms[indices][0], 2)
+                else:
+                    magmom_str = [np.round(m, 2) for m in magmoms[indices][0]]
+                text += _(' mom={}'.format(
+                    magmom_str))
             charges = self.atoms.get_initial_charges()
             if charges.any():
                 text += _(' q={:1.2f}'.format(
