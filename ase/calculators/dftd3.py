@@ -299,9 +299,15 @@ class PureDFTD3(FileIOCalculator):
 
         errorcode = self.comm.sum_scalar(errorcode)
 
+        if errorcode == 9999:
+            if self.comm.rank == 0:
+                raise exception
+            else:
+                raise RuntimeError('Rank 0 raised an exception '
+                                   'during a subprocess call.')
         if errorcode:
-            raise RuntimeError('%s returned an error: %d %s' %
-                    (self.name, errorcode, exception if exception is not None else ''))
+            raise RuntimeError('%s returned an error: %d' %
+                    (self.name, errorcode))
 
         self.read_results()
 
