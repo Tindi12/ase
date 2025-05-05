@@ -288,16 +288,20 @@ class PureDFTD3(FileIOCalculator):
         # DFTD3 does not run in parallel
         # so we only need it to run on 1 core
         errorcode = 0
+        exception = None
         if self.comm.rank == 0:
             with open(self.label + '.out', 'w') as fd:
-                errorcode = subprocess.call(command,
-                                            cwd=self.directory, stdout=fd)
+                try:
+                    errorcode = subprocess.call(command,
+                                                cwd=self.directory, stdout=fd)
+                except Exception as e:
+                    exception, errorcode = e, 9999
 
         errorcode = self.comm.sum_scalar(errorcode)
 
         if errorcode:
-            raise RuntimeError('%s returned an error: %d' %
-                               (self.name, errorcode))
+            raise RuntimeError('%s returned an error: %d %s' %
+                    (self.name, errorcode, exception if exception is not None else '')))
 
         self.read_results()
 
