@@ -301,7 +301,7 @@ class PureDFTD3(FileIOCalculator):
 
         if errorcode:
             raise RuntimeError('%s returned an error: %d %s' %
-                    (self.name, errorcode, exception if exception is not None else '')))
+                    (self.name, errorcode, exception if exception is not None else ''))
 
         self.read_results()
 
