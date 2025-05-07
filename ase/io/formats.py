@@ -24,7 +24,7 @@ import re
 import sys
 import warnings
 from importlib import import_module
-from importlib.metadata import entry_points
+from importlib.metadata import EntryPoint, entry_points
 from pathlib import Path, PurePath
 from typing import (
     IO,
@@ -266,9 +266,19 @@ all_formats = ioformats  # Aliased for compatibility only.  Please do not use.
 format2modulename = {}  # Left for compatibility only.
 
 
-def define_io_format(name, desc, code, *, module=None, ext=None,
-                     glob=None, magic=None, encoding=None,
-                     magic_regex=None, external=False):
+def define_io_format(
+    name: str,
+    desc: str,
+    code: str,
+    *,
+    module: str = None,
+    ext: Union[str, list[str]] = None,
+    glob: Union[str, list[str]] = None,
+    magic: Union[bytes, list[bytes]] = None,
+    encoding: str = None,
+    magic_regex: bytes = None,
+    external: bool = False,
+):
     if module is None:
         module = name.replace('-', '_')
         format2modulename[name] = module
@@ -329,7 +339,7 @@ def register_external_io_formats(group):
             )
 
 
-def define_external_io_format(entry_point):
+def define_external_io_format(entry_point: EntryPoint) -> None:
 
     fmt = entry_point.load()
     if entry_point.name in ioformats:
