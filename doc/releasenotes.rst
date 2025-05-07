@@ -96,9 +96,9 @@ Version 3.23.0
   has been renamed to ``ab2``.
 
 * IO formats can now be implemented in separate packages and registered
-  in ase with the entry point ``ase.ioformats`` in the external package
+  in ASE with the entry point ``ase.ioformats`` in the external package
   configuration. This entry point only accepts objects of the type
-  :class:`~ase.utils.plugins.ExternalIOFormat`.
+  :class:`~ase.utils.plugins.ExternalIOFormat` (:mr:`2506`, :mr:`2558`).
 
 * :class:`ase.phonons.Displacement` now has a ``comm`` keyword argument to
   better support parallelization.
