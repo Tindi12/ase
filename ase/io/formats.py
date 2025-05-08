@@ -348,6 +348,8 @@ def define_external_io_format(entry_point: EntryPoint) -> None:
         raise TypeError('Wrong type for registering external IO formats '
                         f'in format {entry_point.name}, expected '
                         'ExternalIOFormat')
+    if fmt.module is None:
+        fmt = fmt._replace(module=entry_point.module)
     F(entry_point.name, **fmt._asdict(), external=True)
 
 
