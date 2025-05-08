@@ -165,15 +165,69 @@ in :git:`ase/io/xyz.py` and also read, understand and update
 Adding a new file-format in a plugin package
 ============================================
 
-IO formats can also be implemented in external packages. For this the read
-write functions of the IO format are implemented as normal. To define the
-format the parameters are entered into a :class:`ase.utils.plugins.ExternalIOFormat`
-object.
+.. versionadded:: 3.23.0
+
+IO formats can also be implemented in external packages.
+The implemented functions can be accessed via ``ase.io.read`` and ``ase.io.write``
+as a plugin.
+The example below shows how to register it.
+
+Suppose we have the ``mymodule`` module and want to add the ``myformat`` format.
+We first need to define ``read_myformat`` and/or ``write_format`` somewhere in
+``mymodule``, say ``mysubmodule``, as follows.
+
+.. code-block:: python
+
+    def read_myformat(fd) -> Atoms | list[Atoms]: ...
+
+    def write_myformat(fd, atoms: Atoms) -> None: ...
+
+We then need to make an :class:`ase.utils.plugins.ExternalIOFormat` object
+with specifying ``mysubmodule`` somewhere in ``mymodule``
+(which can be ``mysubmodule`` itself) as follows.
+
+.. code-block:: python
+
+    from ase.utils.plugins import ExternalIOFormat
+
+    io_format = ExternalIOFormat(
+        desc='my IO format',
+        code='1S',  # find details in ase.io.formats
+        module='mymodule.mysubmodule',
+        # module=__name__,  # if the present module is referred to.
+    )
 
 .. note::
-    The module name of the external IO format has to be absolute and cannot
-    be omitted.
+    The module name of the external IO format has to be absolute.
 
-In the configuration of the package an entry point is added under the group
-``ase.ioformats`` which points to the defined :class:`ase.utils.plugins.ExternalIOFormat`
-object. The format of this entry point looks like ``format-name=ase_plugin.io::ioformat``.
+    .. versionchanged:: 3.26.0
+
+        The ``module`` argument can now be omitted.
+        In this case, the present module defining the
+        :class:`~ase.utils.plugins.ExternalIOFormat` object is referred to.
+
+We finally add the defined ``io_format`` to the ``ase.ioformats`` entry point
+in ``pyproject.toml`` of ``mymodule`` according to the setuptools_ specification
+as follows.
+
+.. code-block:: toml
+
+    [project.entry-points.'ase.ioformats']
+    myformat = 'mymodule.mysubmodule:io_format'
+
+.. note::
+    We can also use the legacy ``setup.cfg`` or ``setup.py``.
+    See setuptools_ for details.
+
+If successful, after the installation of ``mymodule``,
+the ``myformat`` format is recognized by ``ase.io.read`` and ``ase.io.write``,
+even without explicitly importing ``mymodule``, e.g., as
+
+.. code-block::
+
+    atoms = ase.io.read(fd, format='myformat')
+    ase.io.write(fd, atoms, format='myformat')
+
+.. _setuptools: https://setuptools.pypa.io/en/latest/userguide/entry_point.html#entry-points-for-plugins
+
+.. autoclass:: ase.utils.plugins.ExternalIOFormat
