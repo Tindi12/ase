@@ -1,5 +1,8 @@
 --- # ASE Gitlab CI configuration
 
+default:
+  interruptible: true
+
 variables:
   OMP_NUM_THREADS: "1"
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/pip-cache"
@@ -19,6 +22,9 @@ workflow:
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
       when: never
     - if: $CI_COMMIT_BRANCH
+  # https://docs.gitlab.com/ci/yaml/#workflowauto_cancelon_new_commit
+  auto_cancel:
+    on_new_commit: interruptible
 
 # This will ensure that only pipelines in master get to update the cache,
 # see https://docs.gitlab.com/ci/caching/
