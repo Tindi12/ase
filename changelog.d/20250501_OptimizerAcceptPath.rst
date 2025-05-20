@@ -1,23 +1,23 @@
 .. A new scriv changelog fragment.
 ..
-.. Uncomment the header that is right (remove the leading dots).
+.. Uncomment the section that is right (remove the leading dots).
+.. For top level release notes, leave all the headers commented out.
 ..
-I/O
----
-
-- Added :func:`~ase.io.castep.write_castep_geom` and
-  :func:`~ase.io.castep.write_castep_md` (:mr:`3229`)
-
+.. I/O
+.. ---
+..
+.. - A bullet item for the I/O category.
+..
 .. Calculators
 .. -----------
 ..
 .. - A bullet item for the Calculators category.
 ..
-.. Optimizers
-.. ----------
-..
-.. - A bullet item for the Optimizers category.
-..
+Optimizers
+----------
+
+ - Logfile and trajectory inputs now accept both string and Path objects. 
+
 .. Molecular dynamics
 .. ------------------
 ..

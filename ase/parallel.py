@@ -11,21 +11,6 @@ import warnings
 import numpy as np
 
 
-def get_txt(txt, rank):
-    if hasattr(txt, 'write'):
-        # Note: User-supplied object might write to files from many ranks.
-        return txt
-    elif rank == 0:
-        if txt is None:
-            return open(os.devnull, 'w')
-        elif txt == '-':
-            return sys.stdout
-        else:
-            return open(txt, 'w', 1)
-    else:
-        return open(os.devnull, 'w')
-
-
 def paropen(name, mode='r', buffering=-1, encoding=None, comm=None):
     """MPI-safe version of open function.
 
@@ -40,9 +25,11 @@ def paropen(name, mode='r', buffering=-1, encoding=None, comm=None):
     return open(name, mode, buffering, encoding)
 
 
-def parprint(*args, **kwargs):
+def parprint(*args, comm=None, **kwargs):
     """MPI-safe print - prints only from master. """
-    if world.rank == 0:
+    if comm is None:
+        comm = world
+    if comm.rank == 0:
         print(*args, **kwargs)
 
 

@@ -205,6 +205,10 @@ def get_calculator_class(name):
         from ase.calculators.acemolecule import ACE as Calculator
     elif name == 'Psi4':
         from ase.calculators.psi4 import Psi4 as Calculator
+    elif name == 'mattersim':
+        from mattersim.forcefield import MatterSimCalculator as Calculator
+    elif name == 'mace_mp':
+        from mace.calculators import mace_mp as Calculator
     elif name in external_calculators:
         Calculator = external_calculators[name]
     else:
@@ -387,31 +391,6 @@ def kpts2kpts(kpts, atoms=None):
 def kpts2ndarray(kpts, atoms=None):
     """Convert kpts keyword to 2-d ndarray of scaled k-points."""
     return kpts2kpts(kpts, atoms=atoms).kpts
-
-
-class EigenvalOccupationMixin:
-    """Define 'eigenvalues' and 'occupations' properties on class.
-
-    eigenvalues and occupations will be arrays of shape (spin, kpts, nbands).
-
-    Classes must implement the old-fashioned get_eigenvalues and
-    get_occupations methods."""
-
-    # We should maybe deprecate this and rely on the new
-    # Properties object for eigenvalues/occupations.
-
-    @property
-    def eigenvalues(self):
-        return self._propwrapper().eigenvalues
-
-    @property
-    def occupations(self):
-        return self._propwrapper().occupations
-
-    def _propwrapper(self):
-        from ase.calculator.singlepoint import OutputPropertyWrapper
-
-        return OutputPropertyWrapper(self)
 
 
 class Parameters(dict):

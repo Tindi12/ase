@@ -365,6 +365,8 @@ if find_spec("pyfhiaims") is not None:
     module='aims', magic=b'*Invoking FHI-aims ...')
 
 F('bundletrajectory', 'ASE bundle trajectory', '+S')
+# XXX: Define plugin in ase db backends package:
+# F('aselmdb', 'ASE LMDB format', '+F')
 F('castep-castep', 'CASTEP output file', '+F',
   module='castep', ext='castep')
 F('castep-cell', 'CASTEP geom file', '1F',
@@ -475,6 +477,8 @@ F('onetep-in', 'ONETEP input file', '1F',
   magic=[b'*lock species ',
          b'*LOCK SPECIES ',
          b'*--- INPUT FILE ---*'])
+F('orca-output', 'ORCA output', '+F',
+  module='orca', magic=b'* O   R   C   A *')
 F('proteindatabank', 'Protein Data Bank', '+F',
   ext='pdb')
 F('png', 'Portable Network Graphics', '1B')
@@ -954,6 +958,9 @@ def filetype(
 
         if filename.startswith('mysql') or filename.startswith('mariadb'):
             return 'mysql'
+
+        if filename.endswith('aselmdb'):
+            return 'db'
 
         # strip any compression extensions that can be read
         root, _compression = get_compression(filename)

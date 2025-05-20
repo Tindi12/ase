@@ -22,19 +22,15 @@
 ..
 .. - A bullet item for the Molecular dynamics category.
 ..
-.. GUI
-.. ---
+GUI
+---
+
+ - Atomic spins can now be visualized as arrows
+
 ..
-.. - A bullet item for the GUI category.
+.. Development
+.. -----------
 ..
-
-Development
------------
-
-- Changelog is now generated using scriv.
-
-
-
 .. - A bullet item for the Development category.
 ..
 .. Other changes

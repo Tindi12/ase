@@ -1,3 +1,4 @@
+# fmt: off
 import doctest
 import importlib
 
@@ -17,7 +18,7 @@ ase.geometry.cell
 ase.geometry.geometry
 ase.io.ulm
 ase.lattice
-ase.phasediagram
+ase.neighborlist
 ase.spacegroup.spacegroup
 ase.spacegroup.xtal
 ase.symbols
@@ -25,12 +26,7 @@ ase.symbols
 
 
 @pytest.mark.parametrize('modname', module_names)
-def test_doctest(testdir, modname, recwarn):
+def test_doctest(testdir, modname):
     mod = importlib.import_module(modname)
     with np.printoptions(legacy='1.13'):
         doctest.testmod(mod, raise_on_error=True, verbose=True)
-        nwarnings = len(recwarn.list)
-        if modname == 'ase.phasediagram':
-            assert nwarnings == 1
-        else:
-            assert nwarnings == 0

@@ -1,3 +1,4 @@
+# fmt: off
 """Tests for PubChem."""
 
 import json
@@ -7,6 +8,7 @@ import pytest
 
 from ase.data import pubchem
 from ase.data.pubchem import (
+    analyze_input,
     pubchem_atoms_conformer_search,
     pubchem_atoms_search,
     pubchem_conformer_search,
@@ -73,3 +75,8 @@ def test_empty_search(mock_pubchem) -> None:
     """Check that you must pass at least one arg."""
     with pytest.raises(ValueError):
         pubchem_search()
+
+
+def test_triple_bond() -> None:
+    """Check if hash (`#`) is converted to hex (`%23`)."""
+    assert analyze_input(smiles='CC#N')[0] == 'CC%23N'
