@@ -666,6 +666,7 @@ class View:
         self.center0 = self.center
 
     def move(self, event):
+        print(event)
         x = event.x
         y = event.y
         x0, y0 = self.xy
