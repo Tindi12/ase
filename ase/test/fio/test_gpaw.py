@@ -45,6 +45,8 @@ Free energy:    -10.229926
 Extrapolated:   -10.038965
 """
 
+atoms_new = atoms.replace('Positions:\n', 'Positions (initial magnetic moments):\n')
+
 orbitals = """
  Band  Eigenvalues  Occupancy
     0     -6.19111    2.00000
@@ -66,7 +68,7 @@ Stress tensor:
 
 # Three configurations.  Only 1. and 3. has forces.
 text = (header + densities + atoms + orbitals + forces +
-        atoms + atoms + forces + stress)
+        atoms + atoms + atoms_new + forces + stress)
 
 
 def test_gpaw_output():
@@ -77,7 +79,7 @@ def test_gpaw_output():
     """
     fd = io.StringIO(text)
     configs = read(fd, index=':', format='gpaw-out')
-    assert len(configs) == 3
+    assert len(configs) == 4
 
     for config in configs:
         assert config.get_initial_charges().sum() == 1
