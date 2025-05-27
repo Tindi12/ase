@@ -45,7 +45,8 @@ Free energy:    -10.229926
 Extrapolated:   -10.038965
 """
 
-atoms_new = atoms.replace('Positions:\n', 'Positions (initial magnetic moments):\n')
+atoms_new = atoms.replace('Positions:\n',
+                          'Positions (initial magnetic moments):\n')
 
 orbitals = """
  Band  Eigenvalues  Occupancy

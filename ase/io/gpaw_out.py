@@ -68,7 +68,6 @@ def read_gpaw_out(fileobj, index):  # -> Union[Atoms, List[Atoms]]:
     i1 = 0
     for i2, line in enumerate(lines):
         if line[:9] == 'positions' and line[-2:] == ':\n':
-            print(line)
             if i1 > 0:
                 blocks.append(lines[i1:i2])
             i1 = i2
