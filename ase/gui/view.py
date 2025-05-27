@@ -122,6 +122,14 @@ class View:
     def atoms(self):
         return self.images[self.frame]
 
+    @atoms.setter
+    def atoms(self, value):
+        current = self.images[self.frame]
+        current.arrays = value.arrays.copy()
+        current.info = value.info.copy()
+        current.cell = value.cell.copy()
+        current.pbc = value.pbc
+
     def set_frame(self, frame=None, focus=False):
         if frame is None:
             frame = self.frame

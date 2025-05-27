@@ -216,6 +216,40 @@ class GUI(View):
 
             self.draw()
 
+    def reindex_atoms(self, key):
+        # Step 1: Get selected indices before reordering
+        selected_mask = self.images.selected[:len(self.atoms)]
+        selected_indices = np.where(selected_mask)[0]
+        unselected_indices = np.where(~selected_mask)[0]
+
+        # Step 2: Compute new order
+        if key == 'Ctrl+Shift+L':
+            new_order = np.concatenate([unselected_indices, selected_indices])
+        elif key == 'Ctrl+Shift+F':
+            new_order = np.concatenate([selected_indices, unselected_indices])
+        else:
+            return
+
+        # Step 3: Remember mapping from old to new indices
+        reverse_map = np.zeros_like(new_order)
+        reverse_map[new_order] = np.arange(len(new_order))
+
+        # Step 4: Apply reordering
+        self.atoms = self.atoms[new_order]
+
+        # Step 5: Redraw
+        self.set_frame()
+        self.draw()
+
+        # Step 6: Set new selected indices
+        new_selected = np.zeros(len(self.atoms), dtype=bool)
+        for i in selected_indices:
+            new_selected[reverse_map[i]] = True
+        self.images.selected[:len(self.atoms)] = new_selected
+
+        # Optional: Force redraw again to reflect updated selection
+        self.draw()
+
     def delete_selected_atoms(self, widget=None, data=None):
         import ase.gui.ui as ui
         nselected = sum(self.images.selected)
@@ -505,6 +539,8 @@ class GUI(View):
               M(_('_Add atoms'), self.add_atoms, 'Ctrl+A'),
               M(_('_Delete selected atoms'), self.delete_selected_atoms,
                 'Backspace'),
+              M(_('_Index atoms first'), self.reindex_atoms, 'Ctrl+Shift+F'),
+              M(_('_Index atoms last'), self.reindex_atoms, 'Ctrl+Shift+L'),
               M(_('Edit _cell …'), self.cell_editor, 'Ctrl+E'),
               M(_('Edit _atoms …'), self.atoms_editor, 'A'),
               M('---'),
