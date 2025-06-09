@@ -620,13 +620,19 @@ def show_io_error(filename, err):
 class ASEGUIWindow(MainWindow):
     def __init__(self, close, menu, config,
                  scroll, scroll_event,
-                 press, move, release, resize):
-        MainWindow.__init__(self, 'ASE-GUI', close, menu)
+                 press, move, release, resize, gui):
+        from ase.gui.movie import MovieToolbar
+
+        super().__init__('ASE-GUI', close, menu)
 
         self.size = np.array([450, 450])
 
         self.fg = config['gui_foreground_color']
         self.bg = config['gui_background_color']
+
+        self.moviebar = MovieToolbar(self.win, gui)
+        self.moviebar.tkframe.pack(
+            anchor=tk.N, side=tk.TOP, expand=True, fill=tk.X)
 
         self.canvas = tk.Canvas(self.win,
                                 width=self.size[0],

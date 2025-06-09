@@ -1,5 +1,7 @@
 # fmt: off
 
+import tkinter as tk
+
 import numpy as np
 
 import ase.gui.ui as ui
@@ -93,3 +95,57 @@ class Movie:
 
         self.frame_number.value = i
         self.play()
+
+
+class MovieToolbar:
+    def __init__(self, parent, gui):
+        from itertools import count
+
+        self.gui = gui
+
+        tkframe = tk.Frame(parent, relief='raised', borderwidth=1)
+        self.tkframe = tkframe
+
+        columncounter = count()
+
+        def add(widget):
+            widget.grid(row=0, column=next(columncounter))
+            return widget
+
+        self.moviebutton = add(tk.Button(
+            tkframe, text='▶', command=self.gui.movie))
+
+        self.button = add(tk.Button(
+            tkframe, text='y=', command=self.gui.plot_graph_standard))
+
+        add(tk.Label(tkframe, text='Image:'))
+
+        self.slider = add(
+            tk.Scale(tkframe, from_=0,
+                     orient='horizontal',
+                     command=self.slidercommand,
+                     showvalue=False)
+            )
+        self._update_number_of_images()
+        self.numlabel = add(tk.Label(tkframe, text='0'))
+
+        # "Set" atoms means something (anything) changed including
+        # which frame number we are displaying:
+        gui.obs.set_atoms.register(self._update_atoms)
+
+        # "New" atoms may change the number of images altogether:
+        gui.obs.new_atoms.register(self._update_number_of_images)
+
+        # This is not reliable at all, for example if user opens new atoms,
+        # we will not detect that.
+
+    def _update_number_of_images(self):
+        self.slider['to'] = len(self.gui.images) - 1
+
+    def _update_atoms(self):
+        self.slider.set(self.gui.frame)
+
+    def slidercommand(self, sliderval: str):
+        framenum = int(sliderval)
+        self.numlabel['text'] = sliderval
+        self.gui.set_frame(framenum)

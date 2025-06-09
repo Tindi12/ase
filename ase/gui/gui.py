@@ -59,7 +59,8 @@ class GUI(View):
                                       scroll_event=self.scroll_event,
                                       press=self.press, move=self.move,
                                       release=self.release,
-                                      resize=self.resize)
+                                      resize=self.resize,
+                                      gui=self)
 
         super().__init__(rotations)
         self.status = Status(self)
@@ -79,9 +80,10 @@ class GUI(View):
         self.last_scroll_time = time()
         self.orig_scale = self.scale
 
-        if len(self.images) > 1:
-            self.movie()
+        self._caller_expr = expr
 
+    def plot_graph_standard(self):
+        expr = self._caller_expr
         if expr is None:
             expr = self.config['gui_graphs_string']
 
