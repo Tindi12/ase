@@ -23,11 +23,12 @@
 ..
 .. - A bullet item for the Molecular dynamics category.
 ..
-.. GUI
-.. ---
-..
-.. - A bullet item for the GUI category.
-..
+GUI
+---
+
+- Selected hidden atoms have an outline (but remain transparent)
+- Hidden atoms cannot be moved or rotated
+
 .. Development
 .. -----------
 ..
