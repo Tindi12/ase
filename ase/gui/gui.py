@@ -111,7 +111,10 @@ class GUI(View):
             self.move_atoms_mask = None
         else:
             self.arrowkey_mode = mode
-            self.move_atoms_mask = self.images.selected.copy()
+            selected = self.images.selected
+            # Only visible atoms can be moved or rotated
+            visible = self.images.visible
+            self.move_atoms_mask = selected & visible
 
         self.draw()
 

@@ -540,6 +540,12 @@ class View:
                         assert not np.isnan(v).any()
                         self.arrow((X[a, 0], X[a, 1], v[a, 0], v[a, 1]),
                                    width=2)
+
+                elif selected[a]:
+                    # Draw outline of selected hidden atoms
+                    circle(None, True, A[a, 0] - 1, A[a, 1] - 1,
+                           A[a, 0] + ra + 1, A[a, 1] + ra + 1)
+
             else:
                 # Draw unit cell and/or bonds:
                 a -= n
