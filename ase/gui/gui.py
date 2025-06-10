@@ -154,7 +154,7 @@ class GUI(View):
         self._do_zoom(x)
 
     def settings(self):
-        return Settings(self)
+        self.open_singleton_window('settings', Settings)
 
     def scroll(self, event):
         shift = 0x1
@@ -234,7 +234,7 @@ class GUI(View):
 
     def constraints_window(self):
         from ase.gui.constraints import Constraints
-        return Constraints(self)
+        self.open_singleton_window('constraints', Constraints)
 
     def set_selected_atoms(self, selected):
         newmask = np.zeros(len(self.images.selected), bool)
@@ -270,15 +270,33 @@ class GUI(View):
 
     def movie(self):
         from ase.gui.movie import Movie
-        self.movie_window = Movie(self)
+
+        def create_dialog(gui):
+            dlg = Movie(gui)
+            gui.movie_window = dlg  # preserve original behavior
+            return dlg
+
+        return self.open_singleton_window('movie', create_dialog)
 
     def plot_graphs(self, key=None, expr=None, ignore_if_nan=False):
         from ase.gui.graphs import Graphs
-        g = Graphs(self)
-        if expr is not None:
-            g.plot(expr=expr, ignore_if_nan=ignore_if_nan)
+
+        def create_dialog(gui):
+            g = Graphs(gui)
+            if expr is not None:
+                g.plot(expr=expr, ignore_if_nan=ignore_if_nan)
+            return g
+
+        return self.open_singleton_window('graphs', create_dialog)
 
     def pipe(self, task, data):
+        if not hasattr(self, '_pipes'):
+            self._pipes = {}
+
+        existing = self._pipes.get(task)
+        if existing and existing.poll() is None:  # still running
+            return existing
+
         process = subprocess.Popen([sys.executable, '-m', 'ase.gui.pipe'],
                                    stdout=subprocess.PIPE,
                                    stdin=subprocess.PIPE)
@@ -293,6 +311,7 @@ class GUI(View):
             self.bad_plot(line)
         else:
             self.subprocesses.append(process)
+            self._pipes[task] = process
         return process
 
     def bad_plot(self, err, msg=''):
@@ -345,43 +364,52 @@ class GUI(View):
 
     def modify_atoms(self, key=None):
         from ase.gui.modify import ModifyAtoms
-        return ModifyAtoms(self)
+        return self.open_singleton_window('modify_atoms', ModifyAtoms)
 
     def add_atoms(self, key=None):
         from ase.gui.add import AddAtoms
-        return AddAtoms(self)
+        return self.open_singleton_window('add_atoms', AddAtoms)
 
     def cell_editor(self, key=None):
         from ase.gui.celleditor import CellEditor
-        return CellEditor(self)
+        return self.open_singleton_window('cell_editor', CellEditor)
 
     def atoms_editor(self, key=None):
         from ase.gui.atomseditor import AtomsEditor
-        return AtomsEditor(self)
+        return self.open_singleton_window('atoms_editor', AtomsEditor)
 
     def quick_info_window(self, key=None):
         from ase.gui.quickinfo import info
-        info_win = ui.Window(_('Quick Info'), wmtype='utility')
-        info_win.add(info(self))
 
-        # Update quickinfo window when we change frame
-        def update(window):
-            exists = window.exists
-            if exists:
-                # Only update if we exist
-                window.things[0].text = info(self)
-            return exists
-        self.attach(update, info_win)
-        return info_win
+        def create_window(gui):
+            win = ui.Window(_('Quick Info'), wmtype='utility')
+            win.add(info(gui))
+
+            # Update quickinfo window when we change frame
+            def update(_):
+                if win.exists:
+                    win.things[0].text = info(gui)
+                return win.exists
+
+            gui.attach(update, win)
+
+            # Wrap the window in a dummy object with a .win attribute
+            class DialogWrapper:
+                def __init__(self, win):
+                    self.win = win
+
+            return DialogWrapper(win)
+
+        return self.open_singleton_window('quick_info', create_window)
 
     def surface_window(self):
-        return SetupSurfaceSlab(self)
+        self.open_singleton_window('setup_surface_slab', SetupSurfaceSlab)
 
     def nanoparticle_window(self):
-        return SetupNanoparticle(self)
+        self.open_singleton_window('setup_nanoparticle', SetupNanoparticle)
 
     def nanotube_window(self):
-        return SetupNanotube(self)
+        self.open_singleton_window('setup_nanotube', SetupNanotube)
 
     def new_atoms(self, atoms):
         "Set a new atoms object."
@@ -402,7 +430,7 @@ class GUI(View):
         subprocess.Popen([sys.executable, '-m', 'ase', 'gui'])
 
     def save(self, key=None):
-        return save_dialog(self)
+        self.open_singleton_window('save_dialog', save_dialog)
 
     def external_viewer(self, name):
         from ase.visualize import view

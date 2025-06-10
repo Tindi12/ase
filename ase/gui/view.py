@@ -268,16 +268,52 @@ class View:
         self.images.visible[self.images.selected] = True
         self.draw()
 
+    def open_singleton_window(self, label, dialog_class):
+        """
+        Open a single instance of a dialog_class.
+        If already open, bring it to front.
+        label: string identifier, e.g. 'add_atoms' or 'cell_editor'.
+        dialog_class: the class to instantiate with self as argument.
+        """
+
+        if not hasattr(self, '_open_dialogs'):
+            self._open_dialogs = {}
+
+        dlg = self._open_dialogs.get(label, None)
+        if dlg is not None and dlg.win.win.winfo_exists():
+            dlg.win.win.lift()
+            dlg.win.win.focus_force()
+            return dlg
+
+        try:
+            dlg = dialog_class(self)
+        except Exception:
+            self._open_dialogs[label] = None
+            return None
+
+        def on_close():
+            self._open_dialogs[label] = None
+            dlg.win.win.destroy()
+
+        dlg.win.win.protocol("WM_DELETE_WINDOW", on_close)
+
+        self._open_dialogs[label] = dlg
+
+        return dlg
+
     def repeat_window(self, key=None):
-        return Repeat(self)
+        self.open_singleton_window('repeat', Repeat)
 
     def rotate_window(self):
-        return Rotate(self)
+        self.open_singleton_window('rotate', Rotate)
 
     def colors_window(self, key=None):
-        win = ColorWindow(self)
-        self.obs.new_atoms.register(win.notify_atoms_changed)
-        return win
+        def create_dialog(gui):
+            dlg = ColorWindow(gui)
+            gui.obs.new_atoms.register(dlg.notify_atoms_changed)
+            return dlg
+
+        return self.open_singleton_window('colors', create_dialog)
 
     def focus(self, x=None):
         cell = (self.window['toggle-show-unit-cell'] and
@@ -712,7 +748,7 @@ class View:
         self.draw(status=False)
 
     def render_window(self):
-        return Render(self)
+        self.open_singleton_window('render', Render)
 
     def resize(self, event):
         w, h = self.window.size

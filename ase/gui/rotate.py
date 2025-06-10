@@ -10,7 +10,7 @@ class Rotate:
 
     def __init__(self, gui):
         self.gui = gui
-        win = ui.Window(_('Rotate'), wmtype='utility')
+        win = self.win = ui.Window(_('Rotate'), wmtype='utility')
         win.add(_('Rotation angles:'))
         self.rotate = [ui.SpinBox(42.0, -360, 360, 1, self.change)
                        for _ in '123']
