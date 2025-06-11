@@ -280,14 +280,19 @@ class GUI(View):
         from ase.gui.movie import Movie
         self.movie_window = Movie(self)
 
-    def plot_graphs(self, key=None, expr=None, ignore_if_nan=False):
+    def plot_graphs(self, key=None, expr=None, ignore_if_nan=False,
+            return_graph=False):
+        # return_graph is for unit test
         from ase.gui.graphs import GraphInitError, Graphs
         try:
             g = Graphs(self, expr=expr)
             if expr is not None:
                 g.plot(expr=expr, ignore_if_nan=ignore_if_nan)
+            if return_graph:
+                return g
         except GraphInitError:
-            pass
+            if return_graph:
+                return None
 
     def pipe(self, task, data):
         process = subprocess.Popen([sys.executable, '-m', 'ase.gui.pipe'],

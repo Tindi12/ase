@@ -305,6 +305,18 @@ def test_surface(gui):
     assert gui.atoms.cell.rank == 2
 
 
+def test_graphs_not_created_without_energies(gui):
+    # Remove energy info
+    for atoms in gui.images:
+        atoms.info.pop('energy', None)
+
+    expr = 'i, e - E[-1]'  # requires energy
+    result = gui.plot_graphs(expr=expr, ignore_if_nan=True, return_graph=True)
+
+    assert result is None, \
+        "Graphs object should not be created when energies are missing"
+
+
 def test_movie(animation):
     movie = animation.movie_window
     assert movie is not None
