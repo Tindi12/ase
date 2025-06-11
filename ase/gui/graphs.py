@@ -33,10 +33,20 @@ Symbols:
 """)
 
 
+class GraphInitError(Exception):
+    """Raised when the Graphs window cannot be initialized."""
+    pass
+
+
 class Graphs:
-    def __init__(self, gui):
-        win = ui.Window('Graphs', wmtype='utility')
+    def __init__(self, gui, expr=None):
+        self.gui = gui
+
+        if expr is not None:
+            self.validate_expr(expr)
+
         self.expr = ui.Entry('', 50, self.plot)
+        win = ui.Window('Graphs', wmtype='utility')
         win.add([self.expr, ui.helpbutton(graph_help_text)])
 
         win.add([ui.Button(_('Plot'), self.plot, 'xy'),
@@ -45,7 +55,14 @@ class Graphs:
                  ' y1, y2, ...'], 'w')
         win.add([ui.Button(_('Save'), self.save)], 'w')
 
-        self.gui = gui
+    def validate_expr(self, expr):
+        try:
+            data = self.gui.images.graph(expr)
+        except Exception:
+            raise GraphInitError('Invalid expr, data missing')
+
+        if len(data) == 2 and np.isnan(data[1]).all():
+            raise GraphInitError('Invalid expr, NaN in data')
 
     def plot(self, type=None, expr=None, ignore_if_nan=False):
         if expr is None:

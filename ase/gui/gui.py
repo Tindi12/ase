@@ -61,6 +61,10 @@ class GUI(View):
                                       release=self.release,
                                       resize=self.resize)
 
+        # Put main window in front on the screen
+        self.window.win.after(25, self.window.win.lift)
+        self.window.win.after(50, self.window.win.focus_force)
+
         super().__init__(rotations)
         self.status = Status(self)
 
@@ -80,13 +84,16 @@ class GUI(View):
         self.orig_scale = self.scale
 
         if len(self.images) > 1:
-            self.movie()
+            self.window.win.after(100, self.movie)
 
         if expr is None:
             expr = self.config['gui_graphs_string']
 
         if expr is not None and expr != '' and len(self.images) > 1:
-            self.plot_graphs(expr=expr, ignore_if_nan=True)
+            self.window.win.after(
+                100,
+                lambda: self.plot_graphs(expr=expr, ignore_if_nan=True)
+            )
 
     @property
     def moving(self):
@@ -273,10 +280,13 @@ class GUI(View):
         self.movie_window = Movie(self)
 
     def plot_graphs(self, key=None, expr=None, ignore_if_nan=False):
-        from ase.gui.graphs import Graphs
-        g = Graphs(self)
-        if expr is not None:
-            g.plot(expr=expr, ignore_if_nan=ignore_if_nan)
+        from ase.gui.graphs import GraphInitError, Graphs
+        try:
+            g = Graphs(self, expr=expr)
+            if expr is not None:
+                g.plot(expr=expr, ignore_if_nan=ignore_if_nan)
+        except GraphInitError:
+            pass
 
     def pipe(self, task, data):
         process = subprocess.Popen([sys.executable, '-m', 'ase.gui.pipe'],
