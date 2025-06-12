@@ -512,7 +512,8 @@ class IdealGasThermo(ThermoChem):
                 # Demand the expected number of true vibrations
                 if len(vib_energies) != num_vibs:
                     raise ValueError(
-                        f"{num_vibs} vibrational energies expected.\n" +
+                        f"{num_vibs} vibrational energies expected, " +
+                        f"{len(vib_energies)} received.\n" +
                         "To select true vibrational energies automatically," +
                         " set vib_selection."
                     )
