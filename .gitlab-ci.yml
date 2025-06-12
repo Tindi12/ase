@@ -230,6 +230,7 @@ pages:
   dependencies:
     - coverage-combine
   script:
+    - mkdir public
     - mv coverage-html public/
   artifacts:
     paths:
