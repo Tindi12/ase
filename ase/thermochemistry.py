@@ -441,6 +441,30 @@ class IdealGasThermo(ThermoChem):
         many vibrations to use. (Not needed if an atoms object is supplied
         in 'atoms' or if the user desires the entire list of vibrations
         to be used.)
+    vib_selection : None, 'highest', 'abs_highest', 'all'
+        selection of input vibrational energies considered to be true
+        vibrations (excluding translations and rotations) implied by the
+        geometry and number of atoms. Only applied if number of atoms
+        is provided, either with natoms or atoms.
+        - None: no selection; the number of input vibrational energies must be
+        equal to the number of true vibrations
+        - 'highest': select vibrational energies whose square is the highest
+        , i.e. large real energies followed by small real energies, small
+        imaginary energies and large imaginary energies. Will not catch
+        unrealistically large imaginary frequencies, resulting from e.g.
+        unrelaxed molecules.
+        - 'abs_highest': select vibrational energies whose absolute number are
+        highest, real or imaginary. Will fail intentionally for
+        unrealistically large imaginary frequencies, but also unintentionally
+        for small real energies, corresponding e.g. to frustrated rotations
+        in a larger molecule.
+        - 'all': Use all input vibrational energies without checking the
+        number of them.
+    ignore_imag_modes : bool
+        if True, imaginary vibrational energies remaining after selection will
+        not be included in the calculation of thermodynamic properties.
+        If False (default), a ValueError is raised for remaining imaginary
+        energies.
 
     Extra inputs needed for entropy / free energy calculations:
 
@@ -454,16 +478,11 @@ class IdealGasThermo(ThermoChem):
         the total electronic spin. (0 for molecules in which all electrons
         are paired, 0.5 for a free radical with a single unpaired electron,
         1.0 for a triplet with two unpaired electrons, such as O_2.)
-    ignore_imag_modes : bool
-        If True, any imaginary frequencies present after the 3N-5/3N-6 cut
-        will not be included in the calculation of the thermochemical
-        properties. If False (default), a ValueError will be raised if
-        any imaginary frequencies remain after the 3N-5/3N-6 cut.
     """
 
     def __init__(self, vib_energies, geometry, potentialenergy=0.,
-                 atoms=None, symmetrynumber=None, spin=None, natoms=None,
-                 ignore_imag_modes=False):
+                 atoms=None, symmetrynumber=None, spin=None,
+                 vib_selection=None, natoms=None, ignore_imag_modes=False):
         self.potentialenergy = potentialenergy
         self.geometry = geometry
         self.atoms = atoms
@@ -474,20 +493,48 @@ class IdealGasThermo(ThermoChem):
             natoms = len(atoms)
         self.natoms = natoms
 
-        # Sort the vibrations
+        # Preliminary sorting vibrations by square
         vib_energies = list(vib_energies)
-        vib_energies.sort(key=np.abs)
+        vib_energies.sort(key=lambda f: (f ** 2).real)
 
-        # Cut the vibrations to those needed from the geometry.
-        if natoms:
+        if natoms and vib_selection != 'all':
+            # Determine number of true vibrations from geometry
             if geometry == 'nonlinear':
-                vib_energies = vib_energies[-(3 * natoms - 6):]
+                num_vibs = 3 * natoms - 6
             elif geometry == 'linear':
-                vib_energies = vib_energies[-(3 * natoms - 5):]
+                num_vibs = 3 * natoms - 5
             elif geometry == 'monatomic':
-                vib_energies = []
+                num_vibs = 0
             else:
                 raise ValueError(f"Unsupported geometry: {geometry}")
+
+            if vib_selection is None:
+                # Demand the expected number of true vibrations
+                if len(vib_energies) != num_vibs:
+                    raise ValueError(
+                        f"{num_vibs} vibrational energies expected.\n" +
+                        "To select true vibrational energies automatically," +
+                        " set vib_selection."
+                    )
+
+            elif vib_selection in ('highest', 'abs_highest'):
+                # Cut vibrations to get the expected number of true vibrations
+                if num_vibs == 0:
+                    vib_energies = []
+                else:
+                    if vib_selection == 'abs_highest':
+                        vib_energies.sort(key=np.abs)
+                    vib_energies = vib_energies[-num_vibs:]
+                if len(vib_energies) != num_vibs:
+                    raise ValueError(
+                        f"Too few vibration modes ({len(vib_energies)}) " +
+                        "after selection. {num_vibs} expected"
+                    )
+
+            else:
+                raise ValueError(
+                    f"(Unsupported vib_selection: {vib_selection})"
+                )
 
         # Check for imaginary frequencies.
         vib_energies, n_imag = _clean_vib_energies(

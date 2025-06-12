@@ -29,6 +29,16 @@ def test_ideal_gas_thermo_n2(testdir):
     assert vib_energies[0] == pytest.approx(0.0, abs=1e-8)
     assert vib_energies[-1] == pytest.approx(1.52647479e-01)
 
+    # Default behavior: No selection of vibrational energies
+    # Entering 6 when 1 is expected should fail
+    with pytest.raises(ValueError):
+        IdealGasThermo(vib_energies=vib_energies,
+                       geometry="linear",
+                       atoms=atoms,
+        )
+
+    # Now, let's select
+
     # ---------------------
     #   #    meV     cm^-1
     # ---------------------
@@ -39,6 +49,7 @@ def test_ideal_gas_thermo_n2(testdir):
     #   4    1.7      13.5 <--- remove!
     #   5  152.6    1231.2
     # ---------------------
+
     thermo = IdealGasThermo(
         vib_energies=vib_energies,
         geometry="linear",
@@ -46,6 +57,7 @@ def test_ideal_gas_thermo_n2(testdir):
         symmetrynumber=2,
         spin=0,
         potentialenergy=energy,
+        vib_selection='highest'
     )
     assert len(thermo.vib_energies) == 1
     assert thermo.vib_energies[0] == vib_energies[-1]
@@ -66,6 +78,7 @@ def ideal_gas_thermo_ch3(
     potentialenergy=0.0,
     spin=0.5,
     ignore_imag_modes=False,
+    vib_selection=None,
 ):
     if atoms is None:
         atoms = molecule("CH3")
@@ -77,6 +90,7 @@ def ideal_gas_thermo_ch3(
         potentialenergy=potentialenergy,
         spin=spin,
         ignore_imag_modes=ignore_imag_modes,
+        vib_selection=vib_selection,
     )
 
 
@@ -103,6 +117,7 @@ def test_ideal_gas_thermo_ch3(testdir):
     thermo = ideal_gas_thermo_ch3(
         vib_energies=[1.0, 0.05, 0.08, 0.1, 0.2, 0.3, 0.4, 0.35, 0.12],
         potentialenergy=9,
+        vib_selection='highest',
     )
     assert len(thermo.vib_energies) == 6
     assert list(thermo.vib_energies) == [0.12, 0.2, 0.3, 0.35, 0.4, 1.0]
@@ -181,15 +196,25 @@ def test_ideal_gas_thermo_ch3_v3(testdir):
     ]
     with pytest.raises(ValueError):
         # Imaginary frequencies present!!!
-        thermo = ideal_gas_thermo_ch3(vib_energies=vib_energies)
+        thermo = ideal_gas_thermo_ch3(vib_energies=vib_energies,
+                                      vib_selection='abs_highest')
 
     # Same as above, but let's try ignoring the
     # imag modes. This should just use: 507.9, 547.2, 547.7
     with pytest.warns(UserWarning):
         thermo = ideal_gas_thermo_ch3(vib_energies=vib_energies,
-                                      ignore_imag_modes=True)
+                                      ignore_imag_modes=True,
+                                      vib_selection='abs_highest')
+
     assert list(thermo.vib_energies) == [507.9, 547.2, 547.7]
     assert thermo.n_imag == 3
+
+    # If we (in this case erroneously) cut the first 6 modes,
+    # it should pass without crash or warning
+    highest_freqs_thermo = ideal_gas_thermo_ch3(vib_energies=vib_energies,
+                                                vib_selection='highest')
+    assert list(highest_freqs_thermo.vib_energies) == [0.0, 5.6, 6.0,
+                                                       507.9, 547.2, 547.7]
 
 
 def test_ideal_gas_thermo_ch3_v4(testdir):
@@ -223,16 +248,72 @@ def test_ideal_gas_thermo_ch3_v4(testdir):
     #  10  369.4    2979.3
     #  11  390.4    3148.4
     # ---------------------
-    with pytest.raises(ValueError):
-        ideal_gas_thermo_ch3(vib_energies=vib_energies)
 
     with pytest.raises(ValueError):
-        ideal_gas_thermo_ch3(vib_energies=[100 + 0.1j] * len(vib_energies))
+        ideal_gas_thermo_ch3(vib_energies=vib_energies,
+                             vib_selection='abs_highest')
 
 
 VIB_ENERGIES_HARMONIC = np.array(
     [0.00959394 + 0.0j, 0.00959394 + 0.0j, 0.01741657 + 0.0j]
 )
+
+
+def test_ideal_gas_thermo_ch3_with_small_real_frequency(testdir):
+    """
+    It is possible for a molecule to have smaller real frequencies than
+    the largest imaginary. In that case, vib_selection='abs_highest' will
+    fail unintentionally. Here are possible vibrations.
+    """
+
+    vib_energies = [
+        65.0j,  # <-- remove!
+        20.0j,  # <-- remove!
+        14.0j,  # <-- remove!
+        1.0,  # <-- remove!
+        4.0,  # <-- remove!
+        7.0,  # <-- remove!
+        60.0,
+        200.0,
+        500.0,
+        800.0,
+        1200.0,
+        3000.0,
+    ]
+
+    # Expected (but erroneous) failure
+    with pytest.raises(ValueError):
+        ideal_gas_thermo_ch3(vib_energies=vib_energies,
+                             vib_selection='abs_highest')
+
+    # Selecting the highest is correct in this case
+    highest_freqs_thermo = ideal_gas_thermo_ch3(vib_energies=vib_energies,
+                                                vib_selection='highest')
+    assert list(highest_freqs_thermo.vib_energies) == [60.0, 200.0, 500.0,
+                                                       800.0, 1200.0, 3000.0]
+
+
+def test_ideal_gas_thermo_ch3_too_few_frequencies(testdir):
+    """Too few frequencies should fail except vib_selection='all' that
+    skips all checks. CH3 needs 3 * 4 - 6 = 6 frequencies"""
+
+    vib_energies = [
+        200.0,
+        500.0,
+        800.0,
+        1200.0,
+        3000.0,
+    ]
+
+    for selection in (None, 'highest', 'abs_highest'):
+        with pytest.raises(ValueError):
+            ideal_gas_thermo_ch3(vib_energies=vib_energies,
+                                 vib_selection=selection)
+
+    all_freqs_thermo = ideal_gas_thermo_ch3(vib_energies=vib_energies,
+                                            vib_selection='all')
+    assert list(all_freqs_thermo.vib_energies) == [200.0, 500.0, 800.0,
+                                                   1200.0, 3000.0]
 
 
 def harmonic_thermo(
