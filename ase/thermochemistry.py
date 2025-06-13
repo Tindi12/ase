@@ -425,11 +425,12 @@ class IdealGasThermo(ThermoChem):
 
     vib_energies : list
         a list of the vibrational energies of the molecule (e.g., from
-        ase.vibrations.Vibrations.get_energies). The number of vibrations
-        used is automatically calculated by the geometry and the number of
-        atoms. If more are specified than are needed, then the lowest
-        numbered vibrations are neglected. If either atoms or natoms is
-        unspecified, then uses the entire list. Units are eV.
+        ase.vibrations.Vibrations.get_energies). The number of expected
+        vibrations is calculated by the geometry and the number of atoms.
+        By default, this must match the length of vib_energies. By setting
+        vib_selection, the vib_energies can be cut to get the expected
+        number of vibrations or be used in full without checks. If either
+        atoms and natoms is unspecified, the full list is used. Units are eV.    
     geometry : 'monatomic', 'linear', or 'nonlinear'
         geometry of the molecule
     potentialenergy : float
