@@ -477,34 +477,7 @@ class GUI(View):
 
         self.set_frame()
         self.draw()
-    """
-    def move_across(self, key):
-        cols = {'1': 0, '2': 1, '3': 2}
-        col = cols.get(key)
-        if col is None:
-            return
-            
-        selection_mask = self.images.selected.copy()
-        indices = np.where(selection_mask)[0]
-        if len(indices) == 0:
-            return
-         
-        pos_frac = self.atoms.get_scaled_positions(wrap=False)[indices, col]
-        shifts = np.where(pos_frac > 0.5, -1, 1)
 
-        # Get the lattice vector for that direction (3-element vector)
-        lattice_vec = self.atoms.cell[col]
-
-        # Create displacement vectors: one per selected atom
-        displacements = np.outer(shifts, lattice_vec)  # shape (num_selected, 3)
-
-        # Add displacement to selected atoms' Cartesian positions
-        self.atoms.positions[indices] += displacements
-
-        self.set_frame()  # update the GUI
-        self.set_frame()
-    """
-    
     def move_across(self, key):
         cols = {'1': 0, '2': 1, '3': 2}
         col = cols.get(key)
@@ -528,7 +501,6 @@ class GUI(View):
 
         self.atoms.set_scaled_positions(new_pos)
         self.set_frame()
-
 
     def get_menu_data(self):
         M = ui.MenuItem
@@ -564,7 +536,7 @@ class GUI(View):
                     M(_('a1 direction'), self.move_across, '1'),
                     M(_('a2 direction'), self.move_across, '2'),
                     M(_('a3 direction'), self.move_across, '3')]),
-              #M(_('Move atoms to other side'), self.move_across, '1'),
+              # M(_('Move atoms to other side'), self.move_across, '1'),
               M('---'),
               M(_('_First image'), self.step, 'Home'),
               M(_('_Previous image'), self.step, 'Page-Up'),
