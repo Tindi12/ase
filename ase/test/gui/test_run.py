@@ -313,8 +313,9 @@ def test_graphs_not_created_without_energies(gui):
     expr = 'i, e - E[-1]'  # requires energy
     result = gui.plot_graphs(expr=expr, ignore_if_nan=True, return_graph=True)
 
-    assert result is None, \
-        "Graphs object should not be created when energies are missing"
+    assert result is None, (
+        'Graphs object should not be created when energies are missing'
+    )
 
 
 def test_movie(animation):
