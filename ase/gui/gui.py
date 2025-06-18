@@ -479,17 +479,18 @@ class GUI(View):
         self.draw()
 
     def move_across(self, key):
+        if self.arrowkey_mode != self.ARROWKEY_MOVE:
+            return
         cols = {'1': 0, '2': 1, '3': 2}
         col = cols.get(key)
         if col is None:
             return
 
-        selection_mask = self.images.selected.copy()
-        indices = np.where(selection_mask)[0]
+        move_atoms_mask =self.move_atoms_mask[:len(self.atoms)]
+        indices = np.where(move_atoms_mask)[0]
         if len(indices) == 0:
             return
 
-        # Make sure to work on GUI atoms object
         pos = self.atoms.get_scaled_positions(wrap=False)
         new_pos = pos.copy()
 
@@ -531,12 +532,11 @@ class GUI(View):
                 'Backspace'),
               M(_('Edit _cell …'), self.cell_editor, 'Ctrl+E'),
               M(_('Edit _atoms …'), self.atoms_editor, 'A'),
-              M(_('Move atoms to other side'),
+              M(_('Move atoms across cell (In move mode)'),
                 submenu=[
                     M(_('a1 direction'), self.move_across, '1'),
                     M(_('a2 direction'), self.move_across, '2'),
                     M(_('a3 direction'), self.move_across, '3')]),
-              # M(_('Move atoms to other side'), self.move_across, '1'),
               M('---'),
               M(_('_First image'), self.step, 'Home'),
               M(_('_Previous image'), self.step, 'Page-Up'),
