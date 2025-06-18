@@ -668,6 +668,10 @@ class Atoms:
         else:
             return atomic_masses[self.arrays['numbers']]
 
+    def get_total_mass(self):
+        """Get the total mass of the system."""
+        return sum(self.get_masses())
+
     def set_initial_magnetic_moments(self, magmoms=None):
         """Set the initial magnetic moments.
 
