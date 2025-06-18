@@ -430,7 +430,7 @@ class IdealGasThermo(ThermoChem):
         By default, this must match the length of vib_energies. By setting
         vib_selection, the vib_energies can be cut to get the expected
         number of vibrations or be used in full without checks. If either
-        atoms and natoms is unspecified, the full list is used. Units are eV.    
+        atoms and natoms is unspecified, the full list is used. Units are eV.
     geometry : 'monatomic', 'linear', or 'nonlinear'
         geometry of the molecule
     potentialenergy : float
