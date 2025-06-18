@@ -486,7 +486,7 @@ class GUI(View):
         if col is None:
             return
 
-        move_atoms_mask =self.move_atoms_mask[:len(self.atoms)]
+        move_atoms_mask = self.move_atoms_mask[:len(self.atoms)]
         indices = np.where(move_atoms_mask)[0]
         if len(indices) == 0:
             return
