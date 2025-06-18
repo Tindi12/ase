@@ -85,7 +85,6 @@ class GUI(View):
 
         if len(self.images) > 1:
             self.movie()
-            #self.window.win.after(100, self.movie)
 
         if expr is None:
             expr = self.config['gui_graphs_string']
@@ -130,8 +129,6 @@ class GUI(View):
              'End': 10000000}[key]
         i = max(0, min(len(self.images) - 1, self.frame + d))
         self.set_frame(i)
-        #if self.movie_window is not None:
-        #    self.movie_window.frame_number.value = i
 
     def copy_image(self, key=None):
         self.images._images.append(self.atoms.copy())
