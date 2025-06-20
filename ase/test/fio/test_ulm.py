@@ -1,3 +1,4 @@
+# fmt: off
 """Test ase.io.ulm file stuff."""
 import numpy as np
 import pytest
@@ -16,7 +17,7 @@ class A:
         return a
 
 
-@pytest.fixture
+@pytest.fixture()
 def ulmfile(tmp_path):
     path = tmp_path / 'a.ulm'
 

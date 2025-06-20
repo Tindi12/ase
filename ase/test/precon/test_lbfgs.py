@@ -1,3 +1,4 @@
+# fmt: off
 import numpy as np
 import pytest
 
@@ -8,8 +9,8 @@ from ase.optimize.precon import Exp, PreconFIRE, PreconLBFGS
 
 
 # @pytest.mark.skip('FAILS WITH PYAMG')
-@pytest.mark.optimize
-@pytest.mark.slow
+@pytest.mark.optimize()
+@pytest.mark.slow()
 def test_preconlbfgs():
     N = 1
     a0 = bulk('Cu', cubic=True)

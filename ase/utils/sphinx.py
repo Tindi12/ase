@@ -1,3 +1,5 @@
+# fmt: off
+
 import os
 import re
 import runpy
@@ -8,11 +10,8 @@ from pathlib import Path
 from stat import ST_MTIME
 from subprocess import DEVNULL, CalledProcessError, check_call
 
-import matplotlib
 from docutils import nodes
 from docutils.parsers.rst.roles import set_classes
-
-matplotlib.use('Agg')
 
 
 def mol_role(role, rawtext, text, lineno, inliner, options={}, content=[]):
@@ -38,6 +37,12 @@ def mol_role(role, rawtext, text, lineno, inliner, options={}, content=[]):
 def git_role_tmpl(urlroot,
                   role,
                   rawtext, text, lineno, inliner, options={}, content=[]):
+    env = inliner.document.settings.env
+    srcdir = Path(env.srcdir)
+    project_root = srcdir.parent
+    assert srcdir.name == 'doc'
+    # assert project_root.name == 'ase'  # also used by GPAW
+
     if text[-1] == '>':
         i = text.index('<')
         name = text[:i - 1]
@@ -49,11 +54,12 @@ def git_role_tmpl(urlroot,
             text = text[1:]
         if '?' in name:
             name = name[:name.index('?')]
+
     # Check if the link is broken
     is_tag = text.startswith('..')  # Tags are like :git:`3.19.1 <../3.19.1>`
-    path = os.path.join('..', text)
-    do_exists = os.path.exists(path)
-    if not (is_tag or do_exists):
+    path = project_root / text
+
+    if not (is_tag or path.exists()):
         msg = f'Broken link: {rawtext}: Non-existing path: {path}'
         msg = inliner.reporter.error(msg, line=lineno)
         prb = inliner.problematic(rawtext, rawtext, msg)
@@ -63,6 +69,18 @@ def git_role_tmpl(urlroot,
     node = nodes.reference(rawtext, name, refuri=ref,
                            **options)
     return [node], []
+
+
+def git_role(role, rawtext, text, lineno, inliner, options={}, content=[]):
+    return git_role_tmpl('https://gitlab.com/ase/ase/blob/master/',
+                         role,
+                         rawtext, text, lineno, inliner, options, content)
+
+
+def setup(app):
+    app.add_role('mol', mol_role)
+    app.add_role('git', git_role)
+    create_png_files()
 
 
 def creates():

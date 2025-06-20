@@ -1,8 +1,10 @@
+# fmt: off
 import io
 
 import numpy as np
 
 from ase import Atoms
+
 # from ase.io import read
 from ase.calculators.openmx.reader import read_eigenvalues, read_openmx
 from ase.units import Bohr, Ha

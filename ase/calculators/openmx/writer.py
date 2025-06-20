@@ -1,3 +1,5 @@
+# fmt: off
+
 """
 The ASE Calculator for OpenMX <http://www.openmx-square.org>: Python interface
 to the software package for nano-scale material simulations based on density
@@ -23,8 +25,12 @@ import numpy as np
 
 from ase.calculators.calculator import kpts2sizeandoffsets
 from ase.calculators.openmx import parameters as param
-from ase.calculators.openmx.reader import (get_file_name, get_standard_key,
-                                           read_electron_valency)
+from ase.calculators.openmx.reader import (
+    get_file_name,
+    get_standard_key,
+    read_electron_valency,
+)
+from ase.config import cfg
 from ase.units import Bohr, Ha, Ry, fs, m, s
 
 keys = [param.tuple_integer_keys, param.tuple_float_keys,
@@ -80,8 +86,7 @@ def parameters_to_keywords(label=None, atoms=None, parameters=None,
     """
     from collections import OrderedDict
 
-    from ase.calculators.openmx.parameters import (matrix_keys,
-                                                   unit_dat_keywords)
+    from ase.calculators.openmx.parameters import matrix_keys, unit_dat_keywords
     keywords = OrderedDict()
     sequence = [
         'system_currentdirectory', 'system_name', 'data_path',
@@ -92,12 +97,12 @@ def parameters_to_keywords(label=None, atoms=None, parameters=None,
         'atoms_unitvectors', 'band_dispersion', 'band_nkpath',
         'band_kpath']
 
-    directory, prefix = os.path.split(label)
+    _directory, prefix = os.path.split(label)
     curdir = os.path.join(os.getcwd(), prefix)
     counterparts = {
         'system_currentdirectory': curdir,
         'system_name': prefix,
-        'data_path': os.environ.get('OPENMX_DFT_DATA_PATH'),
+        'data_path': cfg.get('OPENMX_DFT_DATA_PATH'),
         'species_number': len(get_species(atoms.get_chemical_symbols())),
         'atoms_number': len(atoms),
         'scf_restart': 'restart',
@@ -408,7 +413,13 @@ def get_atoms_speciesandcoordinates(atoms, parameters):
 
 
 def get_up_down_spin(magmom, element, xc, data_path, year):
-    magmom = np.linalg.norm(magmom)
+    # for magmom with single number (collinear spin) skip  the normalization
+    if isinstance(magmom, (int, float)):
+        # Collinear spin
+        magmom = float(magmom)
+    else:
+        # Non-collinear spin
+        magmom = np.linalg.norm(magmom)
     suffix = get_pseudo_potential_suffix(element, xc, year)
     filename = os.path.join(data_path, 'VPS/' + suffix + '.vps')
     valence_electron = float(read_electron_valency(filename))

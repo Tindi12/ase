@@ -1,3 +1,5 @@
+# fmt: off
+
 import numpy as np
 
 from ase.ga import get_raw_score
@@ -81,7 +83,7 @@ class InteratomicDistanceComparator:
             d = np.abs(c1 - c2)
             cum_diff = np.sum(d)
             max_diff = np.max(d)
-            ntype = float(sum([i == n for i in numbers]))
+            ntype = float(sum(i == n for i in numbers))
             total_cum_diff += cum_diff / t_size * ntype / float(len(numbers))
         return (total_cum_diff, max_diff)
 

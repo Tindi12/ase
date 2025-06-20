@@ -1,3 +1,4 @@
+# fmt: off
 import warnings
 
 import numpy as np
@@ -9,17 +10,12 @@ from ase.io import iread, read, write
 from ase.io.formats import all_formats, ioformats
 
 try:
-    import matplotlib
-except ImportError:
-    matplotlib = 0
-
-try:
     import netCDF4
 except ImportError:
     netCDF4 = 0
 
 
-@pytest.fixture
+@pytest.fixture()
 def atoms():
     a = 5.0
     d = 1.9
@@ -59,7 +55,7 @@ def check(a, ref_atoms, format):
         assert abs(a.get_forces() - ref_atoms.get_forces()).max() < 1e-12
 
 
-@pytest.fixture
+@pytest.fixture()
 def catch_warnings():
     with warnings.catch_warnings():
         yield
@@ -84,15 +80,12 @@ def all_tested_formats():
     # Let's not worry about these.
     skip += ['postgresql', 'trj', 'vti', 'vtu', 'mysql']
 
-    if not matplotlib:
-        skip += ['eps', 'png']
-
     if not netCDF4:
         skip += ['netcdftrajectory']
 
     # Check if excitingtools is installed, if not skip exciting tests.
     try:
-        __import__('excitingtools')
+        import excitingtools  # noqa
     except ModuleNotFoundError:
         skip += ['exciting']
 
@@ -106,8 +99,12 @@ def test_ioformat(format, atoms, catch_warnings):
         # netCDF4 uses np.bool which may cause warnings in new numpy.
         warnings.simplefilter('ignore', DeprecationWarning)
 
+    kwargs = {}
+
     if format == 'dlp4':
         atoms.pbc = (1, 1, 0)
+    elif format == 'espresso-in':
+        kwargs = {'pseudopotentials': {'H': 'plum', 'Au': 'lemon'}}
 
     images = [atoms, atoms]
 
@@ -120,9 +117,9 @@ def test_ioformat(format, atoms, catch_warnings):
     fname1 = f'io-test.1.{format}'
     fname2 = f'io-test.2.{format}'
     if io.can_write:
-        write(fname1, atoms, format=format)
+        write(fname1, atoms, format=format, **kwargs)
         if not io.single:
-            write(fname2, images, format=format)
+            write(fname2, images, format=format, **kwargs)
 
         if io.can_read:
             for a in [read(fname1, format=format), read(fname1)]:

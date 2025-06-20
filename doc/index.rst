@@ -37,7 +37,7 @@ BFGS:   3  19:10:51    -31.492848     0.0023
 Supported :mod:`Calculators <ase.calculators>`
 ==============================================
 
-|ABACUS| |abinit| |Asap| |Atomistica| |BigDFT| |CASTEP| |CP2K| |CRYSTAL| |deMon| |dftb|
+|ABACUS| |abinit| |Asap| |Atomistica| |BigDFT| |CASTEP| |CP2K| |CRYSTAL| |DeePMD-kit| |deMon| |dftb|
 |dftd4| |DFTK| |elk| |exciting| |EMT|
 |fhi-aims| |fleur| |gamess_us| |gpaw| |gromacs|
 |hotbit| |jdftx| |kim| |lammps| |nwchem|
@@ -45,7 +45,6 @@ Supported :mod:`Calculators <ase.calculators>`
 |xtb| |orca|
 :mod:`ACE-Molecule <ase.calculators.acemolecule>`
 :mod:`~ase.calculators.amber`
-DeePMD-kit_
 :mod:`DMol³ <ase.calculators.dmol>`
 :mod:`Gaussian <ase.calculators.gaussian>`
 :mod:`Grimme DFT-D3 <ase.calculators.dftd3>`
@@ -63,6 +62,12 @@ Mopac_
 
 News
 ====
+
+* :ref:`ASE version 3.25.0 <releasenotes>` released (11 April 2025).
+
+* :ref:`ASE version 3.24.0 <releasenotes>` released (28 December 2024).
+
+* :ref:`ASE version 3.23.0 <releasenotes>` released (31 May 2024).
 
 * :ref:`ASE version 3.22.1 <releasenotes>` released (1 December 2021).
 
@@ -218,6 +223,10 @@ Contents
 .. |CRYSTAL| image:: static/crystal.png
    :target: ase/calculators/crystal.html
    :align: middle
+.. |DeePMD-kit| image:: static/deepmd-kit.png
+   :target: https://github.com/deepmodeling/deepmd-kit
+   :align: middle
+   :height: 75px
 .. |deMon| image:: static/demon.png
    :target: ase/calculators/demon.html
    :align: middle
@@ -249,7 +258,7 @@ Contents
    :target: ase/calculators/gamess_us.html
    :align: middle
 .. |gpaw| image:: static/gpaw.png
-   :target: https://wiki.fysik.dtu.dk/gpaw/
+   :target: https://gpaw.readthedocs.io/
    :align: middle
 .. |gromacs| image:: static/gromacs.png
    :target: ase/calculators/gromacs.html
@@ -312,4 +321,3 @@ Contents
 .. _Sphinx: http://sphinx.pocoo.org
 .. _Asap: https://wiki.fysik.dtu.dk/asap
 .. _CAMd: https://www.fysik.dtu.dk/english/research/camd/
-.. _DeePMD-kit: https://github.com/deepmodeling/deepmd-kit

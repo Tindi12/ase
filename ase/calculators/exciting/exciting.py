@@ -1,3 +1,5 @@
+# fmt: off
+
 """ASE Calculator for the ground state exciting DFT code.
 
 Exciting calculator class in this file allow for writing exciting input
@@ -21,9 +23,6 @@ from ase.calculators.exciting.runner import (
     SimpleBinaryRunner,
     SubprocessRunResults,
 )
-
-import ase.calculators.exciting.runner
-
 from ase.calculators.genericfileio import (
     BaseProfile,
     CalculatorTemplate,
@@ -39,17 +38,17 @@ class ExcitingProfile(BaseProfile):
        * OnlyTypo fix part of the profile used in the base class is the run
          method, which is part of the BinaryRunner class.
     """
+    configvars = {'species_path'}
 
-    def __init__(self, binary, species_path=None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, command, species_path=None, **kwargs):
+        super().__init__(command, **kwargs)
 
         self.species_path = species_path
-        self.binary = binary
 
     def version(self):
         """Return exciting version."""
         # TARP No way to get the version for the binary in use
-        return None
+        return
 
     # Machine specific config files in the config
     # species_file goes in the config
@@ -62,9 +61,9 @@ class ExcitingProfile(BaseProfile):
         # input_file unused for exciting, it looks for input.xml in run
         # directory.
         if input_file is None:
-            return [self.binary]
+            return []
         else:
-            return [self.binary, str(input_file)]
+            return [str(input_file)]
 
 
 class ExcitingGroundStateTemplate(CalculatorTemplate):
@@ -80,6 +79,7 @@ class ExcitingGroundStateTemplate(CalculatorTemplate):
     output_names = list(parser)
     # Use frozenset since the CalculatorTemplate enforces it.
     implemented_properties = frozenset(['energy', 'forces'])
+    _label = 'exciting'
 
     def __init__(self):
         """Initialise with constant class attributes.
@@ -89,6 +89,7 @@ class ExcitingGroundStateTemplate(CalculatorTemplate):
             calculate/read from output.
         """
         super().__init__('exciting', self.implemented_properties)
+        self.errorname = f'{self._label}.err'
 
     @staticmethod
     def _require_forces(input_parameters):
@@ -123,31 +124,36 @@ class ExcitingGroundStateTemplate(CalculatorTemplate):
         :param parameters: exciting ground state input parameters, in a
             dictionary. Expect species_path, title and ground_state data,
             either in an object or as dict.
-        :param properties: Currently, unused. Base method's API expects the
-            physical properties expected from a ground state
-            calculation, for example energies and forces.
+        :param properties: Base method's API expects the physical properties
+            expected from a ground state calculation, for example energies
+            and forces. For us this is not used.
         """
         # Create a copy of the parameters dictionary so we don't
         # modify the callers dictionary.
         parameters_dict = parameters
         assert set(parameters_dict.keys()) == {
-            'title',
-            'species_path',
-            'ground_state_input',
-        }, 'Keys should be defined by ExcitingGroundState calculator'
+            'title', 'species_path', 'ground_state_input',
+            'properties_input'}, \
+            'Keys should be defined by ExcitingGroundState calculator'
         file_name = Path(directory) / 'input.xml'
         species_path = parameters_dict.pop('species_path')
         title = parameters_dict.pop('title')
+        # We can also pass additional parameters which are actually called
+        # properties in the exciting input xml. We don't use this term
+        # since ASE use properties to refer to results of a calculation
+        # (e.g. force, energy).
+        if 'properties_input' not in parameters_dict:
+            parameters_dict['properties_input'] = None
 
         ase.io.exciting.write_input_xml_file(
-            file_name,
-            atoms,
-            parameters_dict['ground_state_input'],
-            species_path,
-            title,
-        )
+            file_name=file_name, atoms=atoms,
+            ground_state_input=parameters_dict['ground_state_input'],
+            species_path=species_path, title=title,
+            properties_input=parameters_dict['properties_input'])
 
-    def execute(self, directory: PathLike, profile) -> SubprocessRunResults:
+    def execute(
+            self, directory: PathLike,
+            profile) -> SubprocessRunResults:
         """Given an exciting calculation profile, execute the calculation.
 
         :param directory: Directory in which to execute the calculator
@@ -160,7 +166,8 @@ class ExcitingGroundStateTemplate(CalculatorTemplate):
 
         :return: Results of the subprocess.run command.
         """
-        return profile.run(directory, f"{directory}/input.xml")
+        return profile.run(directory, f"{directory}/input.xml", None,
+                           erorrfile=self.errorname)
 
     def read_results(self, directory: PathLike) -> Mapping[str, Any]:
         """Parse results from each ground state output file.
@@ -258,8 +265,6 @@ class ExcitingGroundStateCalculator(GenericFileIOCalculator):
         directory='./',
         species_path='./',
         title='ASE-generated input',
-        parallel=None,
-        parallel_info=None,
     ):
         self.runner = runner
         # Package data to be passed to
@@ -285,6 +290,4 @@ class ExcitingGroundStateCalculator(GenericFileIOCalculator):
             template=ExcitingGroundStateTemplate(),
             directory=directory,
             parameters=self.exciting_inputs,
-            parallel_info=parallel_info,
-            parallel=parallel,
         )

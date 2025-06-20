@@ -1,3 +1,4 @@
+# fmt: off
 import numpy as np
 import pytest
 
@@ -5,7 +6,7 @@ from ase.build import molecule
 from ase.constraints import FixCartesian
 
 
-@pytest.fixture
+@pytest.fixture()
 def atoms():
     return molecule('CH3CH2OH')
 
@@ -45,7 +46,7 @@ def test_fixcartesian_adjust(atoms):
 
     assert newpos == pytest.approx(newpos_expected, abs=1e-14)
 
-    oldforces = 1.0 + np.random.rand(len(atoms), 3)
+    oldforces = 1.0 + rng.random((len(atoms), 3))
     newforces = oldforces.copy()
     constraint.adjust_forces(atoms, newforces)
 

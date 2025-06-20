@@ -1,12 +1,16 @@
-from random import randint
+# fmt: off
+
+import uuid
 from typing import Any, Dict
 
 import numpy as np
 
 from ase import Atoms
-from ase.calculators.calculator import (PropertyNotImplementedError,
-                                        all_properties,
-                                        kptdensity2monkhorstpack)
+from ase.calculators.calculator import (
+    PropertyNotImplementedError,
+    all_properties,
+    kptdensity2monkhorstpack,
+)
 from ase.calculators.singlepoint import SinglePointCalculator
 from ase.data import atomic_masses, chemical_symbols
 from ase.formula import Formula
@@ -33,7 +37,7 @@ def atoms2dict(atoms):
     dct = {
         'numbers': atoms.numbers,
         'positions': atoms.positions,
-        'unique_id': '%x' % randint(16**31, 16**32 - 1)}
+        'unique_id': uuid.uuid4().hex}
     if atoms.pbc.any():
         dct['pbc'] = atoms.pbc
     if atoms.cell.any():
@@ -238,10 +242,7 @@ class AtomsRow:
                       momenta=self.get('momenta'),
                       constraint=self.constraints)
 
-        results = {}
-        for prop in all_properties:
-            if prop in self:
-                results[prop] = self[prop]
+        results = {prop: self[prop] for prop in all_properties if prop in self}
         if results:
             atoms.calc = SinglePointCalculator(atoms, **results)
             atoms.calc.name = self.get('calculator', 'unknown')

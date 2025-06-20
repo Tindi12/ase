@@ -1,3 +1,4 @@
+# fmt: off
 # type: ignore
 import numpy as np
 
@@ -5,7 +6,7 @@ from ase.calculators.turbomole import Turbomole
 from ase.cluster.cubic import FaceCenteredCubic
 
 
-def test_turbomole_au13():
+def test_turbomole_au13(turbomole_factory):
     surfaces = [(1, 0, 0), (1, 1, 0), (1, 1, 1)]
     layers = [1, 2, 1]
     atoms = FaceCenteredCubic('Au', surfaces, layers, latticeconstant=4.08)

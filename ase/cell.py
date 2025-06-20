@@ -1,3 +1,5 @@
+# fmt: off
+
 from typing import Mapping, Sequence, Union
 
 import numpy as np
@@ -117,7 +119,7 @@ class Cell:
         """
         from ase.lattice import identify_lattice
         pbc = self.mask() & pbc2pbc(pbc)
-        lat, op = identify_lattice(self, eps=eps, pbc=pbc)
+        lat, _op = identify_lattice(self, eps=eps, pbc=pbc)
         return lat
 
     def bandpath(
@@ -227,11 +229,8 @@ class Cell:
         """Return an array with the three angles alpha, beta, and gamma."""
         return self.cellpar()[3:].copy()
 
-    def __array__(self, dtype=float):
-        if dtype != float:
-            raise ValueError('Cannot convert cell to array of type {}'
-                             .format(dtype))
-        return self.array
+    def __array__(self, dtype=None, copy=False):
+        return np.array(self.array, dtype=dtype, copy=copy)
 
     def __bool__(self):
         return bool(self.any())  # need to convert from np.bool_
@@ -331,13 +330,18 @@ class Cell:
         permuted = Cell(self[permutation][:, permutation])
         return permuted
 
-    def standard_form(self):
-        """Rotate axes such that unit cell is lower triangular. The cell
+    def standard_form(self, form='lower'):
+        """Rotate axes such that unit cell is lower/upper triangular. The cell
         handedness is preserved.
 
         A lower-triangular cell with positive diagonal entries is a canonical
         (i.e. unique) description. For a left-handed cell the diagonal entries
         are negative.
+
+        Parameters:
+
+        form: str
+            'lower' or 'upper' triangular form. The default is 'lower'.
 
         Returns:
 
@@ -356,9 +360,16 @@ class Cell:
         # Q is an orthogonal matrix and L is a lower triangular matrix. The
         # decomposition is a unique description if the diagonal elements are
         # all positive (negative for a left-handed cell).
-        Q, L = np.linalg.qr(self.T)
-        Q = Q.T
-        L = L.T
+        if form == 'lower':
+            Q, L = np.linalg.qr(self.T)
+            Q = Q.T
+            L = L.T
+        elif form == 'upper':
+            Q, L = np.linalg.qr(self.T[::-1, ::-1])
+            Q = Q.T[::-1, ::-1]
+            L = L.T[::-1, ::-1]
+        else:
+            raise ValueError('form must be either "lower" or "upper"')
 
         # correct the signs of the diagonal elements
         signs = np.sign(np.diag(L))

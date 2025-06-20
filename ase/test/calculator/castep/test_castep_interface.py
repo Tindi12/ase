@@ -1,15 +1,24 @@
+# fmt: off
 import os
 
 import numpy as np
 import pytest
 
-import ase
-from ase.dft.kpoints import BandPath
-from ase.calculators.castep import (Castep, CastepCell, CastepKeywords,
-                                    CastepOption, CastepParam, make_cell_dict,
-                                    make_param_dict)
 import ase.lattice.cubic
-
+from ase.build import bulk
+from ase.calculators.castep import (
+    Castep,
+    CastepKeywords,
+    _get_indices_to_sort_back,
+    make_cell_dict,
+    make_param_dict,
+)
+from ase.dft.kpoints import BandPath
+from ase.io.castep.castep_input_file import (
+    CastepCell,
+    CastepOption,
+    CastepParam,
+)
 
 calc = pytest.mark.calculator
 
@@ -21,7 +30,7 @@ kw_types = ['Real', 'String', 'Defined', 'Integer Vector',
 kw_levels = ['Dummy', 'Intermediate', 'Expert', 'Basic']
 
 
-@pytest.fixture
+@pytest.fixture()
 def testing_keywords():
 
     kw_data = {}
@@ -44,14 +53,15 @@ def testing_keywords():
     # Special keywords for the CastepParam object
     param_kws = [('continuation', 'String'), ('reuse', 'String')]
 
-    param_kw_data = {}
-    for (pkw, t) in param_kws:
-        param_kw_data[pkw] = {
+    param_kw_data = {
+        pkw: {
             'docstring': f'Dummy {pkw} keyword',
             'option_type': t,
             'keyword': pkw,
-            'level': 'Dummy'
+            'level': 'Dummy',
         }
+        for pkw, t in param_kws
+    }
     param_kw_data.update(kw_data)
 
     # Special keywords for the CastepCell object
@@ -66,14 +76,15 @@ def testing_keywords():
                 ('kpoint_list', 'Block'),
                 ('bs_kpoint_list', 'Block')]
 
-    cell_kw_data = {}
-    for (ckw, t) in cell_kws:
-        cell_kw_data[ckw] = {
+    cell_kw_data = {
+        ckw: {
             'docstring': f'Dummy {ckw} keyword',
             'option_type': t,
             'keyword': ckw,
-            'level': 'Dummy'
+            'level': 'Dummy',
         }
+        for ckw, t in cell_kws
+    }
     cell_kw_data.update(kw_data)
 
     param_dict = make_param_dict(param_kw_data)
@@ -83,7 +94,7 @@ def testing_keywords():
                           'Castep v.Fake')
 
 
-@pytest.fixture
+@pytest.fixture()
 def pspot_tmp_path(tmp_path):
 
     path = os.path.join(tmp_path, 'ppots')
@@ -96,7 +107,7 @@ def pspot_tmp_path(tmp_path):
     return path
 
 
-@pytest.fixture
+@pytest.fixture()
 def testing_calculator(testing_keywords, tmp_path, pspot_tmp_path):
     castep_path = os.path.join(tmp_path, 'CASTEP')
     os.mkdir(castep_path)
@@ -281,7 +292,7 @@ def test_workflow(testing_calculator):
     c._find_pspots = True
     c.set_label('test_label_pspots')
 
-    atoms = ase.build.bulk('Ag')
+    atoms = bulk('Ag')
     atoms.calc = c
 
     # Should find them automatically!
@@ -322,7 +333,7 @@ def test_set_kpoints(testing_calculator):
     c.set_kpts({'size': (2, 2, 4), 'even': False})
     assert c.cell.kpoint_mp_grid.value == '3 3 5'
     assert c.cell.kpoint_mp_offset.value == '0.0 0.0 0.0'
-    atoms = ase.build.bulk('Ag')
+    atoms = bulk('Ag')
     atoms.calc = c
     c.set_kpts({'density': 10, 'gamma': False, 'even': None})
     assert c.cell.kpoint_mp_grid.value == '27 27 27'
@@ -337,7 +348,7 @@ def test_band_structure_setup(testing_calculator):
 
     c = testing_calculator
 
-    atoms = ase.build.bulk('Ag')
+    atoms = bulk('Ag')
     bp = BandPath(cell=atoms.cell,
                   path='GX',
                   special_points={'G': [0, 0, 0], 'X': [0.5, 0, 0.5]})
@@ -349,3 +360,13 @@ def test_band_structure_setup(testing_calculator):
     assert len(kpt_list) == 10
     assert list(map(float, kpt_list[0].split())) == [0., 0., 0.]
     assert list(map(float, kpt_list[-1].split())) == [0.5, 0.0, 0.5]
+
+
+def test_get_indices_to_sort_back():
+    """Test if spicies in .castep are sorted back to atoms.symbols."""
+    symbols = ['Si', 'Al', 'P', 'Al', 'P', 'Al', 'P', 'C']
+    species = ['C', 'Al', 'Al', 'Al', 'Si', 'P', 'P', 'P']
+    indices_ref = [4, 1, 5, 2, 6, 3, 7, 0]
+    assert [species[_] for _ in indices_ref] == symbols
+    indices = _get_indices_to_sort_back(symbols, species)
+    assert indices.tolist() == indices_ref

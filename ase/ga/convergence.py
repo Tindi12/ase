@@ -1,3 +1,5 @@
+# fmt: off
+
 """Classes that determine convergence of an algorithm run
 based on population stagnation or max raw score reached"""
 from ase.ga import get_raw_score
@@ -64,8 +66,10 @@ class GenerationRepetitionConvergence(Convergence):
             return False
 
         cur_pop = self.pop.get_current_population()
-        newest = max([i.info['key_value_pairs']['generation']
-                      for i in cur_pop[:self.numindis]])
+        newest = max(
+            i.info['key_value_pairs']['generation']
+            for i in cur_pop[: self.numindis]
+        )
         if newest + self.numgens > cur_gen_num:
             return False
 

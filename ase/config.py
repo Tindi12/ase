@@ -1,15 +1,15 @@
-import os
+# fmt: off
+
 import configparser
-from collections.abc import Mapping
-from pathlib import Path
+import os
 import shlex
 import warnings
+from collections.abc import Mapping
+from pathlib import Path
 
-from ase.utils import lazymethod
-from ase.calculators.names import names, builtin, templates
+from ase.calculators.names import builtin, names, templates
 
-
-ASE_CONFIG_FILE = Path.home() / ".config/ase/ase.conf"
+ASE_CONFIG_FILE = Path.home() / ".config/ase/config.ini"
 
 
 class ASEEnvDeprecationWarning(DeprecationWarning):
@@ -18,6 +18,15 @@ class ASEEnvDeprecationWarning(DeprecationWarning):
 
 
 class Config(Mapping):
+    def __init__(self):
+        def argv_converter(argv):
+            return shlex.split(argv)
+
+        self.parser = configparser.ConfigParser(
+            converters={"argv": argv_converter},
+            interpolation=configparser.ExtendedInterpolation())
+        self.paths = []
+
     def _env(self):
         if self.parser.has_section('environment'):
             return self.parser['environment']
@@ -28,6 +37,12 @@ class Config(Mapping):
         yield from self._env()
 
     def __getitem__(self, item):
+        # XXX We should replace the mapping behaviour with individual
+        # methods to get from cfg or environment, or only from cfg.
+        #
+        # We cannot be a mapping very correctly without getting trouble
+        # with mutable state needing synchronization with os.environ.
+
         env = self._env()
         try:
             return env[item]
@@ -38,40 +53,13 @@ class Config(Mapping):
         warnings.warn(f'Loaded {item} from environment. '
                       'Please use configfile.',
                       ASEEnvDeprecationWarning)
-        env[item] = value
+
         return value
 
     def __len__(self):
         return len(self._env())
 
-    @lazymethod
-    def _paths_and_parser(self):
-        def argv_converter(argv):
-            return shlex.split(argv)
-
-        parser = configparser.ConfigParser(converters={"argv": argv_converter})
-        envpath = os.environ.get("ASE_CONFIG_PATH")
-        if envpath is not None:
-            paths = [Path(p) for p in envpath.split(":")]
-        else:
-            paths = [ASE_CONFIG_FILE, ]
-        loaded_paths = parser.read(paths)
-        # add sections for builtin calculators
-        for name in builtin:
-            parser.add_section(name)
-            parser[name]["builtin"] = "True"
-        return loaded_paths, parser
-
-    @property
-    def paths(self):
-        return self._paths_and_parser()[0]
-
-    @property
-    def parser(self):
-        return self._paths_and_parser()[1]
-
     def check_calculators(self):
-
         print("Calculators")
         print("===========")
         print()
@@ -92,7 +80,7 @@ class Config(Mapping):
 
             fullname = name
             try:
-                codeconfig = self.__getitem__(name)
+                codeconfig = self[name]
             except KeyError:
                 codeconfig = None
                 version = None
@@ -125,7 +113,7 @@ class Config(Mapping):
             )
             print(msg)
 
-    def print_everything(self):
+    def print_header(self):
         print("Configuration")
         print("-------------")
         print()
@@ -135,17 +123,28 @@ class Config(Mapping):
         for path in self.paths:
             print(f"Loaded: {path}")
 
-        print()
-        for name, section in self.parser.items():
-            print(name)
-            if not section:
-                print("  (Nothing configured)")
-            for key, val in section.items():
-                print(f"  {key}: {val}")
-            print()
-
     def as_dict(self):
         return {key: dict(val) for key, val in self.parser.items()}
 
+    def _read_paths(self, paths):
+        self.paths += self.parser.read(paths)
 
-cfg = Config()
+    @classmethod
+    def read(cls):
+        envpath = os.environ.get("ASE_CONFIG_PATH")
+        if envpath is None:
+            paths = [ASE_CONFIG_FILE, ]
+        else:
+            paths = [Path(p) for p in envpath.split(":")]
+
+        cfg = cls()
+        cfg._read_paths(paths)
+
+        # add sections for builtin calculators
+        for name in builtin:
+            cfg.parser.add_section(name)
+            cfg.parser[name]["builtin"] = "True"
+        return cfg
+
+
+cfg = Config.read()

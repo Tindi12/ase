@@ -1,3 +1,5 @@
+# fmt: off
+
 import json
 import sys
 from collections import defaultdict
@@ -7,7 +9,7 @@ from typing import Iterable, Iterator
 
 import ase.io
 from ase.db import connect
-from ase.db.core import convert_str_to_int_float_or_str
+from ase.db.core import convert_str_to_int_float_bool_or_str
 from ase.db.row import row2dct
 from ase.db.table import Table, all_columns
 from ase.utils import plural
@@ -40,7 +42,8 @@ def main(args):
     if args.add_key_value_pairs:
         for pair in args.add_key_value_pairs.split(','):
             key, value = pair.split('=')
-            add_key_value_pairs[key] = convert_str_to_int_float_or_str(value)
+            add_key_value_pairs[key] = \
+                convert_str_to_int_float_bool_or_str(value)
 
     if args.delete_keys:
         delete_keys = args.delete_keys.split(',')
@@ -290,7 +293,7 @@ def row2str(row) -> str:
     fmt = ('   {0}|     {1}|{2[0]:>11}|{2[1]:>11}|{2[2]:>11}|' +
            '{3:>10}|{4:>10}')
     for p, axis, L, A in zip(row.pbc, t['cell'], t['lengths'], t['angles']):
-        S.append(fmt.format(c, [' no', 'yes'][p], axis, L, A))
+        S.append(fmt.format(c, [' no', 'yes'][int(p)], axis, L, A))
         c += 1
     S.append('')
 

@@ -1,3 +1,4 @@
+# fmt: off
 import pytest
 
 from ase.build import bulk
@@ -10,7 +11,7 @@ def systems():
     yield atoms
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 @pytest.mark.parametrize('atoms', systems(),
                          ids=lambda atoms: str(atoms.symbols))
 @pytest.mark.calculator('elk', tasks=0, ngridk=(3, 3, 3))

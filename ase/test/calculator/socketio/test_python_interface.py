@@ -1,3 +1,4 @@
+# fmt: off
 import os
 
 import numpy as np
@@ -10,7 +11,7 @@ from ase.filters import FrechetCellFilter
 from ase.optimize import BFGS
 
 
-@pytest.mark.optimize
+@pytest.mark.optimize()
 @pytest.mark.skipif(os.name != 'posix', reason='only posix')
 def test_socketio_python():
 

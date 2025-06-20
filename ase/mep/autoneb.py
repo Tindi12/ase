@@ -1,10 +1,12 @@
+# fmt: off
+
 import os
 import shutil
 import types
 from contextlib import ExitStack
 from math import exp, log
 from pathlib import Path
-from warnings import warn
+from typing import Any, Dict, List
 
 import numpy as np
 
@@ -13,6 +15,33 @@ from ase.calculators.singlepoint import SinglePointCalculator
 from ase.io import Trajectory, read
 from ase.mep.neb import NEB
 from ase.optimize import BFGS, FIRE
+from ase.utils import deprecated
+
+
+def _forbid_optimizer_string(args: List, kwargs: Dict[str, Any]) -> bool:
+    """Replace optimizer string with Optimizer object."""
+    arg_position = 11
+    try:
+        if (
+            len(args) >= arg_position + 1
+            and isinstance(args[arg_position], str)
+        ):
+            args[11] = {'BFGS': BFGS, 'FIRE': FIRE}[args[arg_position]]
+
+        elif isinstance(kwargs.get("optimizer", None), str):
+            kwargs["optimizer"] = {
+                'BFGS': BFGS, 'FIRE': FIRE}[kwargs["optimizer"]]
+        else:
+            return False
+    except KeyError as err:
+        msg = (
+            '"optimizer" must be "BFGS" or "FIRE" if string is passed, '
+            'but passing a string is deprecated. Use an Optimizer object '
+            'instead'
+        )
+        raise ValueError(msg) from err
+
+    return True
 
 
 class AutoNEB:
@@ -77,7 +106,6 @@ class AutoNEB:
         'eb', full spring force implementation (default)
     optimizer: object
         Optimizer object, defaults to FIRE
-        Use of the valid strings 'BFGS' and 'FIRE' is deprecated.
     space_energy_ratio: float
         The preference for new images to be added in a big energy gab
         with a preference around the peak or in the biggest geometric gab.
@@ -96,8 +124,17 @@ class AutoNEB:
 
     The most recent NEB path can always be monitored by:
         $ ase-gui -n -1 neb???.traj
+
+    .. deprecated: 3.22.0
+        Passing ``optimizer`` as a string is deprecated. Use an ``Optimizer``
+        object instead.
     """
 
+    @deprecated(
+        "Passing 'optimizer' as a string is deprecated. "
+        "Use an 'Optimizer' object instead.",
+        callback=_forbid_optimizer_string,
+    )
     def __init__(self, attach_calculators, prefix, n_simul, n_max,
                  iter_folder='AutoNEB_iter',
                  fmax=0.025, maxsteps=10000, k=0.1, climb=True, method='eb',
@@ -130,16 +167,7 @@ class AutoNEB:
         self.world = world
         self.smooth_curve = smooth_curve
 
-        if isinstance(optimizer, str):
-            warn('Please set optimizer as an object and not as string',
-                 FutureWarning)
-            try:
-                self.optimizer = {
-                    'BFGS': BFGS, 'FIRE': FIRE}[optimizer]
-            except KeyError:
-                raise Exception('Optimizer needs to be BFGS or FIRE')
-        else:
-            self.optimizer = optimizer
+        self.optimizer = optimizer
 
         self.iter_folder = Path(self.prefix.parent) / iter_folder
         self.iter_folder.mkdir(exist_ok=True)
@@ -277,7 +305,7 @@ class AutoNEB:
                 n_between = 1
 
             toInterpolate = [self.all_images[jmax]]
-            for i in range(n_between):
+            for _ in range(n_between):
                 toInterpolate += [toInterpolate[0].copy()]
             toInterpolate += [self.all_images[jmax + 1]]
 
@@ -518,7 +546,7 @@ class AutoNEB:
             try:
                 energies.append(a.get_potential_energy())
             except RuntimeError:
-                energies.append(np.NaN)
+                energies.append(np.nan)
         return energies
 
     def get_energies_one_image(self, image):
@@ -527,7 +555,7 @@ class AutoNEB:
         try:
             energy = image.get_potential_energy()
         except RuntimeError:
-            energy = np.NaN
+            energy = np.nan
         return energy
 
     def get_highest_energy_index(self):

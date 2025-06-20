@@ -1,3 +1,4 @@
+# fmt: off
 import pytest
 
 from ase.build import bulk, molecule
@@ -23,9 +24,7 @@ def test_version(version, txt):
 
 
 def test_version_integration(espresso_factory):
-    profile = EspressoProfile(espresso_factory.executable,
-                              espresso_factory.pseudo_dir)
-    version = profile.version()
+    version = espresso_factory.profile.version()
     assert version[0].isdigit()
 
 
@@ -37,7 +36,7 @@ def verify(calc):
     assert calc.get_k_point_weights() is not None
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 def test_main(espresso_factory):
     atoms = bulk('Si')
     atoms.calc = espresso_factory.calc()
@@ -45,7 +44,7 @@ def test_main(espresso_factory):
     verify(atoms.calc)
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 def test_smearing(espresso_factory):
     atoms = bulk('Cu')
     input_data = {'system': {'occupations': 'smearing',
@@ -56,7 +55,7 @@ def test_smearing(espresso_factory):
     verify(atoms.calc)
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 def test_dipole(espresso_factory):
     atoms = molecule('H2O', cell=[10, 10, 10])
     atoms.center()
@@ -78,7 +77,6 @@ def test_dipole(espresso_factory):
 
 
 def test_warn_label(config_file):
-    print()
     with pytest.warns(FutureWarning):
         Espresso(label='hello')
 

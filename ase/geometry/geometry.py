@@ -1,3 +1,5 @@
+# fmt: off
+
 # Copyright (C) 2010, Jesper Friis
 # (see accompanying license files for details).
 
@@ -232,18 +234,20 @@ def find_mic(v, cell, pbc=True):
 
 
 def conditional_find_mic(vectors, cell, pbc):
-    """Return list of vector arrays and corresponding list of vector lengths
-    for a given list of vector arrays. The minimum image convention is applied
-    if cell and pbc are set. Can be used like a simple version of get_distances.
+    """Return vectors and their lengths considering cell and pbc.
+
+    The minimum image convention is applied if cell and pbc are set.
+    This can be used like a simple version of get_distances.
     """
+    vectors = np.array(vectors)
     if (cell is None) != (pbc is None):
         raise ValueError("cell or pbc must be both set or both be None")
     if cell is not None:
         mics = [find_mic(v, cell, pbc) for v in vectors]
         vectors, vector_lengths = zip(*mics)
     else:
-        vector_lengths = np.linalg.norm(vectors, axis=2)
-    return [np.asarray(v) for v in vectors], vector_lengths
+        vector_lengths = np.sqrt(np.add.reduce(vectors**2, axis=-1))
+    return vectors, vector_lengths
 
 
 def get_angles(v0, v1, cell=None, pbc=None):
@@ -339,14 +343,14 @@ def get_dihedrals_derivatives(v0, v1, v2, cell=None, pbc=None):
     (v0, v1, v2), (nv0, nv1, nv2) = conditional_find_mic([v0, v1, v2], cell,
                                                          pbc)
 
-    v0 /= nv0[:, np.newaxis]
-    v1 /= nv1[:, np.newaxis]
-    v2 /= nv2[:, np.newaxis]
-    normal_v01 = np.cross(v0, v1, axis=1)
-    normal_v12 = np.cross(v1, v2, axis=1)
-    cos_psi01 = np.einsum('ij,ij->i', v0, v1)  # == np.sum(v0 * v1, axis=1)
+    v0n = v0 / nv0[:, np.newaxis]
+    v1n = v1 / nv1[:, np.newaxis]
+    v2n = v2 / nv2[:, np.newaxis]
+    normal_v01 = np.cross(v0n, v1n, axis=1)
+    normal_v12 = np.cross(v1n, v2n, axis=1)
+    cos_psi01 = np.einsum('ij,ij->i', v0n, v1n)  # == np.sum(v0 * v1, axis=1)
     sin_psi01 = np.sin(np.arccos(cos_psi01))
-    cos_psi12 = np.einsum('ij,ij->i', v1, v2)
+    cos_psi12 = np.einsum('ij,ij->i', v1n, v2n)
     sin_psi12 = np.sin(np.arccos(cos_psi12))
     if (sin_psi01 == 0.).any() or (sin_psi12 == 0.).any():
         msg = ('Undefined derivative for undefined dihedral with planar inner '
@@ -426,29 +430,12 @@ def get_duplicate_atoms(atoms, cutoff=0.1, delete=False):
     Identify all atoms which lie within the cutoff radius of each other.
     Delete one set of them if delete == True.
     """
-    from scipy.spatial.distance import pdist
-    dists = pdist(atoms.get_positions(), 'sqeuclidean')
-    dup = np.nonzero(dists < cutoff**2)
-    rem = np.array(_row_col_from_pdist(len(atoms), dup[0]))
-    if delete:
-        if rem.size != 0:
-            del atoms[rem[:, 0]]
-    else:
-        return rem
-
-
-def _row_col_from_pdist(dim, i):
-    """Calculate the i,j index in the square matrix for an index in a
-    condensed (triangular) matrix.
-    """
-    i = np.array(i)
-    b = 1 - 2 * dim
-    x = (np.floor((-b - np.sqrt(b**2 - 8 * i)) / 2)).astype(int)
-    y = (i + x * (b + x + 2) / 2 + 1).astype(int)
-    if i.shape:
-        return list(zip(x, y))
-    else:
-        return [(x, y)]
+    dists = get_distances(atoms.positions, cell=atoms.cell, pbc=atoms.pbc)[1]
+    dup = np.argwhere(dists < cutoff)
+    dup = dup[dup[:, 0] < dup[:, 1]]  # indices at upper triangle
+    if delete and dup.size != 0:
+        del atoms[dup[:, 0]]
+    return dup
 
 
 def permute_axes(atoms, permutation):

@@ -1,4 +1,3 @@
-# type: ignore
 import io
 import os
 import unittest
@@ -11,8 +10,13 @@ import ase.build
 import ase.io
 from ase.build import graphene_nanoribbon
 from ase.calculators.calculator import compare_atoms
-from ase.constraints import (FixAtoms, FixedLine, FixedPlane, FixScaled,
-                             constrained_indices)
+from ase.constraints import (
+    FixAtoms,
+    FixedLine,
+    FixedPlane,
+    FixScaled,
+    constrained_indices,
+)
 from ase.io.vasp import read_vasp_xdatcar, write_vasp_xdatcar
 
 
@@ -42,7 +46,7 @@ class TestXdatcarRoundtrip(unittest.TestCase):
 
     def test_roundtrip(self):
         # Create a series of translated cells
-        trajectory = [self.NaCl.copy() for i in range(5)]
+        trajectory = [self.NaCl.copy() for _ in range(5)]
         for i, atoms in enumerate(trajectory):
             atoms.set_scaled_positions(
                 atoms.get_scaled_positions() + i * np.array([0.05, 0, 0.02])
@@ -69,21 +73,6 @@ class TestXdatcarRoundtrip(unittest.TestCase):
         with self.assertRaises(TypeError):
             not_traj = [True, False, False]
             ase.io.write(self.outfile, not_traj, format='vasp-xdatcar')
-
-
-def test_wrap():
-    atoms = ase.build.bulk('Ge')
-    # Shift atomic positions to get negative coordinates
-    atoms.wrap(center=(-1, -1, -1))
-
-    atoms.write('POSCAR', direct=True, wrap=False)
-    new_atoms = ase.io.read('POSCAR')
-    assert np.allclose(atoms.positions, new_atoms.positions)
-
-    atoms.write('POSCAR', direct=True, wrap=True)
-    new_atoms = ase.io.read('POSCAR')
-    atoms.wrap()
-    assert np.allclose(atoms.positions, new_atoms.positions)
 
 
 def test_index():
@@ -122,15 +111,23 @@ indices_to_constrain = [0, 2]
 
 @pytest.fixture()
 def graphene_atoms():
-    atoms = graphene_nanoribbon(2, 2, type="armchair", saturated=False)
+    atoms = graphene_nanoribbon(2, 2, type='armchair', saturated=False)
     atoms.cell = [[10, 0, 0], [0, 10, 0], [0, 0, 10]]
     return atoms
 
 
 def poscar_roundtrip(atoms):
     """Write a POSCAR file, read it back and return the new atoms object"""
-    atoms.write("POSCAR", direct=True)
-    return ase.io.read("POSCAR")
+    atoms.write('POSCAR', direct=True)
+    return ase.io.read('POSCAR')
+
+
+@pytest.mark.parametrize('whitespace', ['\n', '   ', '   \n\n  \n'])
+def test_with_whitespace(graphene_atoms, whitespace):
+    graphene_atoms.write('POSCAR', direct=True)
+    with open('POSCAR', 'a') as fd:
+        fd.write(whitespace)
+    assert str(ase.io.read('POSCAR').symbols) == str(graphene_atoms.symbols)
 
 
 def test_FixAtoms(graphene_atoms):
@@ -167,3 +164,15 @@ def test_FixedLine_and_Plane(ConstraintClass, graphene_atoms):
     # or FixedPlane is along a lattice vector.
 
     assert np.all(constrained_indices(new_atoms) == indices_to_constrain)
+
+
+def test_write_read_velocities(graphene_atoms):
+    vel = np.zeros_like(graphene_atoms.positions)
+    vel = np.linspace(-1, 1, 3 * len(graphene_atoms)).reshape(-1, 3)
+    graphene_atoms.set_velocities(vel)
+
+    graphene_atoms.write('CONTCAR', direct=False)
+    new_atoms = ase.io.read('CONTCAR')
+    new_vel = new_atoms.get_velocities()
+
+    assert np.allclose(vel, new_vel)

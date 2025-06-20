@@ -1,11 +1,11 @@
+# fmt: off
 import argparse
 import os
 import sys
 import warnings
+from multiprocessing import cpu_count
 from pathlib import Path
 from subprocess import Popen
-
-from multiprocessing import cpu_count
 
 from ase.calculators.names import names as calc_names
 from ase.cli.main import CLIError, main
@@ -56,7 +56,7 @@ def have_module(module):
     return importlib.util.find_spec(module) is not None
 
 
-MULTIPROCESSING_MAX_WORKERS = 32
+MULTIPROCESSING_MAX_AUTO_WORKERS = 8
 MULTIPROCESSING_DISABLED = 0
 MULTIPROCESSING_AUTO = -1
 
@@ -65,7 +65,7 @@ def choose_how_many_workers(jobs):
 
     if jobs == MULTIPROCESSING_AUTO:
         if have_module('xdist'):
-            jobs = min(cpu_count(), MULTIPROCESSING_MAX_WORKERS)
+            jobs = min(cpu_count(), MULTIPROCESSING_MAX_AUTO_WORKERS)
         else:
             jobs = MULTIPROCESSING_DISABLED
     return jobs
@@ -129,7 +129,7 @@ class CLICommand:
             help='number of worker processes.  If pytest-xdist is available,'
             ' defaults to all available processors up to a maximum of {}.  '
             '0 disables multiprocessing'
-            .format(MULTIPROCESSING_MAX_WORKERS))
+            .format(MULTIPROCESSING_MAX_AUTO_WORKERS))
         parser.add_argument('-v', '--verbose', action='store_true',
                             help='write test outputs to stdout.  '
                             'Mostly useful when inspecting a single test')

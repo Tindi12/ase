@@ -1,3 +1,5 @@
+# fmt: off
+
 """
     The ASE Calculator for OpenMX <http://www.openmx-square.org>
     A Python interface to the software package for nano-scale
@@ -27,13 +29,18 @@ import warnings
 
 import numpy as np
 
-from ase.calculators.calculator import (Calculator, FileIOCalculator,
-                                        all_changes, equal,
-                                        kptdensity2monkhorstpack)
+from ase.calculators.calculator import (
+    Calculator,
+    FileIOCalculator,
+    all_changes,
+    equal,
+    kptdensity2monkhorstpack,
+)
 from ase.calculators.openmx.default_settings import default_dictionary
 from ase.calculators.openmx.parameters import OpenMXParameters
 from ase.calculators.openmx.reader import get_file_name, read_openmx
 from ase.calculators.openmx.writer import write_openmx
+from ase.config import cfg
 from ase.geometry import cell_to_cellpar
 
 
@@ -284,14 +291,22 @@ class OpenMX(FileIOCalculator):
         pbs_Name = get_file_name('', self.label)
         files = [
             # prefix+'.out',#prefix+'.dat',#prefix+'.BAND*',
-            fileName + '.cif', fileName + '.dden.cube', fileName + \
-            '.ene', fileName + '.md', fileName + '.md2',
-            fileName + '.tden.cube', fileName + '.sden.cube', fileName + \
-            '.v0.cube', fileName + '.v1.cube',
-            fileName + '.vhart.cube', fileName + '.den0.cube', fileName + \
-            '.bulk.xyz', fileName + '.den1.cube',
-            fileName + '.xyz', pbs_Name + '.o' + \
-            str(queue_num), pbs_Name + '.e' + str(queue_num)
+            fileName + '.cif',
+            fileName + '.dden.cube',
+            fileName + '.ene',
+            fileName + '.md',
+            fileName + '.md2',
+            fileName + '.tden.cube',
+            fileName + '.sden.cube',
+            fileName + '.v0.cube',
+            fileName + '.v1.cube',
+            fileName + '.vhart.cube',
+            fileName + '.den0.cube',
+            fileName + '.bulk.xyz',
+            fileName + '.den1.cube',
+            fileName + '.xyz',
+            pbs_Name + '.o' + str(queue_num),
+            pbs_Name + '.e' + str(queue_num)
         ]
         for f in files:
             try:
@@ -308,7 +323,7 @@ class OpenMX(FileIOCalculator):
         See base FileIOCalculator for documentation.
         """
         if self.parameters.data_path is None:
-            if 'OPENMX_DFT_DATA_PATH' not in os.environ:
+            if 'OPENMX_DFT_DATA_PATH' not in cfg:
                 warnings.warn('Please either set OPENMX_DFT_DATA_PATH as an'
                               'enviroment variable or specify "data_path" as'
                               'a keyword argument')
@@ -396,7 +411,7 @@ class OpenMX(FileIOCalculator):
         version = None
         if label is None:
             label = self.label
-        for line in open(get_file_name('.out', label)):
+        for line in open(get_file_name('.log', label)):
             if line.find('Ver.') != -1:
                 version = line.split()[-1]
                 break
@@ -470,7 +485,7 @@ class OpenMX(FileIOCalculator):
             self.command = 'openmx'
         # run processes specified by the system variable OPENMX_COMMAND
         if processes is None:
-            command += os.environ.get('OPENMX_COMMAND')
+            command += cfg.get('OPENMX_COMMAND')
             if command is None:
                 warnings.warn('Either specify OPENMX_COMMAND as an environment\
                 variable or specify processes as a keyword argument')
@@ -484,9 +499,9 @@ class OpenMX(FileIOCalculator):
             # str(processes) + ' openmx %s' + threads_string + ' > %s'
 
         if runfile is None:
-            runfile = abs_dir + '/' + self.prefix + '.dat'
+            runfile = os.path.join(abs_dir, f'{self.prefix} .dat')
         if outfile is None:
-            outfile = abs_dir + '/' + self.prefix + '.log'
+            outfile = os.path.join(abs_dir, f'{self.prefix} .log')
         try:
             command = command % (runfile, outfile)
             # command += '" > ./%s &' % outfile  # outputs
@@ -581,7 +596,7 @@ class OpenMX(FileIOCalculator):
         abc = cellpar[:3]
         angles = cellpar[3:]
         min_lv = min(abc)
-        if abc.ptp() < 0.01 * min_lv:
+        if np.ptp(abc) < 0.01 * min_lv:
             if abs(angles - 90).max() < 1:
                 return 'cubic'
             elif abs(angles - 60).max() < 1:

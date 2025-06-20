@@ -1,3 +1,5 @@
+# fmt: off
+from pathlib import Path
 from io import StringIO
 from typing import IO, Any, Dict, Type
 
@@ -120,3 +122,13 @@ class TestOptimizers:
         final_max_force: float
     ) -> None:
         assert final_max_force < FMAX
+
+
+@pytest.mark.optimize()
+@pytest.mark.filterwarnings("ignore: estimate_mu")
+def test_path(testdir, optcls, atoms, kwargs):
+    fmax = 0.01
+    traj, log = Path('trajectory.traj'), Path('relax.log')
+    with optcls(atoms, logfile=log, trajectory=traj, **kwargs) as opt:
+        is_converged = opt.run(fmax=fmax)
+    assert is_converged  # chec

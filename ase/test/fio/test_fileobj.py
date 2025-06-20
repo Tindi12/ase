@@ -1,3 +1,4 @@
+# fmt: off
 # test reading and writing a file descriptor using its name
 
 import pytest
@@ -7,7 +8,7 @@ from ase.build import bulk
 from ase.calculators.calculator import compare_atoms
 
 
-@pytest.fixture
+@pytest.fixture()
 def at():
     return bulk('Si')
 

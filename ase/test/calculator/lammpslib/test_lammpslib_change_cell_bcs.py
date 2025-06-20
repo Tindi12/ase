@@ -1,9 +1,10 @@
+# fmt: off
 import pytest
 
 from ase.lattice.cubic import FaceCenteredCubic
 
 
-@pytest.fixture
+@pytest.fixture()
 def lattice_params():
     lattice_params = {}
     lattice_params["size"] = (2, 2, 2)
@@ -13,7 +14,7 @@ def lattice_params():
     return lattice_params
 
 
-@pytest.mark.calculator_lite
+@pytest.mark.calculator_lite()
 @pytest.mark.calculator("lammpslib")
 def test_lammpslib_change_cell_bcs(factory, lattice_params, calc_params_NiH):
     """Test that a change in unit cell boundary conditions is

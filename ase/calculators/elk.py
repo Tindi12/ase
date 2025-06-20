@@ -1,3 +1,5 @@
+# fmt: off
+
 from pathlib import Path
 
 from ase.calculators.abc import GetOutputsMixin
@@ -7,10 +9,13 @@ from ase.io.elk import ElkReader
 
 
 class ELK(FileIOCalculator, GetOutputsMixin):
-    command = 'elk > elk.out'
+    _legacy_default_command = 'elk > elk.out'
     implemented_properties = ['energy', 'forces']
     ignored_changes = {'pbc'}
     discard_results_on_any_change = True
+
+    fileio_rules = FileIOCalculator.ruleset(
+        stdout_name='elk.out')
 
     def __init__(self, **kwargs):
         """Construct ELK calculator.

@@ -1,3 +1,5 @@
+# fmt: off
+
 """
 Implementation of the Precon abstract base class and subclasses
 """
@@ -15,11 +17,14 @@ from scipy.sparse.linalg import spsolve
 
 import ase.units as units
 import ase.utils.ff as ff
-from ase.constraints import Filter, FixAtoms
+from ase.constraints import FixAtoms
+from ase.filters import Filter
 from ase.geometry import find_mic
 from ase.neighborlist import neighbor_list
-from ase.optimize.precon.neighbors import (estimate_nearest_neighbour_distance,
-                                           get_neighbours)
+from ase.optimize.precon.neighbors import (
+    estimate_nearest_neighbour_distance,
+    get_neighbours,
+)
 from ase.utils import longsum, tokenize_version
 
 try:
@@ -480,7 +485,7 @@ class SparsePrecon(Precon):
         elif self.array_convention == 'F':
             csc_P = csc_P.tocsr()
             P = csc_P
-            for i in range(self.dim - 1):
+            for _ in range(self.dim - 1):
                 P = sparse.block_diag((P, csc_P)).tocsr()
         else:
             # convert back to triplet and read the arrays
@@ -492,7 +497,7 @@ class SparsePrecon(Precon):
             # N-dimensionalise, interlaced coordinates
             I = np.hstack([i + d for d in range(self.dim)])
             J = np.hstack([j + d for d in range(self.dim)])
-            Z = np.hstack([z for d in range(self.dim)])
+            Z = np.hstack([z for _ in range(self.dim)])
             P = sparse.csc_matrix((Z, (I, J)),
                                   shape=(self.dim * N, self.dim * N))
             P = P.tocsr()
@@ -1125,7 +1130,7 @@ class Exp_FF(Exp, FF):
         start_time = time.time()
         if self.apply_positions:
             # compute neighbour list
-            i_list, j_list, rij_list, fixed_atoms = get_neighbours(
+            i_list, j_list, rij_list, _fixed_atoms = get_neighbours(
                 atoms, self.r_cut, self.neighbor_list)
             self.logfile.write(
                 f'--- neighbour list created in {(time.time() - start_time)} s '

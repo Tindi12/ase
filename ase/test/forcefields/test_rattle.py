@@ -1,3 +1,4 @@
+# fmt: off
 import pytest
 
 import ase.units as units
@@ -8,7 +9,7 @@ from ase.data.s22 import create_s22_system as s22
 from ase.md.verlet import VelocityVerlet
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_rattle(testdir):
 
     i = LJInteractions({('O', 'O'): (epsilon0, sigma0)})

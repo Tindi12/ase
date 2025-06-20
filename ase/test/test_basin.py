@@ -1,3 +1,4 @@
+# fmt: off
 import numpy as np
 import pytest
 
@@ -8,8 +9,8 @@ from ase.optimize.basin import BasinHopping
 from ase.units import kB
 
 
-@pytest.mark.optimize
-@pytest.mark.slow
+@pytest.mark.optimize()
+@pytest.mark.slow()
 def test_basin(testdir):
     # Global minima from
     # Wales and Doye, J. Phys. Chem. A, vol 101 (1997) 5111-5116
@@ -20,8 +21,8 @@ def test_basin(testdir):
         7: -16.505384}
     N = 7
     R = N**(1. / 3.)
-    np.random.seed(42)
-    pos = np.random.uniform(-R, R, (N, 3))
+    rng = np.random.RandomState(42)
+    pos = rng.uniform(-R, R, (N, 3))
     s = Atoms('He' + str(N),
               positions=pos)
     s.calc = LennardJones()

@@ -1,3 +1,5 @@
+# fmt: off
+
 from itertools import chain
 
 import numpy as np
@@ -173,7 +175,7 @@ class CutSpliceCrossover(Crossover):
         an = atoms.numbers
         for i in range(len(atoms)):
             pos = atoms[i].position
-            for j, d in enumerate([norm(k - pos) for k in ap[i:]]):
+            for j, d in enumerate(norm(k - pos) for k in ap[i:]):
                 if d == 0:
                     continue
                 min_dist = self.blmin[tuple(sorted((an[i], an[j + i])))]
@@ -186,7 +188,7 @@ class CutSpliceCrossover(Crossover):
         ap = atoms.get_positions()
         for i in range(len(atoms)):
             pos = atoms[i].position
-            for j, d in enumerate([norm(k - pos) for k in ap[i:]]):
+            for j, d in enumerate(norm(k - pos) for k in ap[i:]):
                 if d == 0:
                     continue
                 if d < mind:

@@ -1,3 +1,4 @@
+# fmt: off
 """Test file for exciting ASE calculator."""
 
 import xml.etree.ElementTree as ET
@@ -172,7 +173,7 @@ LDA_VWN_AR_INFO_OUT = """
 """
 
 
-@pytest.fixture
+@pytest.fixture()
 def nitrogen_trioxide_atoms():
     """Pytest fixture that creates ASE Atoms cell for other tests."""
     return ase.Atoms('NO3',
@@ -195,33 +196,44 @@ def test_ground_state_template_write_input(
         tmp_path, nitrogen_trioxide_atoms, excitingtools):
     """Test the write input method of ExcitingGroundStateTemplate.
 
+    We test is by writing a ground state calculation and a bandstructure
+    calculation after that is run.
+
     Args:
         tmp_path: This tells pytest to create a temporary directory
              in which we will store the exciting input file.
         nitrogen_trioxide_atoms: pytest fixture to create ASE Atoms
             unit cell composed of NO3.
     """
+    from excitingtools.input.bandstructure import (
+        band_structure_input_from_ase_atoms_obj,
+    )
     expected_path = tmp_path / 'input.xml'
+    # Expected number of points in the bandstructure.
+    expected_number_of_special_points = 12
+    bandstructure_steps = 100
     binary_path = tmp_path / 'exciting_binary'
 
     gs_template_obj = (
         ase.calculators.exciting.exciting.ExcitingGroundStateTemplate())
     exciting_profile = ase.calculators.exciting.exciting.ExcitingProfile(
-        binary=binary_path)
+        command=str(binary_path))
     gs_template_obj.write_input(
         profile=exciting_profile,
         directory=tmp_path,
         atoms=nitrogen_trioxide_atoms,
         parameters={
-            "title": None,
-            "species_path": tmp_path,
-            "ground_state_input": {
-                "rgkmax": 8.0,
-                "do": "fromscratch",
+            'title': None,
+            'species_path': tmp_path,
+            'ground_state_input': {
+                'rgkmax': 8.0,
+                'do': 'fromscratch',
                 "ngridk": [6, 6, 6],
-                "xctype": "GGA_PBE_SOL",
-                "vkloff": [0, 0, 0]},
-        })
+                'xctype': 'GGA_PBE_SOL',
+                'vkloff': [0, 0, 0]},
+            'properties_input': {
+                'bandstructure': band_structure_input_from_ase_atoms_obj(
+                    nitrogen_trioxide_atoms, steps=bandstructure_steps)}})
     # Let's assert the file we just wrote exists.
     assert expected_path.exists()
     # Let's assert it's what we expect.
@@ -243,6 +255,12 @@ def test_ground_state_template_write_input(
     assert element_tree.getroot().tag == 'input'
     assert element_tree.getroot()[2].attrib['xctype'] == 'GGA_PBE_SOL'
     assert element_tree.getroot()[2].attrib['rgkmax'] == '8.0'
+    # Ensure the bandstructure path is correct:
+    band_path = element_tree.findall(
+        './properties/bandstructure/plot1d/path')[0]
+    assert band_path.tag == 'path'
+    assert int(band_path.get('steps')) == bandstructure_steps
+    assert len(list(band_path)) == expected_number_of_special_points
 
 
 def test_ground_state_template_read_results(tmp_path, excitingtools):

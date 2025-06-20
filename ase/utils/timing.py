@@ -1,3 +1,5 @@
+# fmt: off
+
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
@@ -99,7 +101,7 @@ class Timer:
         t0 = time.time()
         tot = t0 - self.t0
 
-        n = max([len(names[-1]) + len(names) for names in self.timers]) + 1
+        n = max(len(names[-1]) + len(names) for names in self.timers) + 1
         line = '-' * (n + 26) + '\n'
         out.write('%-*s    incl.     excl.\n' % (n, 'Timing:'))
         out.write(line)

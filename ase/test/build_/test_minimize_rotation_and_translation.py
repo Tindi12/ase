@@ -1,6 +1,7 @@
+# fmt: off
 import numpy as np
 
-from ase.build import bulk, molecule, minimize_rotation_and_translation
+from ase.build import bulk, minimize_rotation_and_translation, molecule
 
 
 def test_with_pbc():

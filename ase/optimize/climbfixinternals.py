@@ -1,3 +1,5 @@
+# fmt: off
+
 from typing import IO, Any, Dict, List, Optional, Type, Union
 
 from numpy.linalg import norm
@@ -57,13 +59,13 @@ class BFGSClimbFixInternals(BFGS):
         logfile: Union[IO, str] = '-',
         trajectory: Optional[str] = None,
         maxstep: Optional[float] = None,
-        master: Optional[bool] = None,
         alpha: Optional[float] = None,
         climb_coordinate: Optional[List[FixInternals]] = None,
         optB: Type[Optimizer] = BFGS,
         optB_kwargs: Optional[Dict[str, Any]] = None,
         optB_fmax: float = 0.05,
         optB_fmax_scaling: float = 0.0,
+        **kwargs,
     ):
         """Allowed parameters are similar to the parent class
         :class:`~ase.optimize.bfgs.BFGS` with the following additions:
@@ -105,8 +107,8 @@ class BFGSClimbFixInternals(BFGS):
         """
         self.targetvalue = None  # may be assigned during restart in self.read()
         super().__init__(atoms, restart=restart, logfile=logfile,
-                         trajectory=trajectory, maxstep=maxstep, master=master,
-                         alpha=alpha)
+                         trajectory=trajectory, maxstep=maxstep,
+                         alpha=alpha, **kwargs)
 
         self.constr2climb = get_constr2climb(
             self.optimizable.atoms, climb_coordinate)

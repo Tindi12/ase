@@ -1,3 +1,5 @@
+# fmt: off
+
 import re
 from functools import lru_cache
 from math import gcd
@@ -167,10 +169,7 @@ class Formula:
 
         if fmt == 'hill':
             count = self.count()
-            count2 = {}
-            for symb in 'CH':
-                if symb in count:
-                    count2[symb] = count.pop(symb)
+            count2 = {symb: count.pop(symb) for symb in 'CH' if symb in count}
             for symb, n in sorted(count.items()):
                 count2[symb] = n
             return dict2str(count2)

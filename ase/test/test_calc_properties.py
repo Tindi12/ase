@@ -1,3 +1,4 @@
+# fmt: off
 import numpy as np
 import pytest
 
@@ -12,7 +13,7 @@ def test_print_props(name):
 natoms = 7
 
 
-@pytest.fixture
+@pytest.fixture()
 def forceprop():
     dct = dict(forces=np.zeros((natoms, 3)))
     props = Properties(dct)
@@ -45,7 +46,7 @@ def test_props_set_inconsistent(forceprop):
         forceprop._setvalue('stresses', np.zeros((natoms + 2, 6)))
 
 
-@pytest.fixture
+@pytest.fixture()
 def props():
     return Properties({})
 

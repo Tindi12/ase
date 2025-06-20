@@ -1,3 +1,5 @@
+# fmt: off
+
 """
 Knowledgebase of Interatomic Models (KIM) Calculator for ASE written by:
 
@@ -13,8 +15,12 @@ on KIM, visit https://openkim.org.
 """
 
 from . import kimpy_wrappers
-from .calculators import (ASAPCalculator, KIMCalculator, LAMMPSLibCalculator,
-                          LAMMPSRunCalculator)
+from .calculators import (
+    ASAPCalculator,
+    KIMCalculator,
+    LAMMPSLibCalculator,
+    LAMMPSRunCalculator,
+)
 from .exceptions import KIMCalculatorError
 
 
@@ -206,7 +212,8 @@ def _is_portable_model(model_name):
     with kimpy_wrappers.ModelCollections() as col:
         model_type = col.get_item_type(model_name)
 
-    return model_type == kimpy_wrappers.collection_item_type_portableModel
+    return (model_type ==
+            kimpy_wrappers.wrappers.collection_item_type_portableModel)
 
 
 def get_model_supported_species(model_name):

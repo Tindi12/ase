@@ -1,12 +1,16 @@
+# fmt: off
+
 import argparse
 import traceback
 from math import pi
 from time import time
+from typing import Union
 
 import numpy as np
 
 import ase.db
 import ase.optimize
+from ase import Atoms
 from ase.calculators.emt import EMT
 from ase.io import Trajectory
 
@@ -30,16 +34,21 @@ def get_optimizer(name):
 class Wrapper:
     """Atoms-object wrapper that can count number of moves."""
 
-    def __init__(self, atoms, gridspacing=0.2, eggbox=0.0):
-        # types: (Atoms, float, float) -> None
+    def __init__(
+        self,
+        atoms: Atoms,
+        gridspacing: float = 0.2,
+        eggbox: float = 0.0,
+    ) -> None:
         self.t0 = time()
         self.texcl = 0.0
         self.nsteps = 0
         self.atoms = atoms
         self.ready = False
-        self.pos = None  # type: np.ndarray
+        self.pos: Union[np.ndarray, None] = None
         self.eggbox = eggbox
 
+        self.x = None
         if eggbox:
             # Find small unit cell for grid-points
             h = []
@@ -48,8 +57,6 @@ class Wrapper:
                 n = int(L / gridspacing)
                 h.append(axis / n)
             self.x = np.linalg.inv(h)
-        else:
-            self.x = None
 
     def get_potential_energy(self, force_consistent=False):
         t1 = time()
@@ -102,8 +109,9 @@ class Wrapper:
     def __len__(self):
         return len(self.atoms)
 
-    def __getattr__(self, name):
-        return self.atoms.__getattribute__(name)
+    def __ase_optimizable__(self):
+        from ase.optimize.optimize import OptimizableAtoms
+        return OptimizableAtoms(self)
 
 
 def run_test(atoms, optimizer, tag, fmax=0.02, eggbox=0.0):

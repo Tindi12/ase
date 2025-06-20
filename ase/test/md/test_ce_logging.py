@@ -1,3 +1,4 @@
+# fmt: off
 """This test ensures that logging to a text file and to the trajectory file are
 reporting the same values as in the ContourExploration object."""
 
@@ -47,7 +48,7 @@ def test_logging(testdir):
         # these print statements, mirror the log file.
         # print(energy_target, dyn.curvature, dyn.step_size, dev)
 
-        for i in range(0, 5):
+        for i in range(5):
             energy_target = initial_energy + de * i
 
             dyn.energy_target = energy_target

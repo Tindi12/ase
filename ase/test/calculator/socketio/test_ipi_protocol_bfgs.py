@@ -1,3 +1,4 @@
+# fmt: off
 import os
 import sys
 import threading
@@ -103,7 +104,7 @@ unix_only = pytest.mark.skipif(os.name != 'posix',
                                reason='requires unix platform')
 
 
-@pytest.mark.optimize
+@pytest.mark.optimize()
 @pytest.mark.parametrize('sockettype', [
     'inet',
     pytest.param('unix', marks=unix_only),

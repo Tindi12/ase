@@ -1,4 +1,6 @@
-from math import sqrt, gcd
+# fmt: off
+
+from math import gcd, sqrt
 
 import numpy as np
 

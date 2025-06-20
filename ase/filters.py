@@ -1,4 +1,7 @@
+# fmt: off
+
 """Filters"""
+from functools import cached_property
 from itertools import product
 from warnings import warn
 
@@ -28,8 +31,22 @@ class OptimizableFilter(Optimizable):
     def get_forces(self):
         return self.filterobj.get_forces()
 
+    @cached_property
+    def _use_force_consistent_energy(self):
+        # This boolean is in principle invalidated if the
+        # calculator changes.  This can lead to weird things
+        # in multi-step optimizations.
+        try:
+            self.filterobj.get_potential_energy(force_consistent=True)
+        except PropertyNotImplementedError:
+            return False
+        else:
+            return True
+
     def get_potential_energy(self):
-        return self.filterobj.get_potential_energy(force_consistent=True)
+        force_consistent = self._use_force_consistent_energy
+        return self.filterobj.get_potential_energy(
+            force_consistent=force_consistent)
 
     def __len__(self):
         return len(self.filterobj)
@@ -407,17 +424,20 @@ class UnitCellFilter(Filter):
         natoms = len(self.atoms)
         new_atom_positions = new[:natoms]
         new_deform_grad = new[natoms:] / self.cell_factor
+        deform = (new_deform_grad - np.eye(3)).T * self.mask
         # Set the new cell from the original cell and the new
         # deformation gradient.  Both current and final structures should
         # preserve symmetry, so if set_cell() calls FixSymmetry.adjust_cell(),
         # it should be OK
-        self.atoms.set_cell(self.orig_cell @ new_deform_grad.T,
+        newcell = self.orig_cell @ (np.eye(3) + deform)
+
+        self.atoms.set_cell(newcell,
                             scale_atoms=True)
         # Set the positions from the ones passed in (which are without the
         # deformation gradient applied) and the new deformation gradient.
         # This should also preserve symmetry, so if set_positions() calls
         # FixSymmetyr.adjust_positions(), it should be OK
-        self.atoms.set_positions(new_atom_positions @ new_deform_grad.T,
+        self.atoms.set_positions(new_atom_positions @ (np.eye(3) + deform),
                                  **kwargs)
 
     def get_potential_energy(self, force_consistent=True):
@@ -771,6 +791,10 @@ class ExpCellFilter(UnitCellFilter):
         and therefore the contribution to the gradient of the energy is
 
             \nabla E(U) / \nabla U_ij =  [L(U, S exp(-U))]_ij
+
+        .. deprecated:: 3.23.0
+            Use :class:`~ase.filters.FrechetCellFilter` for better convergence
+            w.r.t. cell variables.
         """
         Filter.__init__(self, atoms=atoms, indices=range(len(atoms)))
         UnitCellFilter.__init__(self, atoms=atoms, mask=mask,

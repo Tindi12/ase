@@ -1,6 +1,7 @@
-from collections.abc import Mapping
-import importlib
+# fmt: off
 
+import importlib
+from collections.abc import Mapping
 
 # Recognized names of calculators sorted alphabetically:
 names = ['abinit', 'ace', 'aims', 'amber', 'asap', 'castep', 'cp2k',
@@ -9,11 +10,11 @@ names = ['abinit', 'ace', 'aims', 'amber', 'asap', 'castep', 'cp2k',
          'gaussian', 'gpaw', 'gromacs', 'gulp', 'hotbit', 'kim',
          'lammpslib', 'lammpsrun', 'lj', 'mopac', 'morse', 'nwchem',
          'octopus', 'onetep', 'openmx', 'orca',
-         'plumed', 'psi4', 'qchem', 'siesta',
+         'plumed', 'psi4', 'qchem', 'siesta', 'tersoff',
          'tip3p', 'tip4p', 'turbomole', 'vasp']
 
 
-builtin = {'eam', 'emt', 'ff', 'lj', 'morse', 'tip3p', 'tip4p'}
+builtin = {'eam', 'emt', 'ff', 'lj', 'morse', 'tersoff', 'tip3p', 'tip4p'}
 
 
 class Templates(Mapping):

@@ -1,3 +1,5 @@
+# fmt: off
+
 from itertools import count
 
 import numpy as np
@@ -84,7 +86,7 @@ class H2MorseCalculator(MorsePotential):
         ms = self
         with open(filename) as fd:
             ms.wfs = [int(fd.readline().split()[0])]
-            for i in range(1, 4):
+            for _ in range(1, 4):
                 ms.wfs.append(
                     np.array([float(x)
                               for x in fd.readline().split()[:4]]))
@@ -175,7 +177,7 @@ class H2MorseExcitedStates(ExcitationList):
         with open(filename) as fd:
             exl.filename = filename
             n = int(fd.readline().split()[0])
-            for i in range(min(n, exl.nstates)):
+            for _ in range(min(n, exl.nstates)):
                 exl.append(H2Excitation.fromstring(fd.readline()))
         return exl
 

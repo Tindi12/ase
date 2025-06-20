@@ -1,11 +1,14 @@
+# fmt: off
+
 import sys
 import threading
 import time
 import warnings
 from abc import ABC, abstractmethod
+from functools import cached_property
 
 import numpy as np
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 from scipy.interpolate import CubicSpline
 
 import ase.parallel
@@ -18,7 +21,7 @@ from ase.optimize.ode import ode12r
 from ase.optimize.optimize import DEFAULT_MAX_STEPS, Optimizer
 from ase.optimize.precon import Precon, PreconImages
 from ase.optimize.sciopt import OptimizerConvergenceError
-from ase.utils import deprecated, lazyproperty
+from ase.utils import deprecated
 from ase.utils.abc import Optimizable
 from ase.utils.forcecurve import fit_images
 
@@ -38,11 +41,11 @@ class Spring:
         mic, _ = find_mic(pos2 - pos1, self.atoms1.cell, self.atoms1.pbc)
         return mic
 
-    @lazyproperty
+    @cached_property
     def t(self):
         return self._find_mic()
 
-    @lazyproperty
+    @cached_property
     def nt(self):
         return np.linalg.norm(self.t)
 
@@ -58,7 +61,7 @@ class NEBState:
                       self.energies[i], self.energies[i + 1],
                       self.neb.k[i])
 
-    @lazyproperty
+    @cached_property
     def imax(self):
         return 1 + np.argsort(self.energies[1:-1])[-1]
 
@@ -66,7 +69,7 @@ class NEBState:
     def emax(self):
         return self.energies[self.imax]
 
-    @lazyproperty
+    @cached_property
     def eqlength(self):
         images = self.images
         beeline = (images[self.neb.nimages - 1].get_positions() -
@@ -74,7 +77,7 @@ class NEBState:
         beelinelength = np.linalg.norm(beeline)
         return beelinelength / (self.neb.nimages - 1)
 
-    @lazyproperty
+    @cached_property
     def nimages(self):
         return len(self.images)
 
@@ -267,9 +270,6 @@ class NEBOptimizable(Optimizable):
     def get_potential_energy(self):
         return self.neb.get_potential_energy()
 
-    def is_neb(self):
-        return True
-
     def get_positions(self):
         return self.neb.get_positions()
 
@@ -389,6 +389,11 @@ class BaseNEB:
                 "directly call the idpp_interpolate function from ase.mep")
     def idpp_interpolate(self, traj='idpp.traj', log='idpp.log', fmax=0.1,
                          optimizer=MDMin, mic=False, steps=100):
+        """
+        .. deprecated:: 3.23.0
+            Please use :class:`~ase.mep.NEB`'s ``interpolate(method='idpp')``
+            method
+        """
         idpp_interpolate(self, traj=traj, log=log, fmax=fmax,
                          optimizer=optimizer, mic=mic, steps=steps)
 
@@ -641,7 +646,7 @@ class BaseNEB:
         s = np.linspace(0.0, 1.0, spline_points, endpoint=True)
         dE = f(s) * fit.dx_ds(s)
         F = dE.sum(axis=1)
-        E = -cumtrapz(F, s, initial=0.0)
+        E = -cumulative_trapezoid(F, s, initial=0.0)
         return s, E, F
 
 
@@ -925,7 +930,7 @@ class NEBOptimizer(Optimizer):
 
     def run_static(self, fmax):
         X = self.neb.get_positions().reshape(-1)
-        for step in range(self.max_steps):
+        for _ in range(self.max_steps):
             F = self.force_function(X)
             if self.neb.get_residual() <= fmax:
                 return True
@@ -998,6 +1003,11 @@ class IDPP(Calculator):
 @deprecated("SingleCalculatorNEB is deprecated. "
             "Please use NEB(allow_shared_calculator=True) instead.")
 class SingleCalculatorNEB(NEB):
+    """
+    .. deprecated:: 3.23.0
+        Please use ``NEB(allow_shared_calculator=True)`` instead
+    """
+
     def __init__(self, images, *args, **kwargs):
         kwargs["allow_shared_calculator"] = True
         super().__init__(images, *args, **kwargs)
@@ -1053,16 +1063,14 @@ def interpolate(images, mic=False, interpolate_cell=False,
                 unconstrained_image.set_positions(new_pos,
                                                   apply_constraint=False)
                 images[i].set_positions(new_pos, apply_constraint=True)
-                try:
-                    np.testing.assert_allclose(unconstrained_image.positions,
-                                               images[i].positions)
-                except AssertionError:
-                    raise RuntimeError(f"Constraint(s) in image number {i} \n"
+                if not np.allclose(unconstrained_image.positions,
+                                   images[i].positions):
+                    raise RuntimeError(f"Constraints in image {i}\n"
                                        "affect the interpolation results.\n"
-                                       "Please specify if you want to \n"
-                                       "apply or ignore the constraints \n"
-                                       "during the interpolation \n"
-                                       "with apply_constraint argument.")
+                                       "Please specify if you want to\n"
+                                       "apply or ignore the constraints\n"
+                                       "during the interpolation\n"
+                                       "with the apply_constraint argument.")
             else:
                 images[i].set_positions(new_pos,
                                         apply_constraint=apply_constraint)
@@ -1103,6 +1111,10 @@ class NEBTools:
     @deprecated('NEBTools.get_fit() is deprecated.  '
                 'Please use ase.utils.forcecurve.fit_images(images).')
     def get_fit(self):
+        """
+        .. deprecated:: 3.23.0
+            Please use ``ase.utils.forcecurve.fit_images(images)``
+        """
         return fit_images(self.images)
 
     def get_barrier(self, fit=True, raw=False):
@@ -1210,7 +1222,7 @@ class NEBTools:
         # Sanity check that the energies of the last images line up too.
         e_last = self.images[nimages - 1].get_potential_energy()
         e_nextlast = self.images[2 * nimages - 1].get_potential_energy()
-        if not (e_last == e_nextlast):
+        if e_last != e_nextlast:
             raise RuntimeError('Could not guess number of images per band.')
         sys.stdout.write('Number of images per band guessed to be {:d}.\n'
                          .format(nimages))
@@ -1220,14 +1232,17 @@ class NEBTools:
 class NEBtools(NEBTools):
     @deprecated('NEBtools has been renamed; please use NEBTools.')
     def __init__(self, images):
+        """
+        .. deprecated:: 3.23.0
+            Please use :class:`~ase.mep.NEBTools`.
+        """
         NEBTools.__init__(self, images)
 
 
 @deprecated('Please use NEBTools.plot_band_from_fit.')
 def plot_band_from_fit(s, E, Sfit, Efit, lines, ax=None):
+    """
+    .. deprecated:: 3.23.0
+        Please use :meth:`NEBTools.plot_band_from_fit`.
+    """
     NEBTools.plot_band_from_fit(s, E, Sfit, Efit, lines, ax=None)
-
-
-def fit0(*args, **kwargs):
-    raise DeprecationWarning('fit0 is deprecated. Use `fit_raw` from '
-                             '`ase.utils.forcecurve` instead.')

@@ -1,3 +1,5 @@
+# fmt: off
+
 """File formats.
 
 This module implements the read(), iread() and write() functions in ase.io.
@@ -21,15 +23,24 @@ import os
 import re
 import sys
 import warnings
-from pathlib import Path, PurePath
-from typing import (IO, Any, Dict, Iterable, List, Optional, Sequence, Tuple,
-                    Union)
-
-from importlib.metadata import entry_points
 from importlib import import_module
+from importlib.metadata import entry_points
+from pathlib import Path, PurePath
+from typing import (
+    IO,
+    Any,
+    Dict,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 from ase.atoms import Atoms
 from ase.parallel import parallel_function, parallel_generator
+from ase.utils import string2index
 from ase.utils.plugins import ExternalIOFormat
 
 PEEK_BYTES = 50000
@@ -127,7 +138,7 @@ class IOFormat:
         return self.can_write and 'append' in writefunc.__code__.co_varnames
 
     def __repr__(self) -> str:
-        tokens = [f'{name}={repr(value)}'
+        tokens = [f'{name}={value!r}'
                   for name, value in vars(self).items()]
         return 'IOFormat({})'.format(', '.join(tokens))
 
@@ -350,6 +361,8 @@ F('aims', 'FHI-aims geometry file', '1S', ext='in')
 F('aims-output', 'FHI-aims output', '+S',
   module='aims', magic=b'*Invoking FHI-aims ...')
 F('bundletrajectory', 'ASE bundle trajectory', '+S')
+# XXX: Define plugin in ase db backends package:
+# F('aselmdb', 'ASE LMDB format', '+F')
 F('castep-castep', 'CASTEP output file', '+F',
   module='castep', ext='castep')
 F('castep-cell', 'CASTEP geom file', '1F',
@@ -460,6 +473,8 @@ F('onetep-in', 'ONETEP input file', '1F',
   magic=[b'*lock species ',
          b'*LOCK SPECIES ',
          b'*--- INPUT FILE ---*'])
+F('orca-output', 'ORCA output', '+F',
+  module='orca', magic=b'* O   R   C   A *')
 F('proteindatabank', 'Protein Data Bank', '+F',
   ext='pdb')
 F('png', 'Portable Network Graphics', '1B')
@@ -581,7 +596,7 @@ def open_with_compression(filename: str, mode: str = 'r') -> IO:
     elif mode == 'a':
         mode = 'at'
 
-    root, compression = get_compression(filename)
+    _root, compression = get_compression(filename)
 
     if compression == 'gz':
         import gzip
@@ -746,7 +761,7 @@ def _write(filename, fd, format, io, images, parallel=None, append=False,
 def read(
         filename: NameOrFile,
         index: Any = None,
-        format: str = None,
+        format: Optional[str] = None,
         parallel: bool = True,
         do_not_split_by_at_sign: bool = False,
         **kwargs
@@ -808,7 +823,7 @@ def iread(
         parallel: bool = True,
         do_not_split_by_at_sign: bool = False,
         **kwargs
-) -> Iterable[Atoms]:
+) -> Iterator[Atoms]:
     """Iterator for reading Atoms objects from file.
 
     Works as the `read` function, but yields one Atoms object at a time
@@ -906,24 +921,6 @@ def match_magic(data: bytes) -> IOFormat:
     raise UnknownFileTypeError('Cannot guess file type from contents')
 
 
-def string2index(string: str) -> Union[int, slice, str]:
-    """Convert index string to either int or slice"""
-    if ':' not in string:
-        # may contain database accessor
-        try:
-            return int(string)
-        except ValueError:
-            return string
-    i: List[Optional[int]] = []
-    for s in string.split(':'):
-        if s == '':
-            i.append(None)
-        else:
-            i.append(int(s))
-    i += (3 - len(i)) * [None]
-    return slice(*i)
-
-
 def filetype(
         filename: NameOrFile,
         read: bool = True,
@@ -958,8 +955,11 @@ def filetype(
         if filename.startswith('mysql') or filename.startswith('mariadb'):
             return 'mysql'
 
+        if filename.endswith('aselmdb'):
+            return 'db'
+
         # strip any compression extensions that can be read
-        root, compression = get_compression(filename)
+        root, _compression = get_compression(filename)
         basename = os.path.basename(root)
 
         if '.' in basename:

@@ -1,9 +1,9 @@
+# fmt: off
 from ase import units
 from ase.build import bulk
 from ase.calculators.emt import EMT
 from ase.md.langevin import Langevin
-from ase.md.velocitydistribution import (MaxwellBoltzmannDistribution,
-                                         Stationary)
+from ase.md.velocitydistribution import MaxwellBoltzmannDistribution, Stationary
 
 
 def test_langevin_asapcompat():

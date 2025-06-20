@@ -1,3 +1,5 @@
+# fmt: off
+
 """Window for setting up Carbon nanotubes and similar tubes.
 """
 
@@ -59,7 +61,7 @@ class SetupNanotube:
             self.atoms = None
             self.python = None
             self.description.text = ''
-            return
+            return None
 
         n = self.n.value
         m = self.m.value

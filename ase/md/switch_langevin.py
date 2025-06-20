@@ -1,6 +1,9 @@
+# fmt: off
+
 from typing import Any, List, Optional
 
 import numpy as np
+from scipy.integrate import trapezoid
 
 from ase import Atoms
 from ase.calculators.mixing import MixedCalculator
@@ -117,7 +120,7 @@ class SwitchLangevin(Langevin):
         lambdas = self.path_data[:, 1]
         U1 = self.path_data[:, 2]
         U2 = self.path_data[:, 3]
-        delta_F = np.trapz(U2 - U1, lambdas)
+        delta_F = trapezoid(U2 - U1, lambdas)
         return delta_F
 
 

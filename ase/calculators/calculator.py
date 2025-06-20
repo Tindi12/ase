@@ -1,11 +1,15 @@
+# fmt: off
+
 import copy
 import os
+import shlex
 import subprocess
 import warnings
 from abc import abstractmethod
+from dataclasses import dataclass, field
 from math import pi, sqrt
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Sequence, Set, Union
 
 import numpy as np
 
@@ -13,7 +17,7 @@ from ase.calculators.abc import GetPropertiesMixin
 from ase.cell import Cell
 from ase.config import cfg as _cfg
 from ase.outputs import Properties, all_outputs
-from ase.utils import jsonable
+from ase.utils import deprecated, jsonable
 
 from .names import names
 
@@ -201,6 +205,10 @@ def get_calculator_class(name):
         from ase.calculators.acemolecule import ACE as Calculator
     elif name == 'Psi4':
         from ase.calculators.psi4 import Psi4 as Calculator
+    elif name == 'mattersim':
+        from mattersim.forcefield import MatterSimCalculator as Calculator
+    elif name == 'mace_mp':
+        from mace.calculators import mace_mp as Calculator
     elif name in external_calculators:
         Calculator = external_calculators[name]
     else:
@@ -385,31 +393,6 @@ def kpts2ndarray(kpts, atoms=None):
     return kpts2kpts(kpts, atoms=atoms).kpts
 
 
-class EigenvalOccupationMixin:
-    """Define 'eigenvalues' and 'occupations' properties on class.
-
-    eigenvalues and occupations will be arrays of shape (spin, kpts, nbands).
-
-    Classes must implement the old-fashioned get_eigenvalues and
-    get_occupations methods."""
-
-    # We should maybe deprecate this and rely on the new
-    # Properties object for eigenvalues/occupations.
-
-    @property
-    def eigenvalues(self):
-        return self._propwrapper().eigenvalues
-
-    @property
-    def occupations(self):
-        return self._propwrapper().occupations
-
-    def _propwrapper(self):
-        from ase.calculator.singlepoint import OutputPropertyWrapper
-
-        return OutputPropertyWrapper(self)
-
-
 class Parameters(dict):
     """Dictionary for parameters.
 
@@ -566,6 +549,10 @@ class BaseCalculator(GetPropertiesMixin):
     @property
     def name(self) -> str:
         return self._get_name()
+
+    def todict(self) -> dict[str, Any]:
+        """Obtain a dictionary of parameter information"""
+        return {}
 
 
 class Calculator(BaseCalculator):
@@ -892,19 +879,27 @@ class Calculator(BaseCalculator):
                 )
                 raise RuntimeError(msg) from e
 
+    @deprecated('Please use `ase.calculators.fd.FiniteDifferenceCalculator`.')
     def calculate_numerical_forces(self, atoms, d=0.001):
         """Calculate numerical forces using finite difference.
 
-        All atoms will be displaced by +d and -d in all directions."""
-        from ase.calculators.test import numeric_forces
+        All atoms will be displaced by +d and -d in all directions.
 
-        return numeric_forces(atoms, d=d)
+        .. deprecated:: 3.24.0
+        """
+        from ase.calculators.fd import calculate_numerical_forces
 
+        return calculate_numerical_forces(atoms, eps=d)
+
+    @deprecated('Please use `ase.calculators.fd.FiniteDifferenceCalculator`.')
     def calculate_numerical_stress(self, atoms, d=1e-6, voigt=True):
-        """Calculate numerical stress using finite difference."""
-        from ase.calculators.test import numeric_stress
+        """Calculate numerical stress using finite difference.
 
-        return numeric_stress(atoms, d=d, voigt=voigt)
+        .. deprecated:: 3.24.0
+        """
+        from ase.calculators.fd import calculate_numerical_stress
+
+        return calculate_numerical_stress(atoms, eps=d, voigt=voigt)
 
     def _deprecated_get_spin_polarized(self):
         msg = (
@@ -930,25 +925,24 @@ class Calculator(BaseCalculator):
 
 
 class OldShellProfile:
-    def __init__(self, name, command, prefix):
-        self.name = name
+    def __init__(self, command):
         self.command = command
-        self.prefix = prefix
+        self.configvars = {}
 
-    def execute(self, directory):
+    def execute(self, calc):
         if self.command is None:
             raise EnvironmentError(
                 'Please set ${} environment variable '.format(
-                    'ASE_' + self.name.upper() + '_COMMAND'
+                    'ASE_' + self.calc.upper() + '_COMMAND'
                 )
                 + 'or supply the command keyword'
             )
         command = self.command
         if 'PREFIX' in command:
-            command = command.replace('PREFIX', self.prefix)
+            command = command.replace('PREFIX', calc.prefix)
 
         try:
-            proc = subprocess.Popen(command, shell=True, cwd=directory)
+            proc = subprocess.Popen(command, shell=True, cwd=calc.directory)
         except OSError as err:
             # Actually this may never happen with shell=True, since
             # probably the shell launches successfully.  But we soon want
@@ -960,45 +954,128 @@ class OldShellProfile:
         errorcode = proc.wait()
 
         if errorcode:
-            path = os.path.abspath(directory)
+            path = os.path.abspath(calc.directory)
             msg = (
                 'Calculator "{}" failed with command "{}" failed in '
                 '{} with error code {}'.format(
-                    self.name, command, path, errorcode
+                    calc.name, command, path, errorcode
                 )
             )
             raise CalculationFailed(msg)
 
 
-class ArgvProfile:
-    def __init__(self, name, argv):
-        self.name = name
-        self.argv = argv
+@dataclass
+class FileIORules:
+    """Rules for controlling streams options to external command.
 
-    def execute(self, directory, stdout_name=None):
-        directory = Path(directory).resolve()
-        if stdout_name is None:
-            stdout_name = f'{self.name}.out'
-        stdout_path = directory / f'{stdout_name}.out'
+    FileIOCalculator will direct stdin and stdout and append arguments
+    to the calculator command using the specifications on this class.
+
+    Currently names can contain "{prefix}" which will be substituted by
+    calc.prefix.  This will go away if/when we can remove prefix."""
+    extend_argv: Sequence[str] = tuple()
+    stdin_name: Optional[str] = None
+    stdout_name: Optional[str] = None
+
+    configspec: Dict[str, Any] = field(default_factory=dict)
+
+    def load_config(self, section):
+        dct = {}
+        for key, value in self.configspec.items():
+            if key in section:
+                value = section[key]
+            dct[key] = value
+        return dct
+
+
+class BadConfiguration(Exception):
+    pass
+
+
+def _validate_command(command: str) -> str:
+    # We like to store commands as strings (and call shlex.split() later),
+    # but we also like to validate them early.  This will error out if
+    # command contains syntax problems and will also normalize e.g.
+    # multiple spaces:
+    try:
+        return shlex.join(shlex.split(command))
+    except ValueError as err:
+        raise BadConfiguration('Cannot parse command string') from err
+
+
+@dataclass
+class StandardProfile:
+    command: str
+    configvars: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        self.command = _validate_command(self.command)
+
+    def execute(self, calc):
         try:
-            with open(stdout_path, 'w') as fd:
-                subprocess.run(self.argv, cwd=directory, check=True, stdout=fd)
+            self._call(calc, subprocess.check_call)
         except subprocess.CalledProcessError as err:
-            msg = (
-                f'Calculator {self.name} failed with args {self.argv} '
-                f'in directory {directory}'
-            )
+            directory = Path(calc.directory).resolve()
+            msg = (f'Calculator {calc.name} failed with args {err.args} '
+                   f'in directory {directory}')
             raise CalculationFailed(msg) from err
-        return stdout_path
+
+    def execute_nonblocking(self, calc):
+        return self._call(calc, subprocess.Popen)
+
+    @property
+    def _split_command(self):
+        # XXX Unduplicate common stuff between StandardProfile and
+        # that of GenericFileIO
+        return shlex.split(self.command)
+
+    def _call(self, calc, subprocess_function):
+        from contextlib import ExitStack
+
+        directory = Path(calc.directory).resolve()
+        fileio_rules = calc.fileio_rules
+
+        with ExitStack() as stack:
+
+            def _maybe_open(name, mode):
+                if name is None:
+                    return None
+
+                name = name.format(prefix=calc.prefix)
+                directory = Path(calc.directory)
+                return stack.enter_context(open(directory / name, mode))
+
+            stdout_fd = _maybe_open(fileio_rules.stdout_name, 'wb')
+            stdin_fd = _maybe_open(fileio_rules.stdin_name, 'rb')
+
+            argv = [*self._split_command, *fileio_rules.extend_argv]
+            argv = [arg.format(prefix=calc.prefix) for arg in argv]
+            return subprocess_function(
+                argv, cwd=directory,
+                stdout=stdout_fd,
+                stdin=stdin_fd)
 
 
 class FileIOCalculator(Calculator):
     """Base class for calculators that write/read input/output files."""
 
-    command: Optional[str] = None
-    'Command used to start calculation'
+    # Static specification of rules for this calculator:
+    fileio_rules: Optional[FileIORules] = None
+
+    # command: Optional[str] = None
+    # 'Command used to start calculation'
+
+    # Fallback command when nothing else is specified.
+    # There will be no fallback in the future; it must be explicitly
+    # configured.
+    _legacy_default_command: Optional[str] = None
 
     cfg = _cfg  # Ensure easy access to config for subclasses
+
+    @classmethod
+    def ruleset(cls, *args, **kwargs):
+        """Helper for subclasses to define FileIORules."""
+        return FileIORules(*args, **kwargs)
 
     def __init__(
         self,
@@ -1016,28 +1093,66 @@ class FileIOCalculator(Calculator):
             Command used to start calculation.
         """
 
-        Calculator.__init__(
-            self, restart, ignore_bad_restart_file, label, atoms, **kwargs
-        )
+        super().__init__(restart, ignore_bad_restart_file, label, atoms,
+                         **kwargs)
 
+        if profile is None:
+            profile = self._initialize_profile(command)
+        self.profile = profile
+
+    @property
+    def command(self):
+        # XXX deprecate me
+        #
+        # This is for calculators that invoke Popen directly on
+        # self.command instead of letting us (superclass) do it.
+        return self.profile.command
+
+    @command.setter
+    def command(self, command):
+        self.profile.command = command
+
+    @classmethod
+    def load_argv_profile(cls, cfg, section_name):
+        # Helper method to load configuration.
+        # This is used by the tests, do not rely on this as it will change.
+        try:
+            section = cfg.parser[section_name]
+        except KeyError:
+            raise BadConfiguration(f'No {section_name!r} section')
+
+        if cls.fileio_rules is not None:
+            configvars = cls.fileio_rules.load_config(section)
+        else:
+            configvars = {}
+
+        try:
+            command = section['command']
+        except KeyError:
+            raise BadConfiguration(
+                f'No command field in {section_name!r} section')
+
+        return StandardProfile(command, configvars)
+
+    def _initialize_profile(self, command):
         if command is None:
             name = 'ASE_' + self.name.upper() + '_COMMAND'
             command = self.cfg.get(name)
 
-        if command is None:
-            if self.name in self.cfg.parser:
-                section = self.cfg.parser[self.name]
-                # XXX getargv() returns None if missing!
-                profile = ArgvProfile(self.name, section.getargv('argv'))
-            else:
-                raise EnvironmentError(
-                    f'No configuration of {self.name}.  '
-                    f'Missing section [{self.name}] in configuration'
-                )
-        else:
-            profile = OldShellProfile(self.name, command, self.prefix)
+        if command is None and self.name in self.cfg.parser:
+            return self.load_argv_profile(self.cfg, self.name)
 
-        self.profile = profile
+        if command is None:
+            # XXX issue a FutureWarning if this causes the command
+            # to no longer be None
+            command = self._legacy_default_command
+
+        if command is None:
+            raise EnvironmentError(
+                f'No configuration of {self.name}.  '
+                f'Missing section [{self.name}] in configuration')
+
+        return OldShellProfile(command)
 
     def calculate(
         self, atoms=None, properties=['energy'], system_changes=all_changes
@@ -1048,7 +1163,7 @@ class FileIOCalculator(Calculator):
         self.read_results()
 
     def execute(self):
-        self.profile.execute(self.directory)
+        self.profile.execute(self)
 
     def write_input(self, atoms, properties=None, system_changes=None):
         """Write input file(s).

@@ -1,3 +1,4 @@
+# fmt: off
 # type: ignore
 import numpy as np
 import pytest
@@ -8,7 +9,7 @@ from ase.calculators.turbomole import Turbomole
 from ase.io import jsonio
 
 
-def test_turbomole_statpt():
+def test_turbomole_statpt(turbomole_factory):
     """test transition state optimization using the statpt module"""
     json_atoms = ('{"numbers": [6, 6, 6, 8, 1, 1, 1, 1], "positions": [[0.0, 0'
                   '.0, 0.0], [0.0, 0.0, 1.3399984079060756], [1.25573752066799'
@@ -37,7 +38,7 @@ def test_turbomole_statpt():
     dist_mat = calc.atoms.get_all_distances()[np.triu_indices(len(atoms), k=1)]
     assert_allclose(dist_mat, dist_mat_ref)
 
-    calc = Turbomole(**{'task': 'frequencies', 'restart': True})
+    calc = Turbomole(task='frequencies', restart=True)
     calc.calculate()
     assert calc.converged
     spectrum = calc.results['vibrational spectrum']

@@ -1,3 +1,4 @@
+# fmt: off
 # type: ignore
 from math import cos, pi, sin
 
@@ -11,7 +12,7 @@ from ase.constraints import FixInternals
 from ase.optimize import BFGS
 
 
-def test_turbomole_qmmm():
+def test_turbomole_qmmm(turbomole_factory):
     """Test the Turbomole calculator in simple QMMM and
     explicit interaction QMMM simulations."""
 

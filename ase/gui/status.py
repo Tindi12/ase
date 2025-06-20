@@ -1,3 +1,6 @@
+# fmt: off
+
+import warnings
 from math import acos, pi, sqrt
 
 import numpy as np
@@ -24,20 +27,49 @@ def formula(Z):
     return '+'.join(strings)
 
 
-class Status:  # Status is used as a mixin in GUI
-    def __init__(self):
-        self.ordered_indices = []
+class Status:
+    def __init__(self, gui):
+        self.gui = gui
 
     def status(self, atoms):
-        # use where here:  XXX
+        gui = self.gui
         natoms = len(atoms)
-        indices = np.arange(natoms)[self.images.selected[:natoms]]
-        ordered_indices = [i for i in self.images.selected_ordered
+        indices = np.arange(natoms)[gui.images.selected[:natoms]]
+        ordered_indices = [i for i in gui.images.selected_ordered
                            if i < len(atoms)]
         n = len(indices)
 
         if n == 0:
-            self.window.update_status_line('')
+            line = ''
+            if atoms.calc:
+                calc = atoms.calc
+
+                def getresult(name, get_quantity):
+                    # ase/io/trajectory.py line 170 does this by using
+                    # the get_property(prop, atoms, allow_calculation=False)
+                    # so that is an alternative option.
+                    try:
+                        if calc.calculation_required(atoms, [name]):
+                            quantity = None
+                        else:
+                            quantity = get_quantity()
+                    except Exception as err:
+                        quantity = None
+                        errmsg = ('An error occurred while retrieving {} '
+                                  'from the calculator: {}'.format(name, err))
+                        warnings.warn(errmsg)
+                    return quantity
+
+                energy = getresult('energy', atoms.get_potential_energy)
+                forces = getresult('forces', atoms.get_forces)
+
+                if energy is not None:
+                    line += f'Energy = {energy:.3f} eV'
+
+                if forces is not None:
+                    maxf = np.linalg.norm(forces, axis=1).max()
+                    line += f'   Max force = {maxf:.3f} eV/Å'
+            gui.window.update_status_line(line)
             return
 
         Z = atoms.numbers[indices]
@@ -48,17 +80,17 @@ class Status:  # Status is used as a mixin in GUI
             text = (' #%d %s (%s): %.3f Å, %.3f Å, %.3f Å ' %
                     ((indices[0], names[Z[0]], symbols[Z[0]]) + tuple(R[0])))
             text += _(' tag=%(tag)s') % dict(tag=tag)
-            magmoms = get_magmoms(self.atoms)
+            magmoms = get_magmoms(gui.atoms)
             if magmoms.any():
                 # TRANSLATORS: mom refers to magnetic moment
                 text += _(' mom={:1.2f}'.format(
                     magmoms[indices][0]))
-            charges = self.atoms.get_initial_charges()
+            charges = gui.atoms.get_initial_charges()
             if charges.any():
                 text += _(' q={:1.2f}'.format(
                     charges[indices][0]))
-            haveit = ['numbers', 'positions', 'forces', 'momenta',
-                      'initial_charges', 'initial_magmoms']
+            haveit = {'numbers', 'positions', 'forces', 'momenta',
+                      'initial_charges', 'initial_magmoms', 'tags'}
             for key in atoms.arrays:
                 if key not in haveit:
                     val = atoms.get_array(key)[indices[0]]
@@ -91,10 +123,10 @@ class Status:  # Status is used as a mixin in GUI
             text = (' %s-%s-%s: %.1f°, %.1f°, %.1f°' %
                     tuple([symbols[z] for z in Z] + a))
         elif len(ordered_indices) == 4:
-            angle = self.atoms.get_dihedral(*ordered_indices, mic=True)
+            angle = gui.atoms.get_dihedral(*ordered_indices, mic=True)
             text = ('%s %s → %s → %s → %s: %.1f°' %
                     tuple([_('dihedral')] + [symbols[z] for z in Z] + [angle]))
         else:
             text = ' ' + formula(Z)
 
-        self.window.update_status_line(text)
+        gui.window.update_status_line(text)

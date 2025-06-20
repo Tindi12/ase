@@ -1,3 +1,4 @@
+# fmt: off
 import numpy as np
 import pytest
 
@@ -5,10 +6,6 @@ from ase.build import molecule
 
 
 def run(calc):
-    if hasattr(calc, "profile") and hasattr(calc.profile, "parallel"):
-        calc.profile.parallel = False
-        calc.profile.parallel_info = {}
-
     atoms = molecule('H2', vacuum=3.0)
     atoms.center(vacuum=4.0, axis=2)
     atoms.calc = calc
@@ -40,13 +37,18 @@ def run(calc):
     assert poly[0] == pytest.approx(20.0, abs=2.5)  # bond stiffness
 
 
+calc = pytest.mark.calculator
+
+# marks=[pytest.mark.filterwarnings('ignore::DeprecationWarning')])
+
+
 @pytest.mark.filterwarnings('ignore:Subprocess exited')
-@pytest.mark.calculator_lite
-@pytest.mark.calculator('abinit')
-@pytest.mark.calculator('espresso', ecutwfc=30)
-@pytest.mark.calculator('nwchem')
-@pytest.mark.calculator('aims')
-@pytest.mark.calculator('siesta')
+@pytest.mark.calculator_lite()
+@calc('abinit')
+@calc('espresso', input_data={"system": {"ecutwfc": 30}})
+@calc('nwchem')
+@calc('aims')
+@calc('siesta')
 # @pytest.mark.calculator('dftb', Hamiltonian_MaxAngularMomentum_H='"s"')
 def test_socketio_h2(factory):
     """SocketIO integration test; fit coarse binding curve of H2 molecule."""

@@ -1,3 +1,5 @@
+# fmt: off
+
 from typing import IO, Type, Union
 
 import numpy as np
@@ -38,7 +40,7 @@ class BasinHopping(Dynamics):
             The Atoms object to operate on.
 
         trajectory: string
-            Pickle file used to store trajectory of atomic movement.
+            Trajectory file used to store optimisation path.
 
         logfile: file object or str
             If *logfile* is a string, a file with that name will be opened.

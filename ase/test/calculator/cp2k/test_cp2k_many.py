@@ -1,4 +1,5 @@
-"""Tests for the CP2K ASE calulator.
+# fmt: off
+"""Tests for the CP2K ASE calculator.
 
 http://www.cp2k.org
 Author: Ole Schuett <ole.schuett@mat.ethz.ch>
@@ -15,7 +16,7 @@ from ase.md.verlet import VelocityVerlet
 from ase.optimize import BFGS
 
 
-@pytest.fixture
+@pytest.fixture()
 def atoms():
     return molecule('H2', vacuum=2.0)
 
@@ -122,3 +123,49 @@ def test_restart(cp2k_factory, atoms):
 def test_unknown_keywords(cp2k_factory):
     with pytest.raises(CalculatorSetupError):
         cp2k_factory.calc(dummy_nonexistent_keyword='hello')
+
+
+def test_close(cp2k_factory, atoms):
+    """Ensure we cleanly close the calculator and then restart it"""
+
+    # The calculator starts on
+    calc = cp2k_factory.calc(label='test_H2_GOPT', print_level='LOW')
+    assert calc._shell is not None
+    calc.get_potential_energy(atoms)  # Make sure it runs
+
+    # It is shut down by the call
+    assert calc._shell is not None
+    child = calc._shell._child
+    calc.close()
+    assert child.poll() == 0
+
+    # Ensure it starts back up
+    atoms.rattle(0.01)
+    calc.get_potential_energy(atoms)
+    assert calc._shell is not None
+    calc.close()
+
+
+def test_context(cp2k_factory, atoms):
+    """Ensure we can use the CP2K shell as a context manager"""
+
+    with cp2k_factory.calc(label='test_H2_GOPT', print_level='LOW') as calc:
+        atoms.calc = calc
+        atoms.get_potential_energy()
+        child = calc._shell._child
+    assert child.poll() == 0
+
+
+@pytest.mark.xfail()  # Will pass with the 2024.2 version of CP2K
+def test_set_pos_file(cp2k_factory, atoms):
+    """Test passing coordinates via file rather than stdin
+
+    This will pass when testing against a new version of CP2K.
+    When that happens, remove the `xfail` decorator
+    and change 2024.X in `cp2k.py` to the new version number. -wardlt
+    """
+
+    with cp2k_factory.calc(label='test_H2_GOPT', print_level='LOW',
+                           set_pos_file=True) as calc:
+        atoms.calc = calc
+        atoms.get_potential_energy()

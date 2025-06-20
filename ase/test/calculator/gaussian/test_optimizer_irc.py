@@ -1,3 +1,4 @@
+# fmt: off
 import pytest
 
 from ase import Atoms
@@ -6,7 +7,7 @@ from ase.io import read
 from ase.optimize import LBFGS
 
 
-@pytest.fixture
+@pytest.fixture()
 def atoms():
     return Atoms('CHO',
                  [[0.0, 0.0, 0.0],
@@ -20,7 +21,7 @@ def get_calc(**kwargs):
     return Gaussian(**kwargs)
 
 
-def test_optimizer(atoms):
+def test_optimizer(atoms, gaussian_factory):
     pos = atoms.positions.copy()
     atoms.calc = get_calc(label='opt', scf='qc')
     opt_gauss = GaussianOptimizer(atoms)
@@ -35,7 +36,7 @@ def test_optimizer(atoms):
     assert e_gaussopt - e_aseopt == pytest.approx(0., abs=1e-3)
 
 
-def test_irc(atoms):
+def test_irc(atoms, gaussian_factory):
     calc_ts = get_calc(label='ts', chk='ts.chk')
     ts = GaussianOptimizer(atoms, calc_ts)
     ts.run(opt='calcall,ts,noeigentest')

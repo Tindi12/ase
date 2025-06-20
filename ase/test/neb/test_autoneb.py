@@ -1,3 +1,4 @@
+# fmt: off
 from pathlib import Path
 
 import pytest
@@ -10,7 +11,7 @@ from ase.mep import AutoNEB, NEBTools
 from ase.optimize import BFGS, QuasiNewton
 
 
-@pytest.mark.optimize
+@pytest.mark.optimize()
 def test_autoneb(asap3, testdir):
     EMT = asap3.EMT
     fmax = 0.02
@@ -58,7 +59,7 @@ def test_autoneb(asap3, testdir):
     assert abs(nebtools.get_barrier()[0] - 0.937) < 1e-3
 
 
-@pytest.mark.optimize
+@pytest.mark.optimize()
 def test_Au2Ag(testdir):
     def attach_calculators(images):
         for i in range(len(images)):

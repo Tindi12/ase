@@ -1,3 +1,4 @@
+# fmt: off
 import numpy as np
 import pytest
 
@@ -10,8 +11,11 @@ from ase.ga.data import DataConnection, PrepareDB
 from ase.ga.offspring_creator import OperationSelector
 from ase.ga.population import Population
 from ase.ga.standard_comparators import InteratomicDistanceComparator
-from ase.ga.standardmutations import (MirrorMutation, PermutationMutation,
-                                      RattleMutation)
+from ase.ga.standardmutations import (
+    MirrorMutation,
+    PermutationMutation,
+    RattleMutation,
+)
 from ase.ga.startgenerator import StartGenerator
 from ase.ga.utilities import closest_distances_generator, get_all_atom_types
 from ase.io import write
@@ -20,7 +24,7 @@ from ase.optimize import BFGS
 db_file = 'gadb.db'
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_basic_example_main_run(seed, testdir):
     # set up the random number generator
     rng = np.random.RandomState(seed)
@@ -59,7 +63,7 @@ def test_basic_example_main_run(seed, testdir):
     # generate the starting population
     population_size = 5
     starting_population = [sg.get_new_candidate()
-                           for i in range(population_size)]
+                           for _ in range(population_size)]
 
     # from ase.visualize import view   # uncomment these lines
     # view(starting_population)        # to see the starting population

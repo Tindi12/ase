@@ -1,3 +1,5 @@
+# fmt: off
+
 import ase.gui.ui as ui
 from ase.gui.i18n import _
 from ase.utils import irotate, rotate
@@ -11,7 +13,7 @@ class Rotate:
         win = ui.Window(_('Rotate'), wmtype='utility')
         win.add(_('Rotation angles:'))
         self.rotate = [ui.SpinBox(42.0, -360, 360, 1, self.change)
-                       for i in '123']
+                       for _ in '123']
         win.add(self.rotate)
         win.add(ui.Button(_('Update'), self.update_angles))
         win.add(_('Note:\nYou can rotate freely\n'

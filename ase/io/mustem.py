@@ -1,3 +1,5 @@
+# fmt: off
+
 """Module to read and write atoms in xtl file format for the muSTEM software.
 
 See http://tcmp.ph.unimelb.edu.au/mustem/muSTEM.html for a few examples of
@@ -51,7 +53,7 @@ def read_mustem(fd):
     debye_waller_factors = []
     occupancies = []
 
-    for i in range(element_number):
+    for _ in range(element_number):
         # Read the element
         _ = fd.readline()
         line = fd.readline().split()

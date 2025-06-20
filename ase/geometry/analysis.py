@@ -1,3 +1,5 @@
+# fmt: off
+
 # flake8: noqa
 """Tools for analyzing instances of :class:`~ase.Atoms`
 """
@@ -136,7 +138,7 @@ class Analysis:
 
         **No setter or deleter, only getter**
         """
-        if not 'allBonds' in self._cache:
+        if 'allBonds' not in self._cache:
             self._cache['allBonds'] = self._get_all_x(1)
 
         return self._cache['allBonds']
@@ -152,7 +154,7 @@ class Analysis:
 
         **No setter or deleter, only getter**
         """
-        if not 'allAngles' in self._cache:
+        if 'allAngles' not in self._cache:
             self._cache['allAngles'] = []
             distList = self._get_all_x(2)
 
@@ -186,7 +188,7 @@ class Analysis:
 
         **No setter or deleter, only getter**
         """
-        if not 'allDihedrals' in self._cache:
+        if 'allDihedrals' not in self._cache:
             self._cache['allDihedrals'] = []
             distList = self._get_all_x(3)
 
@@ -231,7 +233,7 @@ class Analysis:
         **No setter or deleter, only getter**
         """
 
-        if not 'adjacencyMatrix' in self._cache:
+        if 'adjacencyMatrix' not in self._cache:
             self._cache['adjacencyMatrix'] = []
             for i in range(len(self.nl)):
                 self._cache['adjacencyMatrix'].append(
@@ -249,7 +251,7 @@ class Analysis:
         **No setter or deleter, only getter**
         """
 
-        if not 'distanceMatrix' in self._cache:
+        if 'distanceMatrix' not in self._cache:
             self._cache['distanceMatrix'] = []
             for i in range(len(self.nl)):
                 self._cache['distanceMatrix'].append(

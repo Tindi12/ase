@@ -1,3 +1,5 @@
+# fmt: off
+
 """
 ASE Calculator for interatomic models compatible with the Knowledgebase
 of Interatomic Models (KIM) application programming interface (API).
@@ -53,7 +55,7 @@ class KIMModelData:
         object
         """
         if self.kim_initialized:
-            return
+            return None
 
         kim_model = kimpy_wrappers.PortableModel(self.model_name, self.debug)
 

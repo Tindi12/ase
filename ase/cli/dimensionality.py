@@ -1,3 +1,5 @@
+# fmt: off
+
 # Note:
 # Try to avoid module level import statements here to reduce
 # import time during CLI execution
@@ -54,7 +56,7 @@ class CLICommand:
         from ase.io import iread
 
         files = [os.path.split(path)[1] for path in args.filenames]
-        lmax = max([len(f) for f in files]) + 2
+        lmax = max(len(f) for f in files) + 2
 
         print('file'.ljust(lmax) +
               'type   score     a      b      component counts')

@@ -1,3 +1,5 @@
+# fmt: off
+
 # flake8: noqa
 """This module defines an ASE interface to deMon-nano.
 
@@ -156,7 +158,7 @@ class DemonNano(FileIOCalculator):
             value = self.parameters['print_out']
             assert (isinstance(value, str))
 
-            if not len(value) == 0:
+            if len(value) != 0:
                 self._write_argument('PRINT', value, fd)
                 fd.write('\n')
 

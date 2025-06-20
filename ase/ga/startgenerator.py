@@ -1,11 +1,16 @@
+# fmt: off
+
 """Tools for generating new random starting candidates."""
 import numpy as np
 
 from ase import Atoms
 from ase.build import molecule
 from ase.data import atomic_numbers
-from ase.ga.utilities import (atoms_too_close, atoms_too_close_two_sets,
-                              closest_distances_generator)
+from ase.ga.utilities import (
+    atoms_too_close,
+    atoms_too_close_two_sets,
+    closest_distances_generator,
+)
 
 
 class StartGenerator:
@@ -211,7 +216,7 @@ class StartGenerator:
 
         if splits is None:
             splits = {(1,): 1}
-        tot = sum([v for v in splits.values()])  # normalization
+        tot = sum(v for v in splits.values())
         self.splits = {k: v * 1. / tot for k, v in splits.items()}
 
         self.cellbounds = cellbounds

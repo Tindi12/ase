@@ -1,3 +1,4 @@
+# fmt: off
 # import inspect
 from shutil import copyfile
 
@@ -8,12 +9,12 @@ import pytest
 from ase.io import read  # , iread
 
 
-@pytest.fixture
+@pytest.fixture()
 def outcar(datadir):
     return datadir / 'vasp' / 'OUTCAR_example_1'
 
 
-@pytest.fixture
+@pytest.fixture()
 def poscar_no_species(datadir):
     return datadir / 'vasp' / 'POSCAR_example_1'
 

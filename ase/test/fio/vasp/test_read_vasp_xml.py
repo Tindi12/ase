@@ -1,3 +1,4 @@
+# fmt: off
 from collections import OrderedDict
 from io import StringIO
 from pathlib import Path
@@ -5,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from ase.constraints import FixAtoms, FixScaled
 from ase.io import read
 from ase.units import GPa
 
@@ -343,3 +345,67 @@ def test_vasp_parameters(vasprun, calculation):
                      ('isym', 0), ('symprec', 1e-05)])
 
     assert atoms.calc.parameters == expected_parameters
+
+
+def test_constraints(vasprun):
+    """Test if constraints are parsed correctly."""
+    selective = [
+        '  <varray name="selective"  type="logical" >\n',
+        '   <v type="logical" >  T  T  F </v>\n',
+        '   <v type="logical" >  F  F  F </v>\n',
+        '  </varray>\n',
+    ]
+
+    # insert the selective block before the last </structure>
+    tmp = vasprun.splitlines(keepends=True)
+    tmp[-1:-1] = selective
+    vasprun = ''.join(tmp)
+
+    atoms = read(StringIO(vasprun), index=-1, format='vasp-xml')
+
+    assert isinstance(atoms.constraints[0], FixScaled)
+    assert np.all(atoms.constraints[0].index == [0])
+    assert np.all(atoms.constraints[0].mask == [False, False, True])
+
+    assert isinstance(atoms.constraints[1], FixAtoms)
+    assert np.all(atoms.constraints[1].index == [1])
+
+
+def test_vasprun_line_mode(vasprun):
+    line_mode = """\
+ <kpoints>
+  <generation param="listgenerated">
+   <i name="divisions" type="int">       2 </i>
+   <v>       0.00000000       0.00000000       0.00000000 </v>
+   <v>       0.50000000       0.50000000       0.00000000 </v>
+   <v>       0.50000000       0.75000000       0.25000000 </v>
+   <v>       0.00000000       0.00000000       0.00000000 </v>
+  </generation>
+  <varray name="kpointlist" >
+   <v>       0.00000000       0.00000000       0.00000000 </v>
+   <v>       0.50000000       0.50000000       0.00000000 </v>
+   <v>       0.50000000       0.50000000       0.00000000 </v>
+   <v>       0.50000000       0.75000000       0.25000000 </v>
+   <v>       0.50000000       0.75000000       0.25000000 </v>
+   <v>       0.00000000       0.00000000       0.00000000 </v>
+  </varray>
+  <varray name="weights" >
+   <v>       0.16666667 </v>
+   <v>       0.16666667 </v>
+   <v>       0.16666667 </v>
+   <v>       0.16666667 </v>
+   <v>       0.16666667 </v>
+   <v>       0.16666667 </v>
+  </varray>
+  <kpoints_labels>
+   <i name="Γ" type="int">       1 </i>
+   <i name="X" type="int">       2 </i>
+   <i name="X" type="int">       3 </i>
+   <i name="W" type="int">       4 </i>
+   <i name="W" type="int">       5 </i>
+   <i name="Γ" type="int">       6 </i>
+  </kpoints_labels>
+ </kpoints>
+"""
+    assert read(StringIO(vasprun + line_mode),
+                format="vasp-xml")

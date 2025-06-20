@@ -1,3 +1,5 @@
+# fmt: off
+
 """This module defines an ASE interface to GULP.
 
 Written by:
@@ -44,7 +46,7 @@ class GULPOptimizer:
 
 class GULP(FileIOCalculator):
     implemented_properties = ['energy', 'free_energy', 'forces', 'stress']
-    command = 'gulp < PREFIX.gin > PREFIX.got'
+    _legacy_default_command = 'gulp < PREFIX.gin > PREFIX.got'
     discard_results_on_any_change = True
     default_parameters = dict(
         keywords='conp gradients',
@@ -122,15 +124,18 @@ class GULP(FileIOCalculator):
         if p.options:
             for t in p.options:
                 s += f'{t}\n'
-        with open(self.prefix + '.gin', 'w') as fd:
+
+        gin_path = os.path.join(self.directory, self.prefix + '.gin')
+        with open(gin_path, 'w') as fd:
             fd.write(s)
 
     def read_results(self):
         FileIOCalculator.read(self, self.label)
-        if not os.path.isfile(self.label + '.got'):
+        got_path = os.path.join(self.directory, self.label + '.got')
+        if not os.path.isfile(got_path):
             raise ReadError
 
-        with open(self.label + '.got') as fd:
+        with open(got_path) as fd:
             lines = fd.readlines()
 
         cycles = -1

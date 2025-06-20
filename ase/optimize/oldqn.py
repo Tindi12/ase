@@ -1,3 +1,5 @@
+# fmt: off
+
 # Copyright (C) 2003  CAMP
 # Please see the accompanying LICENSE file for further information.
 
@@ -19,7 +21,9 @@ from ase.optimize.optimize import Optimizer
 
 def f(lamda, Gbar, b, radius):
     b1 = b - lamda
-    g = radius**2 - np.dot(Gbar / b1, Gbar / b1)
+    b1[abs(b1) < 1e-40] = 1e-40  # avoid divide-by-zero
+    gbar_b_lamda = Gbar / b1  # only compute once
+    g = radius**2 - np.dot(gbar_b_lamda, gbar_b_lamda)
     return g
 
 
@@ -74,8 +78,15 @@ def scale_radius_force(f, r):
 def find_lamda(upperlimit, Gbar, b, radius):
     lowerlimit = upperlimit
     step = 0.1
+    i = 0
+
     while f(lowerlimit, Gbar, b, radius) < 0:
         lowerlimit -= step
+        i += 1
+
+        # if many iterations are required, dynamically scale step for efficiency
+        if i % 100 == 0:
+            step *= 1.25
 
     converged = False
 
@@ -115,19 +126,21 @@ class GoodOldQuasiNewton(Optimizer):
         diagonal: float = 20.0,
         radius: Optional[float] = None,
         transitionstate: bool = False,
-        master: Optional[bool] = None,
+        **kwargs,
     ):
-        """Parameters:
+        """
 
-        atoms: Atoms object
+        Parameters
+        ----------
+        atoms: :class:`~ase.Atoms`
             The Atoms object to relax.
 
-        restart: string
+        restart: str
             File used to store hessian matrix. If set, file with
             such a name will be searched and hessian matrix stored will
             be used, if the file exists.
 
-        trajectory: string
+        trajectory: str
             File used to store trajectory of atomic movement.
 
         maxstep: float
@@ -139,12 +152,13 @@ class GoodOldQuasiNewton(Optimizer):
             If *logfile* is a string, a file with that name will be opened.
             Use '-' for stdout.
 
-        master: boolean
-            Defaults to None, which causes only rank 0 to save files.  If
-            set to true,  this rank will save files.
+        kwargs : dict, optional
+            Extra arguments passed to
+            :class:`~ase.optimize.optimize.Optimizer`.
+
         """
 
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, master)
+        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
 
         self.eps = 1e-12
         self.hessianupdate = hessianupdate
@@ -167,10 +181,6 @@ class GoodOldQuasiNewton(Optimizer):
         self.radius = max(min(self.radius, self.maxradius), 0.0001)
 
         self.transitionstate = transitionstate
-
-        if self.optimizable.is_neb():
-            self.forcemin = False
-
         self.t0 = time.time()
 
     def initialize(self):

@@ -1,3 +1,4 @@
+# fmt: off
 """Test module for explicitly unittesting parts of the VASP calculator"""
 
 import os
@@ -8,11 +9,17 @@ import pytest
 
 from ase import Atoms
 from ase.build import molecule
-from ase.calculators.calculator import (CalculatorSetupError,
-                                        get_calculator_class)
+from ase.calculators.calculator import (
+    CalculatorSetupError,
+    get_calculator_class,
+)
 from ase.calculators.vasp import Vasp
-from ase.calculators.vasp.vasp import (check_atoms, check_atoms_type,
-                                       check_cell, check_pbc)
+from ase.calculators.vasp.vasp import (
+    check_atoms,
+    check_atoms_type,
+    check_cell,
+    check_pbc,
+)
 
 
 @pytest.fixture(name="atoms")
@@ -23,7 +30,7 @@ def fixture_atoms():
 @pytest.fixture(autouse=True)
 def always_mock_calculate(mock_vasp_calculate):
     """No tests in this module may execute VASP"""
-    yield
+    return
 
 
 def test_verify_no_run():
@@ -58,12 +65,6 @@ def test_not_atoms(bad_atoms):
         check_atoms_type(bad_atoms)
     with pytest.raises(CalculatorSetupError):
         check_atoms(bad_atoms)
-
-    # Test that error is also raised properly when launching
-    # from calculator
-    calc = Vasp()
-    with pytest.raises(CalculatorSetupError):
-        calc.calculate(atoms=bad_atoms)
 
 
 @pytest.mark.parametrize('pbc', [
@@ -110,6 +111,12 @@ def test_vasp_no_cell(testdir):
     atoms.calc = calc
     with pytest.raises(CalculatorSetupError):
         atoms.get_total_energy()
+
+
+def test_vasp_kpoints_none(atoms, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    Vasp(kpts=None).write_kpoints(atoms=atoms)
+    assert not os.path.isfile('KPOINTS')
 
 
 def test_spinpol_vs_ispin():

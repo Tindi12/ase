@@ -1,3 +1,5 @@
+# fmt: off
+
 """This module defines an ASE interface to DMol3.
 
 Contacts
@@ -93,24 +95,26 @@ class DMol3(FileIOCalculator):
                           'symmetry': 'on'}
     discard_results_on_any_change = True
 
-    if 'DMOL_COMMAND' in FileIOCalculator.cfg:
-        command = FileIOCalculator.cfg['DMOL_COMMAND'] + ' PREFIX > PREFIX.out'
-    else:
-        command = None
-
     def __init__(self, restart=None,
                  ignore_bad_restart_file=FileIOCalculator._deprecated,
-                 label='dmol_calc/tmp', atoms=None, **kwargs):
+                 label='dmol_calc/tmp', atoms=None,
+                 command=None, **kwargs):
         """ Construct DMol3 calculator. """
-        FileIOCalculator.__init__(self, restart, ignore_bad_restart_file,
-                                  label, atoms, **kwargs)
+
+        if command is None:
+            if 'DMOL_COMMAND' in self.cfg:
+                command = self.cfg['DMOL_COMMAND'] + ' PREFIX > PREFIX.out'
+
+        super().__init__(restart, ignore_bad_restart_file,
+                         label, atoms, command=command,
+                         **kwargs)
 
         # tracks if DMol transformed coordinate system
         self.internal_transformation = False
 
     def write_input(self, atoms, properties=None, system_changes=None):
 
-        if not (np.all(atoms.pbc) or not np.any(atoms.pbc)):
+        if not np.all(atoms.pbc) and np.any(atoms.pbc):
             raise RuntimeError('PBC must be all true or all false')
 
         self.clean()   # Remove files from old run
@@ -463,7 +467,7 @@ class DMol3(FileIOCalculator):
         for n, line in enumerate(lines):
             if line.startswith('Energy components'):
                 m = n + 1
-                while not lines[m].strip() == '':
+                while lines[m].strip() != '':
                     energies[lines[m].split('=')[0].strip()] = \
                         float(re.findall(
                             r"[-+]?\d*\.\d+|\d+", lines[m])[0]) * Hartree

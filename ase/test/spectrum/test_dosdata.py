@@ -1,3 +1,4 @@
+# fmt: off
 from collections import OrderedDict
 from typing import Any, List, Tuple
 
@@ -54,12 +55,12 @@ class TestDosData:
 
 class TestRawDosData:
     """Test the raw DOS data container"""
-    @pytest.fixture
+    @pytest.fixture()
     def sparse_dos(self):
         return RawDOSData([1.2, 3.4, 5.], [3., 2.1, 0.],
                           info={'symbol': 'H', 'number': '1', 'food': 'egg'})
 
-    @pytest.fixture
+    @pytest.fixture()
     def another_sparse_dos(self):
         return RawDOSData([8., 2., 2., 5.], [1., 1., 1., 1.],
                           info={'symbol': 'H', 'number': '2'})
@@ -226,20 +227,20 @@ class TestGridDosData:
         with pytest.raises(ValueError):
             GridDOSData(np.linspace(0, 10, 11)**2, np.zeros(11))
 
-    @pytest.fixture
+    @pytest.fixture()
     def dense_dos(self):
         x = np.linspace(0., 10., 11)
         y = np.sin(x / 10)
         return GridDOSData(x, y, info={'symbol': 'C', 'orbital': '2s',
                                        'day': 'Tue'})
 
-    @pytest.fixture
+    @pytest.fixture()
     def denser_dos(self):
         x = np.linspace(0., 10., 21)
         y = np.sin(x / 10)
         return GridDOSData(x, y)
 
-    @pytest.fixture
+    @pytest.fixture()
     def another_dense_dos(self):
         x = np.linspace(0., 10., 11)
         y = np.sin(x / 10) * 2
@@ -348,12 +349,12 @@ class TestGridDosData:
 
 class TestMultiDosData:
     """Test interaction between DOS data objects"""
-    @pytest.fixture
+    @pytest.fixture()
     def sparse_dos(self):
         return RawDOSData([1.2, 3.4, 5.], [3., 2.1, 0.],
                           info={'symbol': 'H', 'number': '1', 'food': 'egg'})
 
-    @pytest.fixture
+    @pytest.fixture()
     def dense_dos(self):
         x = np.linspace(0., 10., 11)
         y = np.sin(x / 10)

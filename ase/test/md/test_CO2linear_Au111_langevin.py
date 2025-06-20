@@ -1,3 +1,4 @@
+# fmt: off
 from math import cos, pi, sin
 
 import numpy as np
@@ -11,13 +12,13 @@ from ase.constraints import FixLinearTriatomic
 from ase.md import Langevin
 
 
-@pytest.mark.slow
+@pytest.mark.slow()
 def test_CO2linear_Au111_langevin(testdir):
     """Test Langevin with constraints for rigid linear
     triatomic molecules"""
 
     rng = np.random.RandomState(0)
-    eref = 3.131939
+    eref = 3.148932
 
     zpos = cos(134.3 / 2.0 * pi / 180.0) * 1.197
     xpos = sin(134.3 / 2.0 * pi / 180.0) * 1.19

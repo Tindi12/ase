@@ -1,3 +1,4 @@
+# fmt: off
 import numpy as np
 
 from ase.cluster import Icosahedron
@@ -31,7 +32,7 @@ def test_particle_comparators(seed):
     assert not comp.looks_like(ico1, ico2)
 
     op = RandomPermutation(rng=rng)
-    a3, desc = op.get_new_individual([ico1])
+    a3, _desc = op.get_new_individual([ico1])
 
     assert a3.get_chemical_formula() == ico1.get_chemical_formula()
 

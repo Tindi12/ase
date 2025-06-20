@@ -1,3 +1,4 @@
+# fmt: off
 """Test Prism"""
 from math import sqrt
 
@@ -6,8 +7,10 @@ import pytest
 
 from ase import Atoms
 from ase.calculators.lammps import Prism
-from ase.calculators.lammps.coordinatetransform import (calc_box_parameters,
-                                                        calc_reduced_cell)
+from ase.calculators.lammps.coordinatetransform import (
+    calc_box_parameters,
+    calc_reduced_cell,
+)
 
 
 def make_array(structure: str) -> np.ndarray:

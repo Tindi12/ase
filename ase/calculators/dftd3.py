@@ -1,3 +1,5 @@
+# fmt: off
+
 import os
 import subprocess
 from pathlib import Path
@@ -5,8 +7,11 @@ from warnings import warn
 
 import numpy as np
 
-from ase.calculators.calculator import (BaseCalculator, Calculator,
-                                        FileIOCalculator)
+from ase.calculators.calculator import (
+    BaseCalculator,
+    Calculator,
+    FileIOCalculator,
+)
 from ase.io import write
 from ase.io.vasp import write_vasp
 from ase.parallel import world
@@ -136,6 +141,7 @@ class PureDFTD3(FileIOCalculator):
     implemented_properties = list(dftd3_properties)
     default_parameters = dftd3_defaults()
     damping_methods = {'zero', 'bj', 'zerom', 'bjm'}
+    _legacy_default_command = 'dftd3'
 
     def __init__(self,
                  *,
@@ -144,6 +150,11 @@ class PureDFTD3(FileIOCalculator):
                  comm=world,
                  **kwargs):
 
+        # FileIOCalculator would default to self.name to get the envvar
+        # which determines the command.
+        # We'll have to overrule that if we want to keep scripts working:
+        command = command or self.cfg.get('ASE_DFTD3_COMMAND')
+
         super().__init__(label=label,
                          command=command,
                          **kwargs)
@@ -151,7 +162,6 @@ class PureDFTD3(FileIOCalculator):
         # TARP: This is done because the calculator does not call
         # FileIOCalculator.calculate, but Calculator.calculate and does not
         # use the profile defined in FileIOCalculator.__init__
-        self.command = command or "dftd3"
         self.comm = comm
 
     def set(self, **kwargs):
@@ -262,7 +272,7 @@ class PureDFTD3(FileIOCalculator):
         # If a parameter file exists in the working directory, delete it
         # first. If we need that file, we'll recreate it later.
         localparfile = os.path.join(self.directory, '.dftd3par.local')
-        if world.rank == 0 and os.path.isfile(localparfile):
+        if self.comm.rank == 0 and os.path.isfile(localparfile):
             os.remove(localparfile)
 
         # Write XYZ or POSCAR file and .dftd3par.local file if we are using
@@ -283,7 +293,7 @@ class PureDFTD3(FileIOCalculator):
                 errorcode = subprocess.call(command,
                                             cwd=self.directory, stdout=fd)
 
-        errorcode = self.comm.sum(errorcode)
+        errorcode = self.comm.sum_scalar(errorcode)
 
         if errorcode:
             raise RuntimeError('%s returned an error: %d' %

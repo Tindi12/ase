@@ -1,3 +1,5 @@
+# fmt: off
+
 import numpy as np
 
 import ase.units
@@ -11,7 +13,7 @@ class QChem(FileIOCalculator):
     name = 'QChem'
 
     implemented_properties = ['energy', 'forces']
-    command = 'qchem PREFIX.inp PREFIX.out'
+    _legacy_default_command = 'qchem PREFIX.inp PREFIX.out'
 
     # Following the minimal requirements given in
     # http://www.q-chem.com/qchem-website/manual/qchem43_manual/sect-METHOD.html
