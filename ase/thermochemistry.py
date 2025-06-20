@@ -424,10 +424,12 @@ def get_molecular_symmetry(atoms, eig_tol=1e-2, angle_tol=4):
 
     atoms : Atoms object
     eig_tol - float
-        tolerance for the eigenvalues of the moments of inertia. Used
-        e.g. for determining linearity
+        tolerance for the eigenvalues of the normalized inertia tensor
+        (normalization meaning dividing by the sum of m_i * r_i ** 2, which is
+        equal to half the sum of the eigenvalues of the original tensor, so the
+        normalized eigenvalues sum to 2). Used e.g. for determining linearity
     angle_tol - float
-        angle tolerance in degrees
+        angle tolerance in degrees for symmetry operations
 
     Returns:
 
