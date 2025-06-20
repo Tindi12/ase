@@ -479,11 +479,17 @@ class GUI(View):
         self.draw()
 
     def move_across(self, key):
+        # Translate one basis vector
+
         if self.arrowkey_mode != self.ARROWKEY_MOVE:
             return
+
         cols = {'1': 0, '2': 1, '3': 2}
         col = cols.get(key)
         if col is None:
+            return
+
+        if not self.atoms.pbc[col]:
             return
 
         move_atoms_mask = self.move_atoms_mask[:len(self.atoms)]
@@ -491,7 +497,13 @@ class GUI(View):
         if len(indices) == 0:
             return
 
-        pos = self.atoms.get_scaled_positions(wrap=False)
+        try:
+            # Scaled positions without cell completion (and without wrap)
+            pos = np.linalg.solve(self.atoms.cell, self.atoms.positions.T).T
+        except np.linalg.LinAlgError:
+            # Singular matrix, linear dependent or zero basis vectors
+            return
+
         new_pos = pos.copy()
 
         new_pos[indices, col] = np.where(
