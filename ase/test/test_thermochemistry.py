@@ -12,8 +12,130 @@ from ase.thermochemistry import (
     HarmonicThermo,
     HinderedThermo,
     IdealGasThermo,
+    get_molecular_symmetry,
 )
 from ase.vibrations import Vibrations
+
+
+@pytest.mark.parametrize(('mol', 'ref_geom', 'ref_sym'),
+    [('H2', 'linear', 2),
+     ('CO', 'linear', 1),
+     ('CH3OH', 'nonlinear', 1),
+     ('H2O', 'nonlinear', 2),
+     ('CH4', 'nonlinear', 12),
+     ('C2H6', 'nonlinear', 6),
+     ('Li', 'monatomic', 1)
+    ])
+def test_ideal_gas_thermo_pointgroup(mol, ref_geom, ref_sym):
+    atoms = molecule(mol)
+    geometry, symmetrynumber = get_molecular_symmetry(atoms)
+    assert geometry == ref_geom
+    assert symmetrynumber == ref_sym
+
+
+def test_pointgroup_imperfect_C60(angle=4):
+    """Test of angle tolerance.
+    Here are coordinates for C60 fullerence, (from Michigan State University)
+    that are not perfect; e.g. the distance to the center varies in the order
+    of 0.01 - 0.1 Å.
+
+    4 degrees should still be enough tolerance.
+    """
+
+    positions = np.array([
+        [2.1665, 0.5906, 2.5874],
+        [3.0378, 0.1766, 1.5918],
+        [1.2786, -0.3098, 3.1679],
+        [3.0118, -1.1434, 1.1654],
+        [3.1034, -1.4335, -0.1930],
+        [3.1503, 1.2106, 0.6682],
+        [3.2428, 0.9149, -0.6859],
+        [3.2192, -0.4023, -1.1207],
+        [-0.4393, 1.3527, 3.1271],
+        [0.4363, 2.2618, 2.5542],
+        [-0.0296, 0.0633, 3.4379],
+        [1.7442, 1.8790, 2.2830],
+        [2.3519, 2.2676, 1.0990],
+        [-0.2633, 3.0268, 1.6326],
+        [0.3374, 3.4054, 0.4373],
+        [1.6516, 3.0278, 0.1707],
+        [-2.0903, -0.8225, 2.5955],
+        [-2.5111, 0.4664, 2.2854],
+        [-0.8449, -1.0252, 3.1738],
+        [-1.6874, 1.5533, 2.5512],
+        [-1.5843, 2.5858, 1.6319],
+        [-3.2314, 0.4061, 1.1007],
+        [-3.1227, 1.4410, 0.1746],
+        [-2.2947, 2.5291, 0.4399],
+        [-0.4908, -2.9133, 1.7365],
+        [-1.7430, -2.7124, 1.1637],
+        [-0.0393, -2.0684, 2.7453],
+        [-2.5486, -1.6650, 1.5942],
+        [-3.2602, -0.9141, 0.6701],
+        [-1.6543, -3.0061, -0.1897],
+        [-2.3542, -2.2439, -1.1170],
+        [-3.1643, -1.1949, -0.6878],
+        [2.1364, -2.0553, 1.7358],
+        [1.6895, -2.9009, 0.7293],
+        [1.2785, -1.6366, 2.7435],
+        [0.3678, -3.3327, 0.7302],
+        [-0.3440, -3.3904, -0.4594],
+        [2.2889, -2.5250, -0.4640],
+        [1.5790, -2.5718, -1.6580],
+        [0.2560, -3.0054, -1.6531],
+        [-2.1828, -0.5783, -2.5979],
+        [-1.7480, -1.8694, -2.3083],
+        [-0.4385, -2.2469, -2.5845],
+        [-1.2815, 0.3189, -3.1671],
+        [-2.1526, 2.0545, -1.7378],
+        [-3.0485, 1.1535, -1.1811],
+        [-3.0656, -0.1629, -1.6107],
+        [-1.2661, 1.6407, -2.7271],
+        [0.5039, 2.9361, -1.7418],
+        [-0.3788, 3.3561, -0.7513],
+        [-1.6943, 2.9186, -0.7491],
+        [0.0521, 2.0730, -2.7355],
+        [2.0976, 0.8340, -2.6051],
+        [2.5517, 1.6923, -1.6107],
+        [1.7589, 2.7452, -1.1824],
+        [0.8420, 1.0206, -3.1786],
+        [0.4461, -1.3495, -3.1661],
+        [1.6983, -1.5485, -2.5908],
+        [2.5184, -0.4623, -2.3171],
+        [0.0218, -0.0645, -3.4585]
+    ])
+
+    atoms = Atoms("C60", positions=positions)
+    try:
+        geometry, sigma = get_molecular_symmetry(atoms, angle_tol=angle)
+    except Exception as e:
+        print(f'Failed at angle {angle} degrees')
+        raise e
+    assert geometry == 'nonlinear'
+    assert sigma == 60
+
+
+def test_pointgroup_eigtol(eigtol=0.015):
+    """Test of eigenvalue tolerance. A hard case is a triatomic molecule
+    with two heavy atoms and one light atom, e.g. HOBr. If the tolerance
+    is too high, the moments of inertia will indicate, incorrectly, that
+    the molecule is linear
+    """
+
+    positions = np.array([
+        [0.3181, 0.5001, 0.0000],
+        [-0.6262, 0.7055, 0.0000],
+        [0.3181, -1.3356, 0.0000],
+    ])
+
+    atoms = Atoms('OHBr', positions=positions)
+    try:
+        geometry, sigma = get_molecular_symmetry(atoms, eig_tol=eigtol)
+    except Exception as e:
+        print(f'Failed at eigtol {eigtol}')
+        raise e
+    assert geometry == 'nonlinear'
+    assert sigma == 1
 
 
 def test_ideal_gas_thermo_n2(testdir):

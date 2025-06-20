@@ -20,11 +20,9 @@ class ModifyAtoms:
         selected = self.selection()
         if not selected.any():
             ui.error(_('No atoms selected!'))
-            raise RuntimeError('No atoms selected')
-            #return
+            return
 
-        #win = ui.Window(_('Modify'), wmtype='utility')
-        win = self.win = ui.Window(_('Modify'), wmtype='utility')
+        win = ui.Window(_('Modify'), wmtype='utility')
         element = Element(callback=self.set_element)
         win.add(element)
         win.add(ui.Button(_('Change element'),

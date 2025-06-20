@@ -416,6 +416,72 @@ class HinderedThermo(ThermoChem):
         return F
 
 
+def get_molecular_symmetry(atoms, eig_tol=1e-2, angle_tol=4):
+    """Get geometry and symmetrynumber from Atoms object. Helper function
+    for IdealGasThermo inputs
+
+    Inputs:
+
+    atoms : Atoms object
+    eig_tol - float
+        tolerance for the eigenvalues of the moments of inertia. Used
+        e.g. for determining linearity
+    angle_tol - float
+        angle tolerance in degrees
+
+    Returns:
+
+    geometry : 'monatomic', 'linear', 'nonlinear'
+        geometry of the molecule
+    symmetrynumber : int
+        rotational symmetry number for ideal gas partition function
+    """
+
+    if len(atoms) == 1:
+        return 'monatomic', 1
+
+    from pointgroup import PointGroup
+    pg = PointGroup(positions=atoms.get_positions(),
+                    symbols=atoms.get_chemical_symbols(),
+                    tolerance_eig=eig_tol,
+                    tolerance_ang=angle_tol)
+    pointgroup = pg.get_point_group()
+
+    if pointgroup == 'Cinfv':
+        return 'linear', 1
+    if pointgroup == 'Dinfh':
+        return 'linear', 2
+
+    symmetry_numbers = {
+        # Low symmetry
+        'C1': 1,
+        'Ci': 1,
+        'Cs': 1,
+
+        # Cyclic
+        'C2': 2, 'C3': 3, 'C4': 4, 'C5': 5, 'C6': 6,
+        'C2v': 2, 'C3v': 3, 'C4v': 4, 'C5v': 5, 'C6v': 6,
+        'C2h': 2, 'C3h': 3, 'C4h': 4, 'C6h': 6,
+
+        # Improper rotation
+        'S2': 1, 'S4': 2, 'S6': 3, 'S8': 4,
+
+        # Dihedral
+        'D2': 4, 'D3': 6, 'D4': 8, 'D5': 10, 'D6': 12,
+        'D2h': 4, 'D3h': 6, 'D4h': 8, 'D5h': 10, 'D6h': 12,
+        'D2d': 4, 'D3d': 6, 'D4d': 8, 'D5d': 10, 'D6d': 12,
+
+        # Cubic
+        'T': 12, 'Td': 12, 'Th': 12,
+        'O': 24, 'Oh': 24,
+        'I': 60, 'Ih': 60,
+    }
+    symmetrynumber = symmetry_numbers.get(pointgroup)
+    if symmetrynumber is None:
+        raise Exception(f'Unsupported point group: {pointgroup}')
+    return 'nonlinear', symmetrynumber
+
+
 class IdealGasThermo(ThermoChem):
     """Class for calculating thermodynamic properties of a molecule
     based on statistical mechanical treatments in the ideal gas
@@ -431,7 +497,8 @@ class IdealGasThermo(ThermoChem):
         numbered vibrations are neglected. If either atoms or natoms is
         unspecified, then uses the entire list. Units are eV.
     geometry : 'monatomic', 'linear', or 'nonlinear'
-        geometry of the molecule
+        geometry of the molecule. Can be calculated automatically (with
+        symmetry number) with the helper function 'get_molecular_symmetry'
     potentialenergy : float
         the potential energy in eV (e.g., from atoms.get_potential_energy)
         (if potentialenergy is unspecified, then the methods of this
@@ -449,7 +516,8 @@ class IdealGasThermo(ThermoChem):
     symmetrynumber : integer
         symmetry number of the molecule. See, for example, Table 10.1 and
         Appendix B of C. Cramer "Essentials of Computational Chemistry",
-        2nd Ed.
+        2nd Ed. Can be calculated automatically (with geometry) with the
+        helper function 'get_molecular_symmetry'
     spin : float
         the total electronic spin. (0 for molecules in which all electrons
         are paired, 0.5 for a free radical with a single unpaired electron,
