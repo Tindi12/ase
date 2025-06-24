@@ -543,9 +543,13 @@ class GUI(View):
                 'Backspace'),
               M(_('_Reindex atoms'),
                 submenu=[
-                    M(_('Selected atoms first'), self.reindex_atoms, 'Ctrl+Shift+F'),
-                    M(_('Selected atoms last'), self.reindex_atoms, 'Ctrl+Shift+L'),
-                    M(_('Swap selected atoms'), self.reindex_atoms, 'Ctrl+Shift+S')]),
+                    M(_('Selected atoms first'), self.reindex_atoms,
+                        'Ctrl+Shift+F'),
+                    M(_('Selected atoms last'), self.reindex_atoms,
+                        'Ctrl+Shift+L'),
+                    M(_('Swap selected atoms'), self.reindex_atoms,
+                        'Ctrl+Shift+S')
+                ]),
               M(_('Edit _cell …'), self.cell_editor, 'Ctrl+E'),
               M(_('Edit _atoms …'), self.atoms_editor, 'A'),
               M('---'),
