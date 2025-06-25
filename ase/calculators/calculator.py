@@ -482,6 +482,8 @@ class BaseCalculator(GetPropertiesMixin):
 
         props = self.export_properties()
 
+        self.results.clear()  # to make this method (close to) state-less
+
         for name in properties:
             if name not in props:
                 raise PropertyNotPresent(name)
