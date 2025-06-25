@@ -101,7 +101,7 @@ XTB_                                      Semiemprical extended tight-binding pr
 :mod:`~ase.calculators.dftb`              DFT based tight binding
 :mod:`~ase.calculators.dmol`              Atomic orbital DFT code
 :mod:`~ase.calculators.eam`               Embedded Atom Method
-elk                                       Full Potential LAPW code
+:mod:`~ase.calculators.elk`               Full Potential LAPW code
 :mod:`~ase.calculators.espresso`          Plane-wave pseudopotential code
 :mod:`~ase.calculators.exciting`          Full Potential LAPW code
 :mod:`~ase.calculators.aims`              Numeric atomic orbital, full potential code
@@ -127,8 +127,8 @@ elk                                       Full Potential LAPW code
 :mod:`~ase.calculators.tersoff`           Tersoff bond-order potential
 :mod:`~ase.calculators.vasp`              Plane-wave PAW code
 :mod:`~ase.calculators.emt`               Effective Medium Theory calculator
-lj                                        Lennard-Jones potential
-morse                                     Morse potential
+:mod:`~ase.calculators.lj`                Lennard-Jones potential
+:mod:`~ase.calculators.morse`             Morse potential
 :mod:`~ase.calculators.checkpoint`        Checkpoint calculator
 :mod:`~ase.calculators.fd`                Finite-difference calculator
 :mod:`~ase.calculators.loggingcalc`       Logging calculator
