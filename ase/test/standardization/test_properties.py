@@ -1,15 +1,17 @@
-# fmt: off
+"""Tests for `__call__`."""
+
 from ase.build import bulk
 from ase.calculators.emt import EMT
 
 
-def test_calc_properties():
+def test_calc_properties() -> None:
+    """Test `__call__`."""
     # XXX Test other calculators.
     # Or maybe this should just be a generic test, not standardization?
     # We'll see.
     atoms = bulk('Au', cubic=True)
-    atoms.calc = EMT()
-    props = atoms.get_properties(['energy', 'stress', 'forces'])
+    calc = EMT()
+    props = calc(atoms, ['energy', 'stress', 'forces'])
 
     natoms = len(atoms)
     assert props['stress'].shape == (6,)
