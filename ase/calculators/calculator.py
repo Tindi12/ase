@@ -480,7 +480,7 @@ class BaseCalculator(GetPropertiesMixin):
         # We ignore system changes for now.
         self.calculate(atoms, properties, system_changes=all_changes)
 
-        props = self.export_properties()
+        props = Properties(self.results)
 
         self.results.clear()  # to make this method (close to) state-less
 
@@ -545,9 +545,6 @@ class BaseCalculator(GetPropertiesMixin):
             if name not in self.results:
                 return True
         return False
-
-    def export_properties(self):
-        return Properties(self.results)
 
     def _get_name(self) -> str:  # child class can override this
         return self.__class__.__name__.lower()
