@@ -231,6 +231,7 @@ to set the ``ASE_CONFIG_PATH`` to an empty string.
 
 
 .. toctree::
+   :maxdepth: 1
 
    eam
    emt
