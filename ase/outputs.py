@@ -2,14 +2,14 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import Sequence, Union
+from typing import Any, Sequence, Union
 
 import numpy as np
 
 
 class Properties(Mapping):
-    def __init__(self, dct):
-        self._dct = {}
+    def __init__(self, dct: Mapping[str, Any]) -> None:
+        self._dct: dict[str, Any] = {}
         for name, value in dct.items():
             self._setvalue(name, value)
 
@@ -63,9 +63,6 @@ class Properties(Mapping):
         return f'({clsname}({self._dct})'
 
 
-all_outputs = {}
-
-
 class Property(ABC):
     def __init__(self, name, dtype, shapespec):
         self.name = name
@@ -98,6 +95,8 @@ class ArrayProperty(Property):
             raise TypeError('Expected array, got scalar')
         return np.asarray(value, dtype=self.dtype)
 
+
+all_outputs: dict[str, Property] = {}
 
 ShapeSpec = Union[str, int]
 
