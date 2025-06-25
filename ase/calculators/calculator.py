@@ -467,12 +467,25 @@ class BaseCalculator(GetPropertiesMixin):
         self.results = {}
         self.use_cache = use_cache
 
-    def calculate_properties(
+    def __call__(
         self,
         atoms: Atoms,
         properties: list[str],
     ) -> Properties:
-        """This method is experimental; currently for internal use."""
+        """Calculate properties.
+
+        Parameters
+        ----------
+        atoms : Atoms
+            An ASE :class:`Atoms` object to be evaluated.
+        properties : list[str]
+            Properties to be evaluated.
+
+        Returns
+        -------
+        :class:`~ase.outputs.Properties`
+
+        """
         for name in properties:
             if name not in all_outputs:
                 raise ValueError(f'No such property: {name}')
