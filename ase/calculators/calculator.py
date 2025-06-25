@@ -474,6 +474,8 @@ class BaseCalculator(GetPropertiesMixin):
     ) -> Properties:
         """Calculate properties.
 
+        .. versionadded:: 3.26.0
+
         Parameters
         ----------
         atoms : Atoms
