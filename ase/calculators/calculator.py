@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Union
 
 import numpy as np
 
+from ase import Atoms
 from ase.calculators.abc import GetPropertiesMixin
 from ase.cell import Cell
 from ase.config import cfg as _cfg
@@ -466,7 +467,11 @@ class BaseCalculator(GetPropertiesMixin):
         self.results = {}
         self.use_cache = use_cache
 
-    def calculate_properties(self, atoms, properties):
+    def calculate_properties(
+        self,
+        atoms: Atoms,
+        properties: list[str],
+    ) -> Properties:
         """This method is experimental; currently for internal use."""
         for name in properties:
             if name not in all_outputs:
