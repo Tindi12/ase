@@ -470,7 +470,7 @@ class BaseCalculator(GetPropertiesMixin):
     def __call__(
         self,
         atoms: Atoms,
-        properties: list[str],
+        properties: Optional[list[str]] = None,
     ) -> Properties:
         """Calculate properties.
 
@@ -478,17 +478,19 @@ class BaseCalculator(GetPropertiesMixin):
         ----------
         atoms : Atoms
             An ASE :class:`Atoms` object to be evaluated.
-        properties : list[str]
+        properties : Optional[list[str]], default = :py:obj:`None`
             Properties to be evaluated.
+            If :py:obj:`None`, the default for each calculator is evaluated.
 
         Returns
         -------
         :class:`~ase.outputs.Properties`
 
         """
-        for name in properties:
-            if name not in all_outputs:
-                raise ValueError(f'No such property: {name}')
+        if properties:
+            for name in properties:
+                if name not in all_outputs:
+                    raise ValueError(f'No such property: {name}')
 
         # We ignore system changes for now.
         self.calculate(atoms, properties, system_changes=all_changes)
@@ -497,9 +499,11 @@ class BaseCalculator(GetPropertiesMixin):
 
         self.results.clear()  # to make this method (close to) state-less
 
-        for name in properties:
-            if name not in props:
-                raise PropertyNotPresent(name)
+        if properties:
+            for name in properties:
+                if name not in props:
+                    raise PropertyNotPresent(name)
+
         return props
 
     @abstractmethod
