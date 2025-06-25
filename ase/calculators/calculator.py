@@ -487,6 +487,16 @@ class BaseCalculator(GetPropertiesMixin):
         -------
         :class:`~ase.outputs.Properties`
 
+        Examples
+        --------
+        >>> from ase.build import bulk
+        >>> atoms = bulk('Cu')
+        >>> from ase.calculators.emt import EMT
+        >>> calc = EMT()
+        >>> results = calc(atoms)
+        >>> results['energy']
+        -0.005681511358581304
+
         """
         if properties:
             for name in properties:

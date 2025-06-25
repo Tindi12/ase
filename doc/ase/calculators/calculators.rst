@@ -32,6 +32,9 @@ Here we attached
 an instance of the :mod:`ase.calculators.abinit` class and then
 we asked for the energy.
 
+Since ASE 3.26.0, a calculator can also be used without attaching it to
+:class:`~ase.Atoms` as given in the example of
+:meth:`ase.calculators.calculator.BaseCalculator.__call__()`.
 
 .. _supported calculators:
 

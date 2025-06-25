@@ -28,18 +28,16 @@ to be implemented.
 Description of base-classes
 ===========================
 
-
-The Calculator base-class
--------------------------
+.. autoclass:: ase.calculators.calculator.BaseCalculator
+   :members:
+   :special-members:
+   :private-members:
+   :member-order: bysource
 
 .. autoclass:: ase.calculators.calculator.Calculator
    :members:
    :private-members:
    :member-order: bysource
-
-
-The FileIOCalculator class
---------------------------
 
 .. autoclass:: ase.calculators.calculator.FileIOCalculator
    :members:
