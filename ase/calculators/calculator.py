@@ -15,12 +15,11 @@ import numpy as np
 
 from ase import Atoms
 from ase.calculators.abc import GetPropertiesMixin
+from ase.calculators.names import names
 from ase.cell import Cell
 from ase.config import cfg as _cfg
 from ase.outputs import Properties, all_outputs
 from ase.utils import deprecated, jsonable
-
-from .names import names
 
 
 class CalculatorError(RuntimeError):
