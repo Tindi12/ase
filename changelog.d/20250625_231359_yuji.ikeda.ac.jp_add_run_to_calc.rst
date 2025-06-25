@@ -1,0 +1,6 @@
+Calculators
+-----------
+
+- Added :meth:`~ase.calculators.calculator.BaseCalculator.__call__()`
+  to compute the properties of a given :class:`~ase.Atoms` object and return
+  them without saving in the calculator (:mr:`3722`)
