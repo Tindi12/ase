@@ -347,28 +347,6 @@ class Atoms:
         else:
             return self.arrays['positions'].copy()
 
-    @deprecated("Please use atoms.calc = calc", FutureWarning)
-    def set_calculator(self, calc=None):
-        """Attach calculator object.
-
-        .. deprecated:: 3.20.0
-            Please use the equivalent ``atoms.calc = calc`` instead of this
-            method.
-        """
-
-        self.calc = calc
-
-    @deprecated("Please use atoms.calc", FutureWarning)
-    def get_calculator(self):
-        """Get currently attached calculator object.
-
-        .. deprecated:: 3.20.0
-            Please use the equivalent ``atoms.calc`` instead of
-            ``atoms.get_calculator()``.
-        """
-
-        return self.calc
-
     @property
     def calc(self):
         """Calculator object."""
@@ -379,16 +357,6 @@ class Atoms:
         self._calc = calc
         if hasattr(calc, 'set_atoms'):
             calc.set_atoms(self)
-
-    @calc.deleter
-    @deprecated('Please use atoms.calc = None', FutureWarning)
-    def calc(self):
-        """Delete calculator
-
-        .. deprecated:: 3.20.0
-            Please use ``atoms.calc = None``
-        """
-        self._calc = None
 
     @property
     @deprecated('Please use atoms.cell.rank instead', DeprecationWarning)
