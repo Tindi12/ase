@@ -498,6 +498,8 @@ class BaseCalculator(GetPropertiesMixin):
         -0.005681511358581304
 
         """
+        self.use_cache = False
+
         if properties:
             for name in properties:
                 if name not in all_outputs:
