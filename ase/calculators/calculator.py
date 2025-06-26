@@ -449,9 +449,6 @@ class Parameters(dict):
 
 
 class BaseCalculator(GetPropertiesMixin):
-    implemented_properties: List[str] = []
-    'Properties calculator can handle (energy, forces, ...)'
-
     # Placeholder object for deprecated arguments.  Let deprecated keywords
     # default to _deprecated and then issue a warning if the user passed
     # any other object (such as None).
@@ -494,11 +491,6 @@ class BaseCalculator(GetPropertiesMixin):
             return all_changes
 
     def get_property(self, name, atoms=None, allow_calculation=True):
-        if name not in self.implemented_properties:
-            raise PropertyNotImplementedError(
-                f'{name} property not implemented'
-            )
-
         if atoms is None:
             atoms = self.atoms
             system_changes = []
@@ -561,11 +553,7 @@ class Calculator(BaseCalculator):
     A calculator must raise PropertyNotImplementedError if asked for a
     property that it can't calculate.  So, if calculation of the
     stress tensor has not been implemented, get_stress(atoms) should
-    raise PropertyNotImplementedError.  This can be achieved simply by not
-    including the string 'stress' in the list implemented_properties
-    which is a class member.  These are the names of the standard
-    properties: 'energy', 'forces', 'stress', 'dipole', 'charges',
-    'magmom' and 'magmoms'.
+    raise PropertyNotImplementedError.
     """
 
     default_parameters: Dict[str, Any] = {}
