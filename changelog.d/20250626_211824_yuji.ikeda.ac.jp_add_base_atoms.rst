@@ -1,0 +1,5 @@
+Other changes
+-------------
+
+- Added :class:`~ase.atoms.BaseAtoms` to separate out the calculator and the
+  related methods (:mr:`3725`)
