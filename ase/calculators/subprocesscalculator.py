@@ -117,7 +117,6 @@ class PythonSubProcessCalculator(Calculator):
     This calculator runs a subprocess wherein it sets up an
     actual calculator.  Calculations are forwarded through pickle
     to that calculator, which returns results through pickle."""
-    implemented_properties = list(all_properties)
 
     def __init__(self, calc_input, mpi_command=None):
         super().__init__()

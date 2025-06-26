@@ -236,8 +236,6 @@ Notes/Issues
 End EAM Interface Documentation
     """
 
-    implemented_properties = ['energy', 'free_energy', 'forces', 'stress']
-
     default_parameters = dict(
         skin=1.0,
         potential=None,
@@ -850,7 +848,7 @@ End EAM Interface Documentation
 
                     self.results['forces'][i] += adp_forces
                     stresses[i] += adp_stresses
-        
+
         if self.atoms.cell.rank == 3:
             stress = 0.5 * np.sum(stresses, axis=0) / self.atoms.get_volume()
             self.results['stress'] = full_3x3_to_voigt_6_stress(stress)

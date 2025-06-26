@@ -7,7 +7,6 @@ from ase.utils import ff
 
 
 class ForceField(Calculator):
-    implemented_properties = ['energy', 'forces']
     nolabel = True
 
     def __init__(self, morses=None, bonds=None, angles=None, dihedrals=None,

@@ -35,7 +35,6 @@ class Psi4(Calculator):
     also note that you can always use the in-built psi4 module through:
     calc.psi4
     """
-    implemented_properties = ['energy', 'forces']
     discard_results_on_any_change = True
 
     default_parameters = {

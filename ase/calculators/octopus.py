@@ -42,10 +42,7 @@ class OctopusTemplate(CalculatorTemplate):
     _label = 'octopus'
 
     def __init__(self):
-        super().__init__(
-            'octopus',
-            implemented_properties=['energy', 'forces', 'dipole', 'stress'],
-        )
+        super().__init__('octopus')
         self.outputname = f'{self._label}.out'
         self.errorname = f'{self._label}.err'
 

@@ -58,9 +58,6 @@ class Turbomole(Calculator):
     """constants"""
     name = 'Turbomole'
 
-    implemented_properties = ['energy', 'forces', 'dipole', 'free_energy',
-                              'charges']
-
     tm_files = [
         'control', 'coord', 'basis', 'auxbasis', 'energy', 'gradient', 'mos',
         'alpha', 'beta', 'statistics', 'GEO_OPT_CONVERGED', 'GEO_OPT_FAILED',
@@ -554,12 +551,6 @@ class Turbomole(Calculator):
 
     def get_property(self, name, atoms=None, allow_calculation=True):
         """return the value of a property"""
-
-        if name not in self.implemented_properties:
-            # an ugly work around; the caller should test the raised error
-            # if name in ['magmom', 'magmoms', 'charges', 'stress']:
-            # return None
-            raise PropertyNotImplementedError(name)
 
         if atoms is None:
             atoms = self.atoms.copy()

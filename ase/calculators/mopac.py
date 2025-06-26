@@ -34,8 +34,6 @@ def get_version_number(lines: Sequence[str]):
 
 
 class MOPAC(FileIOCalculator):
-    implemented_properties = ['energy', 'forces', 'dipole',
-                              'magmom', 'free_energy']
     _legacy_default_command = 'mopac PREFIX.mop 2> /dev/null'
     discard_results_on_any_change = True
 

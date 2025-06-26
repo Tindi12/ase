@@ -49,15 +49,7 @@ class OnetepTemplate(CalculatorTemplate):
     _label = 'onetep'
 
     def __init__(self, append):
-        super().__init__(
-            'ONETEP',
-            implemented_properties=[
-                'energy',
-                'free_energy',
-                'forces',
-                'stress',
-            ],
-        )
+        super().__init__('ONETEP')
         self.inputname = f'{self._label}.dat'
         self.outputname = f'{self._label}.out'
         self.errorname = f'{self._label}.err'

@@ -21,7 +21,6 @@ class LoggingCalculator(Calculator):
     """Calculator wrapper to record and plot history of energy and function
     evaluations
     """
-    implemented_properties = all_properties
     default_parameters: Dict[str, Any] = {}
     name = 'LoggingCalculator'
 

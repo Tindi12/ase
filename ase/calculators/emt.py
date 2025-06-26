@@ -63,8 +63,6 @@ class EMT(Calculator):
     .. [1] K. W. Jacobsen, P. Stoltze, and J. K. Nørskov,
        Surf. Sci. 366, 394 (1996).
     """
-    implemented_properties = ['energy', 'free_energy', 'energies', 'forces',
-                              'stress', 'magmom', 'magmoms']
 
     nolabel = True
 

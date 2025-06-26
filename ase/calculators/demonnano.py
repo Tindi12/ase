@@ -54,8 +54,6 @@ class DemonNanoParameters(Parameters):
 class DemonNano(FileIOCalculator):
     """Calculator interface to the deMon-nano code. """
 
-    implemented_properties = ['energy', 'forces']
-
     def __init__(self, **kwargs):
         """ASE interface to the deMon-nano code.
 

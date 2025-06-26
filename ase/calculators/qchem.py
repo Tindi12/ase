@@ -12,7 +12,6 @@ class QChem(FileIOCalculator):
     """
     name = 'QChem'
 
-    implemented_properties = ['energy', 'forces']
     _legacy_default_command = 'qchem PREFIX.inp PREFIX.out'
 
     # Following the minimal requirements given in

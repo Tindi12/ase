@@ -14,7 +14,6 @@ class ACE(FileIOCalculator):
     And parameters' type = list of dictionaries
     '''
     name = 'ace'
-    implemented_properties = ['energy', 'forces', 'excitation-energy']
     basic_list = [{
         'Type': 'Scaling', 'Scaling': '0.35', 'Basis': 'Sinc',
                   'Grid': 'Sphere',
@@ -119,8 +118,7 @@ class ACE(FileIOCalculator):
         Parameters
         ==========
         atoms: ASE atoms object.
-        properties: List of properties to be calculated. Should be element
-            of self.implemented_properties.
+        properties: List of properties to be calculated.
         system_chages: Ignored.
 
         '''

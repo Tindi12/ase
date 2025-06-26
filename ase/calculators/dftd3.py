@@ -78,10 +78,6 @@ class DFTD3(BaseCalculator):
         # systems). But, if a DFT calculator is attached, and that calculator
         # implements more properties, we expose those properties.
         # dftd3 contributions for those properties will be zero.
-        if dft is None:
-            self.implemented_properties = list(dftd3.dftd3_properties)
-        else:
-            self.implemented_properties = list(dft.implemented_properties)
 
         # Should our arguments be "parameters" (passed to superclass)
         # or are they not really "parameters"?
@@ -138,7 +134,6 @@ class PureDFTD3(FileIOCalculator):
     name = 'puredftd3'
 
     dftd3_properties = {'energy', 'free_energy', 'forces', 'stress'}
-    implemented_properties = list(dftd3_properties)
     default_parameters = dftd3_defaults()
     damping_methods = {'zero', 'bj', 'zerom', 'bjm'}
     _legacy_default_command = 'dftd3'
@@ -198,15 +193,6 @@ class PureDFTD3(FileIOCalculator):
                  ''.format(cnthr=self.parameters['cnthr'],
                            cutoff=self.parameters['cutoff']))
             self.parameters['cnthr'] = self.parameters['cutoff']
-
-        # If you only care about the energy, gradient calculations (forces,
-        # stresses) can be bypassed. This will greatly speed up calculations
-        # in dense 3D-periodic systems with three-body corrections. But, we
-        # can no longer say that we implement forces and stresses.
-        # if not self.parameters['grad']:
-        #    for val in ['forces', 'stress']:
-        #        if val in self.implemented_properties:
-        #            self.implemented_properties.remove(val)
 
         # Check to see if we're using custom damping parameters.
         zero_damppars = {'s6', 'sr6', 's8', 'sr8', 'alpha6'}

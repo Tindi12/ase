@@ -47,16 +47,7 @@ class AbinitTemplate(CalculatorTemplate):
     _label = 'abinit'  # Controls naming of files within calculation directory
 
     def __init__(self):
-        super().__init__(
-            name='abinit',
-            implemented_properties=[
-                'energy',
-                'free_energy',
-                'forces',
-                'stress',
-                'magmom',
-            ],
-        )
+        super().__init__(name='abinit')
 
         # XXX superclass should require inputname and outputname
 

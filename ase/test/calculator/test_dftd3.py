@@ -180,8 +180,6 @@ def test_free_energy_bug(factory):
 
 
 class EMTWithMagmoms(EMT):
-    implemented_properties = [*EMT.implemented_properties, 'magmoms']
-
     def dummy_magmoms(self, atoms):
         return 1.234 + np.arange(len(atoms))
 
@@ -193,9 +191,6 @@ class EMTWithMagmoms(EMT):
 def test_non_dftd3_property(factory):
     dft = EMTWithMagmoms()
     calc = factory.calc(dft=dft)
-
-    # Our DFTD3 calculator should advertise that it supports this property:
-    assert 'magmoms' in calc.implemented_properties
 
     atoms = bulk('Au', cubic=True)
     atoms.calc = calc

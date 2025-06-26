@@ -246,7 +246,6 @@ class CheckpointCalculator(Calculator):
         # 1st time, does calc, writes to checkfile
         # subsequent runs, reads from checkpoint file
     """
-    implemented_properties = ase.calculators.calculator.all_properties
     default_parameters: Dict[str, Any] = {}
     name = 'CheckpointCalculator'
 

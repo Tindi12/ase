@@ -60,10 +60,7 @@ class EspressoTemplate(CalculatorTemplate):
     _label = 'espresso'
 
     def __init__(self):
-        super().__init__(
-            'espresso',
-            ['energy', 'free_energy', 'forces', 'stress', 'magmoms', 'dipole'],
-        )
+        super().__init__('espresso')
         self.inputname = f'{self._label}.pwi'
         self.outputname = f'{self._label}.pwo'
         self.errorname = f"{self._label}.err"

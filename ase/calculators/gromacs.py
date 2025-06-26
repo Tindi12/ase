@@ -76,7 +76,6 @@ class Gromacs(FileIOCalculator):
         CALC_MM_RELAX.set_own_params_runs('force_field', 'oplsaa')
     """
 
-    implemented_properties = ['energy', 'forces']
     discard_results_on_any_change = True
 
     default_parameters = dict(

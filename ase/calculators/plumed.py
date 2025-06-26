@@ -47,8 +47,6 @@ def restart_from_trajectory(prev_traj, *args, prev_steps=None, atoms=None,
 
 
 class Plumed(Calculator):
-    implemented_properties = ['energy', 'forces']
-
     def __init__(self, calc, input, timestep, atoms=None, kT=1., log='',
                  restart=False, use_charge=False, update_charge=False):
         """
@@ -186,8 +184,7 @@ class Plumed(Calculator):
         self.plumed.cmd("setStep", istep)
 
         if self.use_charge:
-            if 'charges' in self.calc.implemented_properties and \
-               self.update_charge:
+            if self.update_charge:
                 charges = self.calc.get_charges(atoms=self.atoms.copy())
 
             elif self.atoms.has('initial_charges') and not self.update_charge:

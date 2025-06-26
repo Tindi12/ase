@@ -177,9 +177,8 @@ def read_stdout(args, createfile=None):
 
 
 class CalculatorTemplate(ABC):
-    def __init__(self, name: str, implemented_properties: Iterable[str]):
+    def __init__(self, name: str):
         self.name = name
-        self.implemented_properties = frozenset(implemented_properties)
 
     @abstractmethod
     def write_input(self, profile, directory, atoms, parameters, properties):
@@ -309,10 +308,6 @@ class GenericFileIOCalculator(BaseCalculator, GetOutputsMixin):
 
     def __repr__(self):
         return f'{type(self).__name__}({self.template.name})'
-
-    @property
-    def implemented_properties(self):
-        return self.template.implemented_properties
 
     @property
     def name(self):

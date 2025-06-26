@@ -45,11 +45,7 @@ from ase.units import Bohr, Hartree
 
 
 class CRYSTAL(FileIOCalculator):
-    """ A crystal calculator with ase-FileIOCalculator nomenclature
-    """
-
-    implemented_properties = ['energy', 'forces', 'stress', 'charges',
-                              'dipole']
+    """ A crystal calculator with ase-FileIOCalculator nomenclature."""
 
     def __init__(self, restart=None,
                  ignore_bad_restart_file=FileIOCalculator._deprecated,

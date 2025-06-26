@@ -264,9 +264,6 @@ xz and yz are the tilt of the lattice vectors, all to be edited.
 
 """
 
-    implemented_properties = ['energy', 'free_energy', 'forces', 'stress',
-                              'energies']
-
     started = False
     initialized = False
 

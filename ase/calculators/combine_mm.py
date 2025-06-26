@@ -12,8 +12,6 @@ k_c = units.Hartree * units.Bohr
 
 
 class CombineMM(Calculator):
-    implemented_properties = ['energy', 'forces']
-
     def __init__(self, idx, apm1, apm2, calc1, calc2,
                  sig1, eps1, sig2, eps2, rc=7.0, width=1.0):
         """A calculator that combines two MM calculators

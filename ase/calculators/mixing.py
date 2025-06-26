@@ -11,10 +11,6 @@ from ase.stress import full_3x3_to_voigt_6_stress
 class Mixer:
     def __init__(self, calcs, weights):
         self.check_input(calcs, weights)
-        common_properties = set.intersection(
-            *(set(calc.implemented_properties) for calc in calcs)
-        )
-        self.implemented_properties = list(common_properties)
         self.calcs = calcs
         self.weights = weights
 
@@ -52,7 +48,7 @@ class Mixer:
 
         for prop in properties:  # get requested properties
             get_property(prop)
-        for prop in self.implemented_properties:  # cache all available props
+        for prop in self.calcs[0].results:  # cache all available props
             if all(prop in calc.results for calc in self.calcs):
                 get_property(prop)
         return results
@@ -88,7 +84,6 @@ class LinearCombinationCalculator(BaseCalculator):
         """
         super().__init__()
         self.mixer = Mixer(calcs, weights)
-        self.implemented_properties = self.mixer.implemented_properties
 
     def calculate(self, atoms, properties, system_changes):
         """Calculates all the specific property for each calculator and

@@ -20,8 +20,6 @@ class HarmonicCalculator(BaseCalculator):
     See :class:`HarmonicForceField` and the literature. [1]_
     """
 
-    implemented_properties = ['energy', 'forces']
-
     def __init__(self, harmonicforcefield):
         """
         Parameters
@@ -344,8 +342,6 @@ class SpringCalculator(Calculator):
     k : float
         spring constant in eV/Angstrom
     """
-    implemented_properties = ['forces', 'energy', 'free_energy']
-
     def __init__(self, ideal_positions, k):
         Calculator.__init__(self)
         self.ideal_positions = ideal_positions.copy()

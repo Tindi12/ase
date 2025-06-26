@@ -967,8 +967,6 @@ class IDPP(Calculator):
         Chem. Phys. 140, 214106 (2014)
     """
 
-    implemented_properties = ['energy', 'forces']
-
     def __init__(self, target, mic):
         Calculator.__init__(self)
         self.target = target

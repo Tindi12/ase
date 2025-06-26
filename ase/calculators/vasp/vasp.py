@@ -100,11 +100,6 @@ class Vasp(GenerateVaspInput, Calculator):  # type: ignore[misc]
     # Environment commands
     env_commands = ('ASE_VASP_COMMAND', 'VASP_COMMAND', 'VASP_SCRIPT')
 
-    implemented_properties = [
-        'energy', 'free_energy', 'forces', 'dipole', 'fermi', 'stress',
-        'magmom', 'magmoms'
-    ]
-
     # Can be used later to set some ASE defaults
     default_parameters: Dict[str, Any] = {}
 

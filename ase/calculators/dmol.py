@@ -90,7 +90,6 @@ from ase.units import Bohr, Hartree
 class DMol3(FileIOCalculator):
     """ DMol3 calculator object. """
 
-    implemented_properties = ['energy', 'forces']
     default_parameters = {'functional': 'pbe',
                           'symmetry': 'on'}
     discard_results_on_any_change = True

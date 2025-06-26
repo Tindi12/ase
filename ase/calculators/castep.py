@@ -455,30 +455,6 @@ End CASTEP Interface Documentation
         '_try_reuse',
         '_pedantic']
 
-    implemented_properties = [
-        'energy',
-        'free_energy',
-        'forces',
-        'stress',
-        'charges',
-        'magmoms',
-    ]
-
-    # specific to this calculator
-    implemented_properties += [
-        'energy_without_dispersion_correction',
-        'free_energy_without_dispersion_correction',
-        'energy_zero_without_dispersion_correction',
-        'energy_with_dispersion_correction',
-        'free_energy_with_dispersion_correction',
-        'energy_zero_with_dispersion_correction',
-        'energy_with_finite_basis_set_correction',
-        'pressure',
-        'hirshfeld_volume_ratios',
-        'hirshfeld_charges',
-        'hirshfeld_magmoms',
-    ]
-
     def __init__(self, directory='CASTEP', label='castep',
                  castep_command=None, check_castep_version=False,
                  castep_pp_path=None, find_pspots=False, keyword_tolerance=1,

@@ -17,9 +17,6 @@ class IdealGas(Calculator):
     This calculator is probably only useful for testing purposes.
     """
 
-    implemented_properties = ['energy', 'energies', 'forces',
-                              'stress', 'stresses']
-
     def calculate(self, atoms=None, properties=[],
                   system_changes=all_changes):
         """'Calculate' the zero energies and their derivatives."""

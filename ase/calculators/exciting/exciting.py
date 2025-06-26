@@ -78,17 +78,14 @@ class ExcitingGroundStateTemplate(CalculatorTemplate):
     parser = {'info.xml': ase.io.exciting.parse_output}
     output_names = list(parser)
     # Use frozenset since the CalculatorTemplate enforces it.
-    implemented_properties = frozenset(['energy', 'forces'])
     _label = 'exciting'
 
     def __init__(self):
         """Initialise with constant class attributes.
 
         :param program_name: The DFT program, should always be exciting.
-        :param implemented_properties: What properties should exciting
-            calculate/read from output.
         """
-        super().__init__('exciting', self.implemented_properties)
+        super().__init__('exciting')
         self.errorname = f'{self._label}.err'
 
     @staticmethod

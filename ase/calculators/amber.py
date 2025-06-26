@@ -32,7 +32,6 @@ class Amber(FileIOCalculator):
         &end
     """
 
-    implemented_properties = ['energy', 'forces']
     discard_results_on_any_change = True
 
     def __init__(self, restart=None,
@@ -235,7 +234,6 @@ class SANDER(Calculator):
 
     Requires sander Python bindings from http://ambermd.org/
     """
-    implemented_properties = ['energy', 'forces']
 
     def __init__(self, atoms=None, label=None, top=None, crd=None,
                  mm_options=None, qm_options=None, permutation=None, **kwargs):

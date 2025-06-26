@@ -188,8 +188,6 @@ def test_ground_state_template_init(excitingtools):
     gs_template_obj = (
         ase.calculators.exciting.exciting.ExcitingGroundStateTemplate())
     assert gs_template_obj.name == 'exciting'
-    assert len(gs_template_obj.implemented_properties) == 2
-    assert 'energy' in gs_template_obj.implemented_properties
 
 
 def test_ground_state_template_write_input(

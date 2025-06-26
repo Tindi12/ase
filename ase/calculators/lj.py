@@ -118,8 +118,6 @@ class LennardJones(Calculator):
 
     """
 
-    implemented_properties = ['energy', 'energies', 'forces', 'free_energy']
-    implemented_properties += ['stress', 'stresses']  # bulk properties
     default_parameters = {
         'epsilon': 1.0,
         'sigma': 1.0,
@@ -172,9 +170,6 @@ class LennardJones(Calculator):
         properties=None,
         system_changes=all_changes,
     ):
-        if properties is None:
-            properties = self.implemented_properties
-
         Calculator.calculate(self, atoms, properties, system_changes)
 
         natoms = len(self.atoms)

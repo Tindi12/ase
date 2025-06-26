@@ -22,8 +22,6 @@ from ase.units import Bohr, Hartree
 
 
 class Dftb(FileIOCalculator):
-    implemented_properties = ['energy', 'forces', 'charges',
-                              'stress', 'dipole']
     discard_results_on_any_change = True
 
     fileio_rules = FileIOCalculator.ruleset(

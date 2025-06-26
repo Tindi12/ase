@@ -13,7 +13,6 @@ from .create_input import GenerateVaspInput
 
 class VaspInteractive(GenerateVaspInput, Calculator):  # type: ignore[misc]
     name = "VaspInteractive"
-    implemented_properties = ['energy', 'forces', 'stress']
 
     mandatory_input = {'potim': 0.0,
                        'ibrion': -1,

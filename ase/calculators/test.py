@@ -104,7 +104,6 @@ class TestCalculator:
 
 
 class TestPotential(Calculator):
-    implemented_properties = ['energy', 'forces']
 
     def calculate(self, atoms, properties, system_changes):
         Calculator.calculate(self, atoms, properties, system_changes)
@@ -137,7 +136,6 @@ class FreeElectrons(Calculator):
     >>> calc = FreeElectrons(nvalence=1, kpts={'path': 'GXL'})
     """
 
-    implemented_properties = ['energy']
     default_parameters = {'kpts': np.zeros((1, 3)),
                           'nvalence': 0.0,
                           'nbands': 20,

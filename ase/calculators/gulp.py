@@ -45,7 +45,6 @@ class GULPOptimizer:
 
 
 class GULP(FileIOCalculator):
-    implemented_properties = ['energy', 'free_energy', 'forces', 'stress']
     _legacy_default_command = 'gulp < PREFIX.gin > PREFIX.got'
     discard_results_on_any_change = True
     default_parameters = dict(

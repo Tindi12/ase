@@ -40,7 +40,6 @@ def combine_lj_lorenz_berthelot(sigma, epsilon):
 
 
 class ACN(Calculator):
-    implemented_properties = ['energy', 'forces']
     nolabel = True
 
     def __init__(self, rc=5.0, width=1.0):

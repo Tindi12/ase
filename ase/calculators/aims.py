@@ -46,18 +46,7 @@ class AimsTemplate(CalculatorTemplate):
     _label = 'aims'
 
     def __init__(self):
-        super().__init__(
-            'aims',
-            [
-                'energy',
-                'free_energy',
-                'forces',
-                'stress',
-                'stresses',
-                'dipole',
-                'magmom',
-            ],
-        )
+        super().__init__('aims')
 
         self.outputname = f'{self._label}.out'
         self.errorname = f'{self._label}.err'

@@ -565,7 +565,6 @@ class SocketClient:
 
 
 class SocketIOCalculator(Calculator, IOContext):
-    implemented_properties = ['energy', 'free_energy', 'forces', 'stress']
     supported_changes = {'positions', 'cell'}
 
     def __init__(self, calc=None, port=None,

@@ -847,16 +847,17 @@ def get_results(out_data=None, log_data=None, restart_data=None,
     """
     from numpy import array as arr
     results = {}
-    implemented_properties = {'free_energy': Ha, 'energy': Ha, 'energies': Ha,
-                              'forces': Ha / Bohr, 'stress': Ha / Bohr**3,
-                              'dipole': Debye, 'chemical_potential': Ha,
-                              'magmom': 1, 'magmoms': 1, 'eigenvalues': Ha}
+    properties = {
+        'free_energy': Ha, 'energy': Ha, 'energies': Ha,
+        'forces': Ha / Bohr, 'stress': Ha / Bohr**3,
+        'dipole': Debye, 'chemical_potential': Ha,
+        'magmom': 1, 'magmoms': 1, 'eigenvalues': Ha}
     data = [out_data, log_data, restart_data, scfout_data, dat_data, band_data]
     for datum in data:
         for key in datum.keys():
-            for property in implemented_properties:
+            for property in properties:
                 if key == property:
-                    results[key] = arr(datum[key]) * implemented_properties[key]
+                    results[key] = arr(datum[key]) * properties[key]
     return results
 
 

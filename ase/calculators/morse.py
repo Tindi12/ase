@@ -50,9 +50,6 @@ def fcut_d(r: np.ndarray, r0: float, r1: float) -> np.ndarray:
 class MorsePotential(Calculator):
     """Morse potential."""
 
-    implemented_properties = [
-        'energy', 'energies', 'free_energy', 'forces', 'stress',
-    ]
     default_parameters = {'epsilon': 1.0,
                           'rho0': 6.0,
                           'r0': 1.0,

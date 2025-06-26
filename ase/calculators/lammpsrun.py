@@ -132,8 +132,6 @@ class LAMMPS(Calculator):
     """
 
     name = "lammpsrun"
-    implemented_properties = ["energy", "free_energy", "forces", "stress",
-                              "energies"]
 
     # parameters to choose options in LAMMPSRUN
     ase_parameters: Dict[str, Any] = dict(
@@ -248,8 +246,6 @@ class LAMMPS(Calculator):
         return Calculator.check_state(self, atoms, tol)
 
     def calculate(self, atoms=None, properties=None, system_changes=None):
-        if properties is None:
-            properties = self.implemented_properties
         if system_changes is None:
             system_changes = all_changes
         Calculator.calculate(self, atoms, properties, system_changes)

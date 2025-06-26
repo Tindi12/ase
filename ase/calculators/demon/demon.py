@@ -68,12 +68,6 @@ class Parameters_deMon(Parameters):
 class Demon(FileIOCalculator):
     """Calculator interface to the deMon code. """
 
-    implemented_properties = [
-        'energy',
-        'forces',
-        'dipole',
-        'eigenvalues']
-
     def __init__(self, *, command=None, **kwargs):
         """ASE interface to the deMon code.
 

@@ -55,7 +55,7 @@ class OpenMX(FileIOCalculator):
     Calculator interface to the OpenMX code.
     """
 
-    implemented_properties = [
+    _openmx_properties = [  # XXX to be removed
         'free_energy',       # Same value with energy
         'energy',
         'energies',
@@ -330,7 +330,7 @@ class OpenMX(FileIOCalculator):
 
         self.prind("Start Calculation")
         if properties is None:
-            properties = self.implemented_properties
+            properties = self._openmx_properties
         try:
             Calculator.calculate(self, atoms, properties, system_changes)
             self.write_input(atoms=self.atoms, parameters=self.parameters,

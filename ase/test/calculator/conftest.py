@@ -22,10 +22,7 @@ class DummyProfile(BaseProfile):
 class DummyTemplate(CalculatorTemplate):
 
     def __init__(self):
-        super().__init__(
-            name="dummy",
-            implemented_properties=()
-        )
+        super().__init__(name="dummy")
 
     def write_input(self, directory, atoms, parameters, properties):
         pass

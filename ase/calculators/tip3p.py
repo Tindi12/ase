@@ -16,7 +16,6 @@ thetaHOH = 104.52 / 180 * np.pi  # we keep this for backwards compatibility
 
 
 class TIP3P(Calculator):
-    implemented_properties = ['energy', 'forces']
     nolabel = True
     pcpot = None
 

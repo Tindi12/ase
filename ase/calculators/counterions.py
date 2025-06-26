@@ -9,8 +9,6 @@ k_c = units.Hartree * units.Bohr
 
 
 class AtomicCounterIon(Calculator):
-    implemented_properties = ['energy', 'forces']
-
     def __init__(self, charge, epsilon, sigma, sites_per_mol=1,
                  rc=7.0, width=1.0):
         """ Counter Ion Calculator.

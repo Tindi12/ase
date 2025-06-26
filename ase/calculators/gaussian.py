@@ -97,7 +97,6 @@ class GaussianIRC(GaussianDynamics):
 
 class Gaussian(FileIOCalculator):
     _legacy_default_command = 'g16 < PREFIX.com > PREFIX.log'
-    implemented_properties = ['energy', 'forces', 'dipole']
     discard_results_on_any_change = True
 
     fileio_rules = FileIOCalculator.ruleset(

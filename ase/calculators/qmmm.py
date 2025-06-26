@@ -15,8 +15,6 @@ from ase.utils import IOContext
 class SimpleQMMM(Calculator):
     """Simple QMMM calculator."""
 
-    implemented_properties = ['energy', 'forces']
-
     def __init__(self, selection, qmcalc, mmcalc1, mmcalc2, vacuum=None):
         """SimpleQMMM object.
 
@@ -94,7 +92,6 @@ class SimpleQMMM(Calculator):
 
 class EIQMMM(Calculator, IOContext):
     """Explicit interaction QMMM calculator."""
-    implemented_properties = ['energy', 'forces']
 
     def __init__(self, selection, qmcalc, mmcalc, interaction,
                  vacuum=None, embedding=None, output=None, comm=world):
@@ -542,7 +539,6 @@ class RescaledCalculator(Calculator):
     See T. D. Swinburne and J. R. Kermode, Phys. Rev. B 96, 144102 (2017)
     for a derivation of the scaling constants.
     """
-    implemented_properties = ['forces', 'energy', 'stress']
 
     def __init__(self, mm_calc,
                  qm_lattice_constant, qm_bulk_modulus,
@@ -586,7 +582,6 @@ class ForceConstantCalculator(Calculator):
     Useful with `ForceQMMM` to do harmonic QM/MM using force constants
     of QM method.
     """
-    implemented_properties = ['forces', 'energy']
 
     def __init__(self, D, ref, f0):
         """
@@ -633,7 +628,6 @@ class ForceQMMM(Calculator):
     Rep. Prog. Phys. 72, 026501 (2009)
     and T. D. Swinburne and J. R. Kermode, Phys. Rev. B 96, 144102 (2017).
     """
-    implemented_properties = ['forces', 'energy']
 
     def __init__(self,
                  atoms,

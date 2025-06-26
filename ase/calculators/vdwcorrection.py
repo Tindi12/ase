@@ -194,10 +194,6 @@ class vdWTkatchenko09prl(Calculator, IOContext):
         self.parameters['calculator'] = self.calculator.name
         self.parameters['xc'] = self.calculator.get_xc_functional()
 
-    @property
-    def implemented_properties(self):
-        return self.calculator.implemented_properties
-
     def calculation_required(self, atoms, quantities):
         if self.calculator.calculation_required(atoms, quantities):
             return True

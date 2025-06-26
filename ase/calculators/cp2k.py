@@ -176,7 +176,6 @@ class CP2K(Calculator, AbstractContextManager):
         Requires CP2K 2024.2
     """
 
-    implemented_properties = ['energy', 'free_energy', 'forces', 'stress']
     command = None
 
     default_parameters = dict(
