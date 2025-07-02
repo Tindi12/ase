@@ -1,6 +1,6 @@
 # fmt: off
 
-from typing import IO, Optional, Union
+from typing import Optional
 
 import numpy as np
 
@@ -178,24 +178,19 @@ def ode12r(f, X0, h=None, verbose=1, fmax=1e-6, maxtol=1e3, steps=100,
 
 
 class ODE12r(SciPyOptimizer):
-    """
-    Optimizer based on adaptive ODE solver :func:`ode12r`
-    """
+    """Optimizer based on adaptive ODE solver :func:`ode12r`."""
 
     def __init__(
         self,
         atoms: Atoms,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
-        callback_always: bool = False,
+        *args,
         alpha: float = 1.0,
         precon: Optional[str] = None,
         verbose: int = 0,
         rtol: float = 1e-2,
         **kwargs,
     ):
-        SciPyOptimizer.__init__(self, atoms, logfile, trajectory,
-                                callback_always, alpha, **kwargs)
+        SciPyOptimizer.__init__(self, atoms, *args, alpha=alpha, **kwargs)
         self._actual_atoms = atoms
         from ase.optimize.precon.precon import make_precon  # avoid circular dep
         self.precon = make_precon(precon)

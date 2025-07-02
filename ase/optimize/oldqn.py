@@ -10,12 +10,11 @@ Quasi-Newton algorithm
 __docformat__ = 'reStructuredText'
 
 import time
-from typing import IO, Optional, Union
+from typing import Optional
 
 import numpy as np
 from numpy.linalg import eigh
 
-from ase import Atoms
 from ase.optimize.optimize import Optimizer
 
 
@@ -112,10 +111,7 @@ class GoodOldQuasiNewton(Optimizer):
 
     def __init__(
         self,
-        atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
+        *args,
         fmax=None,
         converged=None,
         hessianupdate: str = 'BFGS',
@@ -132,33 +128,19 @@ class GoodOldQuasiNewton(Optimizer):
 
         Parameters
         ----------
-        atoms: :class:`~ase.Atoms`
-            The Atoms object to relax.
-
-        restart: str
-            File used to store hessian matrix. If set, file with
-            such a name will be searched and hessian matrix stored will
-            be used, if the file exists.
-
-        trajectory: str
-            File used to store trajectory of atomic movement.
-
         maxstep: float
             Used to set the maximum distance an atom can move per
             iteration (default value is 0.2 Angstroms).
 
-
-        logfile: file object or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         """
 
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        Optimizer.__init__(self, *args, **kwargs)
 
         self.eps = 1e-12
         self.hessianupdate = hessianupdate

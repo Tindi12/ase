@@ -21,21 +21,17 @@
 #    https://doi.org/10.1016/j.commatsci.2022.111978.
 #######################################
 
-from typing import IO, Callable, Optional, Union
+from typing import Callable, Optional
 
 import numpy as np
 
-from ase import Atoms
 from ase.optimize.optimize import Optimizer
 
 
 class FIRE2(Optimizer):
     def __init__(
         self,
-        atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
+        *args,
         dt: float = 0.1,
         maxstep: float = 0.2,
         dtmax: float = 1.0,
@@ -53,21 +49,6 @@ class FIRE2(Optimizer):
 
         Parameters
         ----------
-        atoms: :class:`~ase.Atoms`
-            The Atoms object to relax.
-
-        restart: str
-            JSON file used to store hessian matrix. If set, file with
-            such a name will be searched and hessian matrix stored will
-            be used, if the file exists.
-
-        logfile: file object or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
-
-        trajectory: str
-            Trajectory file used to store optimisation path.
-
         dt: float
             Initial time step. Defualt value is 0.1
 
@@ -111,12 +92,14 @@ class FIRE2(Optimizer):
             used (ABC-FIRE).
             Default value is False.
 
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
+
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
        """
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        Optimizer.__init__(self, *args, **kwargs)
 
         self.dt = dt
 

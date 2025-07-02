@@ -1,11 +1,8 @@
 # fmt: off
 
-from typing import IO, Optional, Union
-
 import numpy as np
 import scipy.optimize as opt
 
-from ase import Atoms
 from ase.optimize.optimize import Optimizer
 
 
@@ -25,9 +22,7 @@ class SciPyOptimizer(Optimizer):
 
     def __init__(
         self,
-        atoms: Atoms,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
+        *args,
         callback_always: bool = False,
         alpha: float = 70.0,
         **kwargs,
@@ -36,16 +31,6 @@ class SciPyOptimizer(Optimizer):
 
         Parameters
         ----------
-        atoms: :class:`~ase.Atoms`
-            The Atoms object to relax.
-
-        trajectory: str
-            Trajectory file used to store optimisation path.
-
-        logfile: file object or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
-
         callback_always: bool
             Should the callback be run after each force call (also in the
             linesearch)
@@ -56,13 +41,15 @@ class SciPyOptimizer(Optimizer):
             steps to converge might be less if a lower value is used. However,
             a lower value also means risk of instability.
 
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
+
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         """
-        restart = None
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        kwargs['restart'] = None
+        Optimizer.__init__(self, *args, **kwargs)
         self.force_calls = 0
         self.callback_always = callback_always
         self.H0 = alpha
@@ -199,9 +186,7 @@ class SciPyGradientlessOptimizer(Optimizer):
 
     def __init__(
         self,
-        atoms: Atoms,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
+        *args,
         callback_always: bool = False,
         **kwargs,
     ):
@@ -209,16 +194,6 @@ class SciPyGradientlessOptimizer(Optimizer):
 
         Parameters
         ----------
-        atoms: :class:`~ase.Atoms`
-            The Atoms object to relax.
-
-        trajectory: str
-            Trajectory file used to store optimisation path.
-
-        logfile: file object or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
-
         callback_always: bool
             Should the callback be run after each force call (also in the
             linesearch)
@@ -229,13 +204,15 @@ class SciPyGradientlessOptimizer(Optimizer):
             steps to converge might be less if a lower value is used. However,
             a lower value also means risk of instability.
 
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
+
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         """
-        restart = None
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        kwargs['restart'] = None
+        Optimizer.__init__(self, *args, **kwargs)
         self.function_calls = 0
         self.callback_always = callback_always
 

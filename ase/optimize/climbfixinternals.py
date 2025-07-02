@@ -1,10 +1,9 @@
 # fmt: off
 
-from typing import IO, Any, Dict, List, Optional, Type, Union
+from typing import Any, Optional
 
 from numpy.linalg import norm
 
-from ase import Atoms
 from ase.constraints import FixInternals
 from ase.optimize.bfgs import BFGS
 from ase.optimize.optimize import Optimizer
@@ -54,15 +53,12 @@ class BFGSClimbFixInternals(BFGS):
 
     def __init__(
         self,
-        atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
+        *args,
         maxstep: Optional[float] = None,
         alpha: Optional[float] = None,
-        climb_coordinate: Optional[List[FixInternals]] = None,
-        optB: Type[Optimizer] = BFGS,
-        optB_kwargs: Optional[Dict[str, Any]] = None,
+        climb_coordinate: Optional[list[FixInternals]] = None,
+        optB: type[Optimizer] = BFGS,
+        optB_kwargs: Optional[dict[str, Any]] = None,
         optB_fmax: float = 0.05,
         optB_fmax_scaling: float = 0.0,
         **kwargs,
@@ -106,9 +102,7 @@ class BFGSClimbFixInternals(BFGS):
             performed with ``optB_fmax`` independent of ``optB_fmax_scaling``.
         """
         self.targetvalue = None  # may be assigned during restart in self.read()
-        super().__init__(atoms, restart=restart, logfile=logfile,
-                         trajectory=trajectory, maxstep=maxstep,
-                         alpha=alpha, **kwargs)
+        super().__init__(*args, maxstep=maxstep, alpha=alpha, **kwargs)
 
         self.constr2climb = get_constr2climb(
             self.optimizable.atoms, climb_coordinate)

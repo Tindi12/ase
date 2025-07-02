@@ -8,12 +8,10 @@
 # *****END NOTICE************
 
 import time
-from typing import IO, Optional, Union
 
 import numpy as np
 from numpy import absolute, eye, isinf, sqrt
 
-from ase import Atoms
 from ase.optimize.optimize import Optimizer
 from ase.utils.linesearch import LineSearch
 
@@ -30,11 +28,8 @@ __version__ = '0.1'
 class BFGSLineSearch(Optimizer):
     def __init__(
         self,
-        atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
+        *args,
         maxstep: float = None,
-        trajectory: Optional[str] = None,
         c1: float = 0.23,
         c2: float = 0.46,
         alpha: float = 10.0,
@@ -46,28 +41,15 @@ class BFGSLineSearch(Optimizer):
 
         Parameters
         ----------
-        atoms: :class:`~ase.Atoms`
-            The Atoms object to relax.
-
-        restart: str
-            JSON file used to store hessian matrix. If set, file with
-            such a name will be searched and hessian matrix stored will
-            be used, if the file exists.
-
-        trajectory: str
-            Trajectory file used to store optimisation path.
-
         maxstep: float
             Used to set the maximum distance an atom can move per
             iteration (default value is 0.2 Angstroms).
 
-        logfile: file object or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         """
         if maxstep is None:
@@ -92,7 +74,7 @@ class BFGSLineSearch(Optimizer):
         self.no_update = False
         self.replay = False
 
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        Optimizer.__init__(self, *args, **kwargs)
 
     def read(self):
         self.r0, self.g0, self.e0, self.task, self.H = self.load()

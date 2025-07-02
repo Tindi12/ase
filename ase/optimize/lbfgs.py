@@ -1,10 +1,9 @@
 # fmt: off
 
-from typing import IO, Optional, Union
+from typing import Optional
 
 import numpy as np
 
-from ase import Atoms
 from ase.optimize.optimize import Optimizer
 from ase.utils.linesearch import LineSearch
 
@@ -20,10 +19,7 @@ class LBFGS(Optimizer):
 
     def __init__(
         self,
-        atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
+        *args,
         maxstep: Optional[float] = None,
         memory: int = 100,
         damping: float = 1.0,
@@ -35,21 +31,6 @@ class LBFGS(Optimizer):
 
         Parameters
         ----------
-        atoms: :class:`~ase.Atoms`
-            The Atoms object to relax.
-
-        restart: str
-            JSON file used to store vectors for updating the inverse of
-            Hessian matrix. If set, file with such a name will be searched
-            and information stored will be used, if the file exists.
-
-        logfile: file object or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
-
-        trajectory: string
-            Trajectory file used to store optimisation path.
-
         maxstep: float
             How far is a single atom allowed to move. This is useful for DFT
             calculations where wavefunctions can be reused if steps are small.
@@ -69,12 +50,14 @@ class LBFGS(Optimizer):
             steps to converge might be less if a lower value is used. However,
             a lower value also means risk of instability.
 
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
+
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         """
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        Optimizer.__init__(self, *args, **kwargs)
 
         if maxstep is not None:
             self.maxstep = maxstep

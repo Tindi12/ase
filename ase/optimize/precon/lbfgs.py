@@ -36,7 +36,7 @@ class PreconLBFGS(Optimizer):
     """
 
     # CO : added parameters rigid_units and rotation_factors
-    def __init__(self, atoms, restart=None, logfile='-', trajectory=None,
+    def __init__(self, atoms, *args,
                  maxstep=None, memory=100, damping=1.0, alpha=70.0,
                  precon='auto', variable_cell=False,
                  use_armijo=True, c1=0.23, c2=0.46, a_min=None,
@@ -47,18 +47,6 @@ class PreconLBFGS(Optimizer):
         ----------
         atoms: :class:`~ase.Atoms`
             The Atoms object to relax.
-
-        restart: str
-            Pickle file used to store vectors for updating the inverse of
-            Hessian matrix. If set, file with such a name will be searched
-            and information stored will be used, if the file exists.
-
-        logfile: file object or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
-
-        trajectory: str
-            Trajectory file used to store optimisation path.
 
         maxstep: float
             How far is a single atom allowed to move. This is useful for DFT
@@ -119,14 +107,16 @@ class PreconLBFGS(Optimizer):
            the rate of rotation as opposed to the rate of stretch in the
            rigid units
 
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
+
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         """
         if variable_cell:
             atoms = UnitCellFilter(atoms)
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        Optimizer.__init__(self, atoms, *args, **kwargs)
 
         self._actual_atoms = atoms
 

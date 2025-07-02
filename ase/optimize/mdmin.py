@@ -1,8 +1,7 @@
-from typing import IO, Optional, Union
+from typing import Optional
 
 import numpy as np
 
-from ase import Atoms
 from ase.optimize.optimize import Optimizer
 
 
@@ -12,10 +11,7 @@ class MDMin(Optimizer):
 
     def __init__(
         self,
-        atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
+        *args,
         dt: Optional[float] = None,
         maxstep: Optional[float] = None,
         **kwargs,
@@ -24,20 +20,6 @@ class MDMin(Optimizer):
 
         Parameters
         ----------
-        atoms: :class:`~ase.Atoms`
-            The Atoms object to relax.
-
-        restart: str
-            JSON file used to store hessian matrix. If set, file with
-            such a name will be searched and hessian matrix stored will
-            be used, if the file exists.
-
-        trajectory: str
-            Trajectory file used to store optimisation path.
-
-        logfile: str
-            Text file used to write summary information.
-
         dt: float
             Time step for integrating the equation of motion.
 
@@ -45,12 +27,14 @@ class MDMin(Optimizer):
             Spatial step limit in Angstrom. This allows larger values of dt
             while being more robust to instabilities in the optimization.
 
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
+
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         """
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        Optimizer.__init__(self, *args, **kwargs)
 
         self.dt = dt or self.defaults['dt']
         self.maxstep = maxstep or self.defaults['maxstep']

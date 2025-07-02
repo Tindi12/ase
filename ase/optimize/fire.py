@@ -1,10 +1,9 @@
 # fmt: off
 
-from typing import IO, Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 import numpy as np
 
-from ase import Atoms
 from ase.optimize.optimize import Optimizer
 from ase.utils import deprecated
 
@@ -43,10 +42,7 @@ class FIRE(Optimizer):
     )
     def __init__(
         self,
-        atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
+        *args,
         dt: float = 0.1,
         maxstep: Optional[float] = None,
         maxmove: Optional[float] = None,
@@ -65,21 +61,6 @@ class FIRE(Optimizer):
 
         Parameters
         ----------
-        atoms: :class:`~ase.Atoms`
-            The Atoms object to relax.
-
-        restart: str
-            JSON file used to store hessian matrix. If set, file with
-            such a name will be searched and hessian matrix stored will
-            be used, if the file exists.
-
-        logfile: file object or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
-
-        trajectory: str
-            Trajectory file used to store optimisation path.
-
         dt: float
             Initial time step. Defualt value is 0.1
 
@@ -126,15 +107,17 @@ class FIRE(Optimizer):
             *r* that the optimizer will revert to, current energy *e* and
             energy of last step *e_last*. This is only called if e > e_last.
 
+        args : tuple, optional
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
+
         kwargs : dict, optional
-            Extra arguments passed to
-            :class:`~ase.optimize.optimize.Optimizer`.
+            Extra arguments passed to :class:`~ase.optimize.optimize.Optimizer`.
 
         .. deprecated:: 3.19.3
             Use of ``maxmove`` is deprecated; please use ``maxstep``.
 
         """
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        Optimizer.__init__(self, *args, **kwargs)
 
         self.dt = dt
 

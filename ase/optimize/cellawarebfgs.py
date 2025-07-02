@@ -1,7 +1,7 @@
 # fmt: off
 
 import time
-from typing import IO, Optional, Union
+from typing import Optional
 
 import numpy as np
 
@@ -60,10 +60,7 @@ class CellAwareBFGS(BFGS):
     def __init__(
         self,
         atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Union[IO, str] = '-',
-        trajectory: Optional[str] = None,
-        append_trajectory: bool = False,
+        *args,
         maxstep: Optional[float] = None,
         bulk_modulus: Optional[float] = 145 * GPa,
         poisson_ratio: Optional[float] = 0.3,
@@ -74,10 +71,14 @@ class CellAwareBFGS(BFGS):
         self.bulk_modulus = bulk_modulus
         self.poisson_ratio = poisson_ratio
         self.long_output = long_output
-        BFGS.__init__(self, atoms=atoms, restart=restart, logfile=logfile,
-                      trajectory=trajectory, maxstep=maxstep,
-                      alpha=alpha, append_trajectory=append_trajectory,
-                      **kwargs)
+        BFGS.__init__(
+            self,
+            atoms,
+            *args,
+            maxstep=maxstep,
+            alpha=alpha,
+            **kwargs,
+        )
         assert not isinstance(atoms, Atoms)
         if hasattr(atoms, 'exp_cell_factor'):
             assert atoms.exp_cell_factor == 1.0
