@@ -1,0 +1,5 @@
+Optimizers
+----------
+
+- Changed all the arguments specific to individual
+  :class:`~ase.optimize.optimize.Optimizer` subclasses keyword-only (:mr:`3735`)
