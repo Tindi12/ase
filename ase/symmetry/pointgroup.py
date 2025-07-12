@@ -3,6 +3,8 @@ from itertools import combinations
 
 import numpy as np
 import scipy as sp
+
+from ase import Atom
 from ase.symmetry.operations import (
     Identity,
     ImproperRotation,
@@ -10,8 +12,6 @@ from ase.symmetry.operations import (
     Mirror,
     Rotation,
 )
-
-from ase import Atom
 from ase.visualize import view
 
 
