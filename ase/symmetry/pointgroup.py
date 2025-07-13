@@ -42,7 +42,7 @@ class PointGroupAnalyzer:
         schoenflies symbol for monatomic molecules
     """
 
-    def __init__(self, atoms, eigtol=0.005, angtol=4., disttol=0.1,
+    def __init__(self, atoms, eigtol=0.005, angtol=4., disttol=0.2,
                  hardtol=1e-6, spherical_nearest_neighbors=True,
                  infinity_symbol='*', monatomic_symbol='M'):
 
@@ -169,7 +169,10 @@ class PointGroupAnalyzer:
         """
 
         if transform_tol is None:
-            transform_tol = 2 * self.disttol
+            if isinstance(symm_op, (Rotation, ImproperRotation)):
+                transform_tol = 2 * self.disttol
+            else:
+                transform_tol = self.disttol
 
         transformed_positions = self.pos.copy()
         for step in range(symm_op.order - 1):
@@ -231,15 +234,13 @@ class PointGroupAnalyzer:
                     rots.append(rot)
 
         if len(rots) == 3:
-            schoenflies, mirrors = self._dihedral(rots)
+            schoenflies, mirrors = self._dihedral(rots, groups)
             return schoenflies, rots + mirrors
-            # raise Exception('Asymmetric tops with three C2 axes must be' +\
-            #                'aligned with principal axes')
         elif len(rots) == 0:
-            schoenflies, symm_ops = self._no_rot_sym()
+            schoenflies, symm_ops = self._no_rot_sym(groups)
             return schoenflies, symm_ops
         else:
-            schoenflies, symm_ops = self._cyclic(rots)
+            schoenflies, symm_ops = self._cyclic(rots, groups)
             return schoenflies, rots + symm_ops
 
     def _symmetric_top(self, main_ind):
@@ -296,7 +297,7 @@ class PointGroupAnalyzer:
             # Better to check asymmetric top
             return self._asymmetric_top()
 
-    def _no_rot_sym(self):
+    def _no_rot_sym(self, groups=None):
         """No rotation symmetries (C1, Cs, Ci)"""
         inv = Inversion()
         if self._is_valid(inv):
@@ -305,7 +306,7 @@ class PointGroupAnalyzer:
             mirrors = []
             normals = []
             for axis in self.principal_axes:
-                _, new_mirrors = self._find_mirrors(axis)
+                _, new_mirrors = self._find_mirrors(axis, groups)
                 for m in new_mirrors:
                     if self._is_new_axis(m.axis, normals):
                         mirrors.append(m)
@@ -557,7 +558,6 @@ class PointGroupAnalyzer:
                         rot = Rotation(axis, order, tol=self.hardtol)
                         if self._is_valid(rot):
                             rots.append(rot)
-                            # max_rot_order = max(max_rot_order, order)
                             break
 
         max_rot_order = max([rot.order for rot in rots], default=1)
@@ -655,7 +655,7 @@ class PointGroupAnalyzer:
         for group in groups:
             groups[group] = np.array(groups[group])
 
-        # 1) Only values are used, maybe better to return a list of them
+        # 1) Only values are used, maybe better to return a list of them?
         # 2) If so, sort on length
         return groups
 
