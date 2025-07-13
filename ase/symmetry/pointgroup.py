@@ -412,45 +412,48 @@ class PointGroupAnalyzer:
             raise Exception('No rotations')
 
         main_axis = [op.axis for op in symm_ops if op.order == max_rot_order][0]
-        inv = Inversion()
 
         if max_rot_order == 2:
             # Accidental symmetric top
             schoenflies, more_symm_ops = self._symmetric_top(0)
             return schoenflies, symm_ops + more_symm_ops
 
+        inv = Inversion()
+        if self._is_valid(inv):
+            symm_ops.append(inv)
+            sub = 'h'
+        else:
+            sub = ''
+
         if max_rot_order == 3:
-            # Tetraedral
+            # Tetrahedral
             if not self._has_rots(symm_ops, nC2=3, nC3=4):
-                raise Exception('T: Incorrect number of axis')
+                raise Exception('T: Incorrect number of axes')
+
+            if sub == 'h':
+                return 'Th', symm_ops
 
             mirror_type, mirrors = self._find_mirrors(main_axis, groups,
                                                       symm_ops.copy())
             symm_ops += mirrors
             if mirror_type == '':
                 return 'T', symm_ops
-            elif self._is_valid(inv):
-                return 'Th', symm_ops
             else:
                 return 'Td', symm_ops
 
         if max_rot_order == 4:
             # Octahedral
-            schoenflies = 'O'
             if not self._has_rots(symm_ops, nC2=6, nC3=4, nC4=3):
-                raise Exception('O: Incorrect number of axis')
+                raise Exception('O: Incorrect number of axes')
+            return 'O' + sub, symm_ops
 
         elif max_rot_order == 5:
             # Icosahedral
-            schoenflies = 'I'
             if not self._has_rots(symm_ops, nC2=15, nC3=10, nC5=6):
-                raise Exception('I: Incorrect number of axis')
+                raise Exception('I: Incorrect number of axes')
+            return 'I' + sub, symm_ops
         else:
             raise Exception('Error in spherical top')
-
-        if self._is_valid(inv):
-            schoenflies += 'h'
-            symm_ops.append(inv)
 
         return schoenflies, symm_ops
 
