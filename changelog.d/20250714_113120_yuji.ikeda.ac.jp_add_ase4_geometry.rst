@@ -1,0 +1,7 @@
+Development
+-----------
+
+- Added :mod:`ase.dev` for the ASE 4 development (:mr:`3745`)
+- Added :class:`~ase.dev.geometry.Geometry` as the replacement for
+  :class:`~ase.atoms.Atoms` in ASE 4 to store properties of multiple calculators
+  (:mr:`3745`)
