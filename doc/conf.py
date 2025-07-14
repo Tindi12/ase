@@ -26,6 +26,9 @@ exclude_patterns = ['build']
 default_role = 'math'
 pygments_style = 'sphinx'
 autoclass_content = 'both'
+autodoc_default_options = {
+    'show-inheritance': True,
+}
 modindex_common_prefix = ['ase.']
 nitpick_ignore = [
     ('envvar', 'VASP_PP_PATH'),
