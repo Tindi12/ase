@@ -8,6 +8,10 @@ from ase.atoms import BaseAtoms
 from ase.outputs import Properties
 
 
+class CalcError(AttributeError):
+    """``calc`` is not available in ASE 4 ``Geometry``."""
+
+
 class Geometry(BaseAtoms):
     """Geometry object of ASE4 to store properties of multiple calculators.
 
@@ -45,3 +49,12 @@ class Geometry(BaseAtoms):
         -0.005682
         """
         self.results[label] = properties
+
+    @property
+    def calc(self) -> None:
+        """Calculator object."""
+        raise CalcError
+
+    @calc.setter
+    def calc(self, _) -> None:
+        raise CalcError

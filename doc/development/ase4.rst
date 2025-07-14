@@ -9,3 +9,4 @@ ASE 4
 
 .. automodule:: ase.dev.geometry
     :members:
+    :exclude-members: calc
