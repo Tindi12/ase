@@ -1,10 +1,11 @@
-import numpy as np
+from dataclasses import dataclass
+
 import pytest
 
-from ase import Atoms
 from ase.build import molecule
-from ase.collections import g2
+from ase.io import read
 from ase.symmetry import PointGroupAnalyzer
+
 
 @pytest.mark.parametrize('label, pg, sym', [
     ('Al', 'Kh', 1),
@@ -28,4 +29,57 @@ def test_pointgroup(label, pg, sym):
     pga = PointGroupAnalyzer(mol)
     assert pga.pointgroup == pg
     assert pga.symmetry_number == sym
-    
+
+
+@dataclass
+class MoleculeData:
+    label: str
+    pointgroup: str
+    symmetry_number: int
+
+    @property
+    def datafile(self):
+        return f"pointgroup/{self.label}.xyz"
+
+
+molecules_from_testdata = [
+    MoleculeData(label='SF6', pointgroup='Oh', symmetry_number=24),
+    MoleculeData(label='B12H12', pointgroup='Ih', symmetry_number=60),
+    # HOBr can be incorrectly detected as linear because of its mass
+    # distribution
+    MoleculeData(label='HOBr', pointgroup='Cs', symmetry_number=1),
+    MoleculeData(label='C4H2', pointgroup='D*h', symmetry_number=2),
+    MoleculeData(label='C3O2', pointgroup='D*h', symmetry_number=2),
+    MoleculeData(label='C10H16', pointgroup='D2', symmetry_number=4),
+    MoleculeData(label='C60F36', pointgroup='T', symmetry_number=12),
+    MoleculeData(label='C2H2Cl2F2', pointgroup='Ci', symmetry_number=1),
+    MoleculeData(label='C8H8', pointgroup='Oh', symmetry_number=24),
+    # MoleculeData(label='thorium_nitrate_ion', pointgroup='Th',
+    #    symmetry_number=12),
+]
+
+
+@pytest.mark.parametrize('moldata', molecules_from_testdata)
+def test_pointgroups_in_testdata(datadir, moldata):
+    mol = read(datadir / moldata.datafile)
+    mol.euler_rotate(30., 30., 30.)
+    pga = PointGroupAnalyzer(mol)
+    assert pga.pointgroup == moldata.pointgroup
+    assert pga.symmetry_number == moldata.symmetry_number
+
+
+# Some molecules with slight deviations from perfect symmetry
+imperfect_molecules = [
+    MoleculeData(label='C20', pointgroup='Ih', symmetry_number=60),
+    MoleculeData(label='thorium_nitrate_ion', pointgroup='Th',
+        symmetry_number=12),
+]
+
+
+@pytest.mark.parametrize('moldata', imperfect_molecules)
+def test_pointgroups_imperfect(datadir, moldata):
+    mol = read(datadir / moldata.datafile)
+    mol.euler_rotate(30., 30., 30.)
+    pga = PointGroupAnalyzer(mol, eigtol=0.015, angtol=6, disttol=0.3)
+    assert pga.pointgroup == moldata.pointgroup
+    assert pga.symmetry_number == moldata.symmetry_number
