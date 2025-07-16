@@ -35,25 +35,16 @@ class PointGroupAnalyzer:
         distance tolerance
     hardtol : float
         other tolerances
-    infinity_symbol : str
-        string to indicate infinity in linear groups, e.g. '*' : 'C*v' or
-        'inf' : 'Cinfv'
-    monatomic_symbol : str or None
-        schoenflies symbol for monatomic molecules
     """
 
     def __init__(self, atoms, eigtol=0.005, angtol=4., disttol=0.2,
-                 hardtol=1e-6, spherical_nearest_neighbors=True,
-                 infinity_symbol='*', monatomic_symbol='M'):
+                 hardtol=1e-6):
 
         self.atoms = self._center_on_center_of_mass(atoms)
         self.eigtol = eigtol
         self.angtol = np.deg2rad(angtol)
         self.disttol = disttol
         self.hardtol = hardtol
-        self.sph_nn = spherical_nearest_neighbors
-        self.infinity_symbol = infinity_symbol
-        self.monatomic_symbol = monatomic_symbol
 
         self.sintol = np.sin(self.angtol)
         self.costol = np.cos(self.angtol)
@@ -83,10 +74,9 @@ class PointGroupAnalyzer:
         """Monatomic, linear or nonlinear"""
         if len(self.atoms) == 1:
             return 'monatomic'
-        elif self.pointgroup in ['C*v', 'D*h']:
+        elif self.pointgroup in {'C*v', 'D*h'}:
             return 'linear'
-        else:
-            return 'nonlinear'
+        return 'nonlinear'
 
     @property
     def symmetry_number(self):
@@ -140,7 +130,7 @@ class PointGroupAnalyzer:
         """
 
         if len(self.atoms) == 1:
-            return self.monatomic_symbol, []
+            return 'Kh', []
 
         if self.normalized_moments_of_inertia[0] < self.eigtol:
             return self._linear()

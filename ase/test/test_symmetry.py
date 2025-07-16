@@ -7,7 +7,7 @@ from ase.collections import g2
 from ase.symmetry import PointGroupAnalyzer
 
 @pytest.mark.parametrize('label, pg, sym', [
-    ('Al', 'M', 1),
+    ('Al', 'Kh', 1),
     ('CH3CONH2', 'C1', 1),
     ('HCOOH', 'Cs', 1),
     ('HOCl', 'Cs', 1),
