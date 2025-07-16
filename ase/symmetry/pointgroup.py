@@ -50,7 +50,7 @@ class PointGroupAnalyzer:
         self.costol = np.cos(self.angtol)
         self.pos = atoms.get_positions()
         self._pos_bak = self.pos.copy()  # Devel, test if self.pos is modified
-        self.kdtree = sp.spatial.KDTree(self.pos)
+        self._kdtree = sp.spatial.KDTree(self.pos)
         self.symbols = atoms.get_chemical_symbols()
         self._mass_check()
 
@@ -135,14 +135,14 @@ class PointGroupAnalyzer:
         if self.normalized_moments_of_inertia[0] < self.eigtol:
             return self._linear()
 
-        I_diffs = np.diff(self.normalized_moments_of_inertia)
-        if np.all(I_diffs >= self.eigtol):
+        diffs = np.diff(self.normalized_moments_of_inertia)
+        if np.all(diffs >= self.eigtol):
             return self._asymmetric_top()
-        if np.all(I_diffs < self.eigtol):
+        if np.all(diffs < self.eigtol):
             return self._spherical_top()
-        if I_diffs[0] < self.eigtol:
+        if diffs[0] < self.eigtol:
             return self._symmetric_top(main_ind=2)
-        if I_diffs[1] < self.eigtol:
+        if diffs[1] < self.eigtol:
             return self._symmetric_top(main_ind=0)
 
     def _is_valid(self, symm_op, transform_tol=None):
@@ -167,7 +167,7 @@ class PointGroupAnalyzer:
         transformed_positions = self.pos.copy()
         for step in range(symm_op.order - 1):
             transformed_positions = symm_op.apply(transformed_positions)
-            distances, inds = self.kdtree.query(transformed_positions)
+            distances, inds = self._kdtree.query(transformed_positions)
             if np.all(distances <= transform_tol):
                 symbols_rotated = [self.symbols[i] for i in inds]
 
@@ -584,7 +584,7 @@ class PointGroupAnalyzer:
 
         return sorted(neighbor_list)
 
-    def _on_line(self, vector, include_at_origin=True):
+    def _on_line(self, vector):
         """
         Returns mask for on the line vector through origin
 
@@ -596,17 +596,18 @@ class PointGroupAnalyzer:
 
         if np.linalg.norm(vector) < self.hardtol:
             raise ValueError("Direction vector cannot be zero.")
-        nvector = vector / np.linalg.norm(vector)
+        vector /= np.linalg.norm(vector)
 
         pos_norms = np.linalg.norm(self.pos, axis=1)
-        dots = np.dot(self.pos, nvector)
-        if include_at_origin:
-            cos_angles = np.ones_like(dots)
-        else:
-            cos_angles = np.zeros_like(dots)
+        dots = self.pos @ vector
+
+        cos_angles = np.ones_like(dots)  # default to 1.0 for atom at origin
         nonzero = pos_norms > self.disttol
+
+        # |pos| * |vector| * cos(angle) = dot(pos, vector); |vector| = 1
         cos_angles[nonzero] = dots[nonzero] / pos_norms[nonzero]
 
+        # if on the `vector` line, `cos_angles` should be close to +1 or -1
         mask = (np.abs(cos_angles) > self.costol)
 
         return mask
