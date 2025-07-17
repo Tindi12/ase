@@ -1,0 +1,5 @@
+Other changes
+-------------
+
+- The deprecated :meth:`~ase.Atoms.get_calculator` and :meth:`~ase.Atoms.set_calculator`
+  are removed. (:mr:`3756`)
