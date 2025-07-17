@@ -788,8 +788,10 @@ General changes:
 
 * :meth:`~ase.Atoms.get_calculator` and :meth:`~ase.Atoms.set_calculator`
   are deprecated.  Use ``atoms.calc`` instead.
+  (:mr:`1833`)
 
 * ``del atoms.calc`` is deprecated.  Use ``atoms.calc = None`` instead.
+  (:mr:`1833`)
 
 * The deprecated ``atoms.cell.pbc`` has been removed.
 
