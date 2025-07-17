@@ -14,6 +14,11 @@ from ase.symmetry import PointGroupAnalyzer
     ('HOCl', 'Cs', 1),
     ('N2H4', 'C2', 2),
     ('H2O', 'C2v', 2),
+    # C4H4NH and COF2 can be mistakenly identified as symmetric
+    # due to mass distribution, which might lead to incorrect
+    # identification as Cs
+    ('C4H4NH', 'C2v', 2),
+    ('COF2', 'C2v', 2),
     ('butadiene', 'C2h', 2),
     ('NH3', 'C3v', 3),
     ('C2H4', 'D2h', 4),
@@ -54,8 +59,11 @@ molecules_from_testdata = [
     MoleculeData(label='C60F36', pointgroup='T', symmetry_number=12),
     MoleculeData(label='C2H2Cl2F2', pointgroup='Ci', symmetry_number=1),
     MoleculeData(label='C8H8', pointgroup='Oh', symmetry_number=24),
-    # MoleculeData(label='thorium_nitrate_ion', pointgroup='Th',
-    #    symmetry_number=12),
+    MoleculeData(label='C5H4F4', pointgroup='S4', symmetry_number=2),
+    MoleculeData(label='uranocene', pointgroup='D8h', symmetry_number=16),
+    MoleculeData(label='S8', pointgroup='D4d', symmetry_number=8),
+    MoleculeData(label='corannulene', pointgroup='C5v', symmetry_number=5),
+    MoleculeData(label='ferrocene', pointgroup='D5d', symmetry_number=10),
 ]
 
 
