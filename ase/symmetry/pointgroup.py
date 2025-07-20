@@ -212,16 +212,17 @@ class PointGroupAnalyzer:
             return schoenflies, rots + mirrors
 
         # We have to search for axes not aligned with principal axes
-        searched_axes = [axis for axis in self.principal_axes]
+        symmetry_axes = [r.axis.copy() for r in rots]
         groups = self._group_atoms_by_symbol_and_norm()
-        for group in groups.values():
+        for group in groups:
             for i1, i2 in combinations(group, 2):
                 axis = 0.5 * (self.pos[i1] + self.pos[i2])
-                if not self._is_new_axis(axis, searched_axes):
+                if self._is_close_to_symmetry_axis(axis, symmetry_axes):
                     continue
                 rot = Rotation(axis, order=2, tol=self.hardtol)
                 if self._is_valid(rot):
                     rots.append(rot)
+                    symmetry_axes.append(rot.axis.copy())
 
         if len(rots) == 3:
             schoenflies, mirrors = self._dihedral(rots, groups)
@@ -244,7 +245,7 @@ class PointGroupAnalyzer:
         # Exclude atoms on main axis for axis detection
         indices = np.arange(len(self.pos))[~mask]
         groups = self._group_atoms_by_symbol_and_norm(inds=indices)
-        smallest_group = min(groups.values(), key=len)
+        smallest_group = groups[0]
 
         # Get main Cn axis
         for order in range(len(smallest_group) + 1, 1, -1):
@@ -258,12 +259,12 @@ class PointGroupAnalyzer:
         if len(rots) > 0:
             found_nC2s = 0
             max_nC2s = order
-            searched_axes = []
+            symmetry_axes = []
 
-            for group in groups.values():
+            for group in groups:
                 for i1, i2 in combinations(group, 2):
                     axis = 0.5 * (self.pos[i1] + self.pos[i2])
-                    if not self._is_new_axis(axis, searched_axes):
+                    if self._is_close_to_symmetry_axis(axis, symmetry_axes):
                         continue
                     axis /= np.linalg.norm(axis)
                     if np.linalg.norm(np.cross(axis, main_axis)) < self.costol:
@@ -271,6 +272,7 @@ class PointGroupAnalyzer:
                     rot = Rotation(axis, 2, tol=self.hardtol)
                     if self._is_valid(rot):
                         rots.append(rot)
+                        symmetry_axes.append(rot.axis.copy())
                         if found_nC2s >= max_nC2s:
                             break
                 if found_nC2s >= max_nC2s:
@@ -298,8 +300,9 @@ class PointGroupAnalyzer:
             for axis in self.principal_axes:
                 _, new_mirrors = self._find_mirrors(axis, groups)
                 for m in new_mirrors:
-                    if self._is_new_axis(m.axis, normals):
+                    if not self._is_close_to_symmetry_axis(m.axis, normals):
                         mirrors.append(m)
+                        normals.append(m.axis.copy())
             if len(mirrors) > 1:
                 raise Exception(f'Too many mirrors ({len(mirrors)})')
             elif len(mirrors) == 1:
@@ -351,18 +354,19 @@ class PointGroupAnalyzer:
             mirrors.append(mirror)
             mirror_type = 'h'
 
-        searched_axes = [main_axis]
-        for group in groups.values():
+        vertical_axes = []
+        for group in groups:
             for i1, i2 in combinations(group, 2):
                 normal = self.pos[i1] - self.pos[i2]
                 normal /= np.linalg.norm(normal)
                 if np.dot(normal, main_axis) > self.sintol:
                     continue
-                if not self._is_new_axis(normal, searched_axes):
+                if self._is_close_to_symmetry_axis(normal, vertical_axes):
                     continue
                 mirror = Mirror(normal, tol=self.hardtol)
                 if self._is_valid(mirror):
                     mirrors.append(mirror)
+                    vertical_axes.append(mirror.axis.copy())
 
         if mirror_type == 'h':
             return mirror_type, mirrors
@@ -385,14 +389,15 @@ class PointGroupAnalyzer:
 
         # Get rotations
         groups = self._group_atoms_by_symbol_and_norm()
-        searched_axes = []
+        symmetry_axes = []
         max_rot_order = 1
         symm_ops = []
-        for group in groups.values():
+
+        for group in groups:
             neighbor_list = self._get_neighbor_list(group)
             rots, partial_max_rot_order = self._get_spherical_rotations(
                 neighbor_list,
-                searched_axes)
+                symmetry_axes)
             symm_ops += rots
             max_rot_order = max(max_rot_order, partial_max_rot_order)
             if max_rot_order > 3:
@@ -457,32 +462,28 @@ class PointGroupAnalyzer:
                 n_axes[op.order] -= 1
         return all(val == 0 for val in n_axes.values())
 
-    def _is_new_axis(self, axis, searched_axes):
+    def _is_close_to_symmetry_axis(self, axis, symmetry_axes):
         """
         Check if axis is non-zero and non-parallel to any of searched_axes
 
         Inputs:
 
         axis : (3,) numpy.ndarray
-        searched_axes : list of (3,) numpy.ndarray
-            will be modified by appending axis if axis is non-zero and
-            non-parallel
+        symmetry_axes : list of (3,) numpy.ndarray
         """
 
         if np.shape(axis) != (3,):
             raise Exception(f'Incorrect dimensions of axis: {np.shape(axis)}')
         norm = np.linalg.norm(axis)
         if norm < self.hardtol:
-            return False
+            return True
         axis /= norm
 
-        is_new = all(abs(np.dot(a, axis)) < self.costol for a in searched_axes)
+        close = any(abs(np.dot(a, axis)) > self.costol for a in symmetry_axes)
 
-        if is_new:
-            searched_axes.append(axis)
-        return is_new
+        return close
 
-    def _get_spherical_rotations(self, neighbor_list, searched_axes):
+    def _get_spherical_rotations(self, neighbor_list, symmetry_axes):
         """
         Find rotation axes by checking axis
         1) through atoms (might be superfluous)
@@ -506,13 +507,14 @@ class PointGroupAnalyzer:
 
             # Axis through atoms. Might not be needed
             # Order must be a factor of number of nearest neighbors
-            if self._is_new_axis(axis, searched_axes):
+            if not self._is_close_to_symmetry_axis(axis, symmetry_axes):
                 num_nbrs = len(nbr_row) - 1
                 for order in [5, 4, 3, 2]:
                     if num_nbrs % order == 0:
                         rot = Rotation(axis, order, tol=self.hardtol)
                         if self._is_valid(rot):
                             rots.append(rot)
+                            symmetry_axes.append(rot.axis.copy())
                             break
 
             other_inds = [i for i in nbr_row[1:] if i > main_ind]
@@ -521,11 +523,12 @@ class PointGroupAnalyzer:
             pairs = [(main_ind, x) for x in other_inds]
             for i1, i2 in pairs:
                 axis = 0.5 * (self.pos[i1] + self.pos[i2])
-                if not self._is_new_axis(axis, searched_axes):
+                if self._is_close_to_symmetry_axis(axis, symmetry_axes):
                     continue
                 rot = Rotation(axis, order=2, tol=self.hardtol)
                 if self._is_valid(rot):
                     rots.append(rot)
+                    symmetry_axes.append(rot.axis.copy())
 
             # Normal to plane of triple of atoms
             triples = [(main_ind, x, y) for x, y in
@@ -537,7 +540,7 @@ class PointGroupAnalyzer:
                 vec2 = pos[2] - pos[0]
                 axis = np.cross(vec1, vec2)
 
-                if not self._is_new_axis(axis, searched_axes):
+                if self._is_close_to_symmetry_axis(axis, symmetry_axes):
                     continue
 
                 dot = np.dot(vec1, vec2)
@@ -551,6 +554,7 @@ class PointGroupAnalyzer:
                         rot = Rotation(axis, order, tol=self.hardtol)
                         if self._is_valid(rot):
                             rots.append(rot)
+                            symmetry_axes.append(rot.axis.copy())
                             break
 
         max_rot_order = max([rot.order for rot in rots], default=1)
@@ -649,9 +653,8 @@ class PointGroupAnalyzer:
         for group in groups:
             groups[group] = np.array(groups[group])
 
-        # 1) Only values are used, maybe better to return a list of them?
-        # 2) If so, sort on length
-        return groups
+        group_vals = sorted(list(groups.values()), key=lambda x: len(x))
+        return group_vals
 
     def _mass_check(self):
         """Checks that atoms of elements have the same mass, else exception"""

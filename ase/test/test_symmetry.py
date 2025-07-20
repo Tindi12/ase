@@ -12,6 +12,7 @@ from ase.symmetry import PointGroupAnalyzer
     ('CH3CONH2', 'C1', 1),
     ('HCOOH', 'Cs', 1),
     ('HOCl', 'Cs', 1),
+    ('CH3CHO', 'Cs', 1),
     ('N2H4', 'C2', 2),
     ('H2O', 'C2v', 2),
     # C4H4NH and COF2 can be mistakenly identified as symmetric
@@ -32,8 +33,12 @@ def test_pointgroup(label, pg, sym):
     mol = molecule(label)
     mol.euler_rotate(30., 30., 30.)
     pga = PointGroupAnalyzer(mol)
-    assert pga.pointgroup == pg
-    assert pga.symmetry_number == sym
+    pg_calc = pga.pointgroup
+    sym_calc = pga.symmetry_number
+    print(label)
+    print([s.axis for s in pga._pointgroup_and_symmetries[1]])
+    assert pg_calc == pg
+    assert sym_calc == sym
 
 
 @dataclass
