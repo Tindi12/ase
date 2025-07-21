@@ -616,42 +616,59 @@ class PointGroupAnalyzer:
 
         return mask
 
-    def _group_atoms_by_symbol_and_norm(self, inds=None):
+    def _group_atoms_by_symbol_and_norm(self, inds=None, d=4):
         """
         Inputs:
 
         inds : list of int
             indices of atoms to group
+        d : int
+            number of digits for distance in dictionary key. Mainly for
+            debugging
 
         Returns:
 
-        groups : dict
-            where the keys are tuples of element and distance
-            from the center of mass and the values are arrays of positions,
-            e.g. groups[('C', 3.54)] = [5,8,22]
+        groups : list of numpy.ndarray
+            the arrays are indices of atoms of same element and same distance
+            to the origin
         """
 
         if inds is None:
-            inds = list(range(len(self.pos)))
+            inds = np.arange(len(self.pos))
+        else:
+            inds = np.array(inds)
 
-        dists = np.linalg.norm(self.pos, axis=1)[inds].tolist()
-        symbols = [self.symbols[i] for i in inds]
-        dis_triples = sorted(list(zip(dists, inds, symbols)))
+        positions = np.array(self.pos)[inds]
+        symbols = np.array(self.symbols)[inds]
+        dists = np.linalg.norm(positions, axis=1)
 
-        curr_norms = {}
         groups = {}
-        for dist, ind, symbol in dis_triples:
-            if dist < self.disttol:
-                # Skip central atom
+
+        for symbol in np.unique(symbols):
+            # Filter and skip central atom
+            mask = (symbols == symbol) & (dists > self.disttol)
+            sym_inds = inds[mask]
+            sym_dists = dists[mask]
+
+            if len(sym_dists) == 0:
                 continue
-            if symbol not in curr_norms or \
-                    dist - curr_norms[symbol] > self.disttol:
-                curr_norms[symbol] = dist
-                groups[(symbol, round(curr_norms[symbol], 4))] = [ind]
-            else:
-                groups[(symbol, round(curr_norms[symbol], 4))].append(ind)
-        for group in groups:
-            groups[group] = np.array(groups[group])
+            if len(sym_dists) == 1:
+                groups[(symbol, round(sym_dists[0], d))] = np.array(sym_inds)
+                continue
+
+            # Cluster the 1D distance data
+            labels = sp.cluster.hierarchy.fclusterdata(
+                sym_dists[:, None],
+                t=self.disttol,
+                criterion='distance'
+            )
+
+            for label in np.unique(labels):
+                cluster_mask = labels == label
+                cluster_inds = sym_inds[cluster_mask]
+                mean_dist = float(np.mean(sym_dists[cluster_mask]))
+                key = (str(symbol), round(mean_dist, d))
+                groups[key] = cluster_inds
 
         group_vals = sorted(list(groups.values()), key=lambda x: len(x))
         return group_vals
