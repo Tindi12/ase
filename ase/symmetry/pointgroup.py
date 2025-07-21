@@ -1,5 +1,5 @@
 from functools import cached_property
-from itertools import combinations
+from itertools import combinations, product
 
 import numpy as np
 import scipy as sp
@@ -63,6 +63,9 @@ class PointGroupAnalyzer:
             self.normalized_moments_of_inertia = eigs / trace
         else:
             self.normalized_moments_of_inertia = eigs
+
+        # Make atom clusters that cannot be mappe on each other by symmetry
+        self.clusters = self._group_atoms_by_symbol_and_norm()
 
     @property
     def pointgroup(self):
@@ -213,9 +216,9 @@ class PointGroupAnalyzer:
 
         # We have to search for axes not aligned with principal axes
         symmetry_axes = [r.axis.copy() for r in rots]
-        groups = self._group_atoms_by_symbol_and_norm()
-        for group in groups:
-            for i1, i2 in combinations(group, 2):
+        # groups = self._group_atoms_by_symbol_and_norm()
+        for cluster in self.clusters:
+            for i1, i2 in combinations(cluster, 2):
                 axis = 0.5 * (self.pos[i1] + self.pos[i2])
                 if self._is_close_to_symmetry_axis(axis, symmetry_axes):
                     continue
@@ -225,31 +228,38 @@ class PointGroupAnalyzer:
                     symmetry_axes.append(rot.axis.copy())
 
         if len(rots) == 3:
-            schoenflies, mirrors = self._dihedral(rots, groups)
+            schoenflies, mirrors = self._dihedral(rots)
             return schoenflies, rots + mirrors
         elif len(rots) == 0:
-            schoenflies, symm_ops = self._no_rot_sym(groups)
+            schoenflies, symm_ops = self._no_rot_sym()
             return schoenflies, symm_ops
         else:
-            schoenflies, symm_ops = self._cyclic(rots, groups)
+            schoenflies, symm_ops = self._cyclic(rots)
             return schoenflies, rots + symm_ops
+
+    def _get_smallest_cluster_off_line(self, axis):
+        """
+        Returns the smallest atom cluster after atoms are removed on the axis
+        """
+        mask = self._on_line(axis)
+        off_inds = np.arange(len(self.pos))[~mask]
+        filtered_clusters = [
+            cl[np.isin(cl, off_inds)] for cl in self.clusters
+            if len(cl[np.isin(cl, off_inds)]) > 0
+        ]
+        sorted_clusters = sorted(filtered_clusters, key=lambda x: len(x))
+        return sorted_clusters[0]
 
     def _symmetric_top(self, main_ind):
         """Two moments of inertia equal, third distinct"""
 
         main_axis = self.principal_axes[main_ind]
         rots = []
-
-        mask = self._on_line(main_axis)
-
-        # Exclude atoms on main axis for axis detection
-        indices = np.arange(len(self.pos))[~mask]
-        groups = self._group_atoms_by_symbol_and_norm(inds=indices)
-        smallest_group = groups[0]
+        smallest_cluster = self._get_smallest_cluster_off_line(main_axis)
 
         # Get main Cn axis
-        for order in range(len(smallest_group) + 1, 1, -1):
-            if len(smallest_group) % order == 0:
+        for order in range(len(smallest_cluster) + 1, 1, -1):
+            if len(smallest_cluster) % order == 0:
                 rot = Rotation(main_axis, order, tol=self.hardtol)
                 if self._is_valid(rot):
                     rots.append(rot)
@@ -261,13 +271,42 @@ class PointGroupAnalyzer:
             max_nC2s = order
             symmetry_axes = []
 
-            for group in groups:
-                for i1, i2 in combinations(group, 2):
+            if len(smallest_cluster) == 2:
+                i1, i2 = smallest_cluster
+                # Two possibilites: Map on itself or map on the other
+                axis1 = self.pos[i1] - self.pos[i2]
+                axis2 = np.cross(axis1, main_axis)
+                for axis in [axis1, axis2]:
+                    axis /= np.linalg.norm(axis)
+                    rot = Rotation(axis, 2, tol=self.hardtol)
+                    if self._is_valid(rot):
+                        rots.append(rot)
+                        found_nC2s += 1
+            else:
+                # Rotation axes must be defined by atoms of equal distance
+                # to the plane through the center of mass whose normal is the
+                # main axis. Thus, project on the axis
+                subclusters = self._subdivide_group_by_projection(
+                    smallest_cluster,
+                    main_axis,
+                    pairs=True,
+                )
+                subcl_pairs, subcl_central = subclusters
+                if subcl_central is not None:
+                    # Atoms in the central plane
+                    ind_pairs = combinations(subcl_central, 2)
+                elif len(subcl_pairs) != 0:
+                    # Atoms in two planes of equal distance to central plane
+                    ind_pairs = product(*subcl_pairs[0])
+                else:
+                    ind_pairs = []
+
+                for i1, i2 in ind_pairs:
                     axis = 0.5 * (self.pos[i1] + self.pos[i2])
                     if self._is_close_to_symmetry_axis(axis, symmetry_axes):
                         continue
                     axis /= np.linalg.norm(axis)
-                    if np.linalg.norm(np.cross(axis, main_axis)) < self.costol:
+                    if np.dot(axis, main_axis) > self.sintol:
                         continue
                     rot = Rotation(axis, 2, tol=self.hardtol)
                     if self._is_valid(rot):
@@ -275,21 +314,19 @@ class PointGroupAnalyzer:
                         symmetry_axes.append(rot.axis.copy())
                         if found_nC2s >= max_nC2s:
                             break
-                if found_nC2s >= max_nC2s:
-                    break
 
         if len(rots) >= 2:
-            schoenflies, mirrors = self._dihedral(rots, groups)
+            schoenflies, mirrors = self._dihedral(rots)
             return schoenflies, rots + mirrors
         elif len(rots) == 1:
-            schoenflies, symm_ops = self._cyclic(rots, groups)
+            schoenflies, symm_ops = self._cyclic(rots)
             return schoenflies, rots + symm_ops
         else:
             # Either no rotations exist, or accidental asymmetric top.
             # Better to check asymmetric top
             return self._asymmetric_top()
 
-    def _no_rot_sym(self, groups=None):
+    def _no_rot_sym(self):
         """No rotation symmetries (C1, Cs, Ci)"""
         inv = Inversion()
         if self._is_valid(inv):
@@ -298,7 +335,7 @@ class PointGroupAnalyzer:
             mirrors = []
             normals = []
             for axis in self.principal_axes:
-                _, new_mirrors = self._find_mirrors(axis, groups)
+                _, new_mirrors = self._find_mirrors(axis)
                 for m in new_mirrors:
                     if not self._is_close_to_symmetry_axis(m.axis, normals):
                         mirrors.append(m)
@@ -310,23 +347,22 @@ class PointGroupAnalyzer:
             else:
                 return 'C1', []
 
-    def _dihedral(self, rotations, groups=None):
+    def _dihedral(self, rotations):
         """Dihedral molecules - main axis plus perpendicular C2 axes"""
 
         main_axis = rotations[0].axis
         schoenflies = f'D{rotations[0].order}'
-        mirror_type, mirrors = self._find_mirrors(main_axis, groups=groups,
-                                                  rots=rotations)
+        mirror_type, mirrors = self._find_mirrors(main_axis, rots=rotations)
         schoenflies += mirror_type
         return schoenflies, mirrors
 
-    def _cyclic(self, rotations, groups=None):
+    def _cyclic(self, rotations):
         """Cyclic symmetry"""
 
         main_axis = rotations[0].axis
         order = rotations[0].order
         schoenflies = f'C{order}'
-        mirror_type, mirrors = self._find_mirrors(main_axis, groups=groups)
+        mirror_type, mirrors = self._find_mirrors(main_axis)
         if mirror_type == '':
             imrot = ImproperRotation(main_axis, 2 * order, tol=self.hardtol)
             if self._is_valid(imrot):
@@ -336,15 +372,15 @@ class PointGroupAnalyzer:
         else:
             return schoenflies + mirror_type, mirrors
 
-    def _find_mirrors(self, main_axis, groups=None, rots=[]):
+    def _find_mirrors(self, main_axis, rots=[]):
         """
         Possible types are 'h', 'v', 'd', ''. Horizontal (h) mirrors are
         perpendicular to the axis while vertical (v) or dihedral (d) mirrors
         are parallel. d mirrors bisect two C2 axes.
         """
 
-        if groups is None:
-            groups = self._group_atoms_by_symbol_and_norm()
+        # if groups is None:
+        #    groups = self._group_atoms_by_symbol_and_norm()
         mirror_type = None
         mirrors = []
 
@@ -354,19 +390,21 @@ class PointGroupAnalyzer:
             mirrors.append(mirror)
             mirror_type = 'h'
 
+        cluster = self._get_smallest_cluster_off_line(main_axis)
+        subclusters = self._subdivide_group_by_projection(cluster, main_axis)
+
         vertical_axes = []
-        for group in groups:
-            for i1, i2 in combinations(group, 2):
-                normal = self.pos[i1] - self.pos[i2]
-                normal /= np.linalg.norm(normal)
-                if np.dot(normal, main_axis) > self.sintol:
-                    continue
-                if self._is_close_to_symmetry_axis(normal, vertical_axes):
-                    continue
-                mirror = Mirror(normal, tol=self.hardtol)
-                if self._is_valid(mirror):
-                    mirrors.append(mirror)
-                    vertical_axes.append(mirror.axis.copy())
+        for i1, i2 in combinations(subclusters[0], 2):
+            normal = self.pos[i1] - self.pos[i2]
+            normal /= np.linalg.norm(normal)
+            if np.dot(normal, main_axis) > self.sintol:
+                continue
+            if self._is_close_to_symmetry_axis(normal, vertical_axes):
+                continue
+            mirror = Mirror(normal, tol=self.hardtol)
+            if self._is_valid(mirror):
+                mirrors.append(mirror)
+                vertical_axes.append(mirror.axis.copy())
 
         if mirror_type == 'h':
             return mirror_type, mirrors
@@ -388,13 +426,13 @@ class PointGroupAnalyzer:
         """High symmetry (T, O, I)"""
 
         # Get rotations
-        groups = self._group_atoms_by_symbol_and_norm()
+        # groups = self._group_atoms_by_symbol_and_norm()
         symmetry_axes = []
         max_rot_order = 1
         symm_ops = []
 
-        for group in groups:
-            neighbor_list = self._get_neighbor_list(group)
+        for cluster in self.clusters:
+            neighbor_list = self._get_neighbor_list(cluster)
             rots, partial_max_rot_order = self._get_spherical_rotations(
                 neighbor_list,
                 symmetry_axes)
@@ -428,8 +466,7 @@ class PointGroupAnalyzer:
             if sub == 'h':
                 return 'Th', symm_ops
 
-            mirror_type, mirrors = self._find_mirrors(main_axis, groups,
-                                                      symm_ops.copy())
+            mirror_type, mirrors = self._find_mirrors(main_axis, symm_ops)
             symm_ops += mirrors
             if mirror_type == '':
                 return 'T', symm_ops
@@ -560,14 +597,15 @@ class PointGroupAnalyzer:
         max_rot_order = max([rot.order for rot in rots], default=1)
         return rots, max_rot_order
 
-    def _get_neighbor_list(self, group_indices, n=10, nearest=True):
+    def _get_neighbor_list(self, atom_indices, n=10, nearest=True):
         """
         Get neighbor lists for atoms with indices
 
         Inputs:
 
-        group_indices : list of int
-            indices of atoms for which neighbor lists are built
+        atom_indices : list of int
+            indices of atoms for which neighbor lists are built (typically
+            a cluster in self.clusters)
         n : int
             number of neighbors to include (before any distance check)
         nearest : bool
@@ -575,7 +613,7 @@ class PointGroupAnalyzer:
         """
 
         neighbor_list = []
-        group_positions = self.pos[group_indices]
+        group_positions = self.pos[atom_indices]
         tree = sp.spatial.KDTree(group_positions)
         dists, neighbors = tree.query(group_positions, k=n + 1)
         for dist_row, nbr_row in zip(dists, neighbors):
@@ -583,7 +621,7 @@ class PointGroupAnalyzer:
             valid_mask = dist_row <= min_dist + self.disttol
             valid_nbrs = nbr_row[valid_mask]
 
-            nbrs = [group_indices[nbr] for nbr in valid_nbrs]
+            nbrs = [atom_indices[nbr] for nbr in valid_nbrs]
             neighbor_list.append(nbrs)
 
         return sorted(neighbor_list)
@@ -672,6 +710,79 @@ class PointGroupAnalyzer:
 
         group_vals = sorted(list(groups.values()), key=lambda x: len(x))
         return group_vals
+
+    def _subdivide_group_by_projection(self, inds, proj_axis, pairs=False):
+        """
+        Project the position vectors on an axis, i.e. group them in planes
+        perpendicular to the axis
+
+        Inputs:
+
+        inds : np.ndarray of int | list of int
+            atom indices. Must be of same element
+        proj_axis : np.ndarray
+            vector to project on
+        pairs : bool
+            pair up the output groups of equal distance to the central plane
+            through the origin, perpendicular to proj_axis.
+
+        Returns:
+
+        If pairs is False:
+            groups : list of numpy.ndarray of int
+        Else
+            pairs : list of list (len 2) of numpy.ndarray of int
+            central_group : numpy.ndarray of int
+
+        """
+        if len(inds) <= 1:
+            # raise Exception('Group too small')
+            return [inds]
+        positions = np.array(self.pos)[inds]
+        symbols = np.array(self.symbols)[inds]
+        if len(np.unique(symbols)) != 1:
+            raise Exception('Only one element for subdivision projection')
+        dists = np.dot(positions, proj_axis) / np.linalg.norm(proj_axis)
+
+        labels = sp.cluster.hierarchy.fclusterdata(
+            dists[:, None],
+            t=self.disttol,
+            criterion='distance'
+        )
+
+        groups = {}
+        for label in np.unique(labels):
+            cluster_mask = labels == label
+            cluster_inds = inds[cluster_mask]
+            mean_dist = float(np.mean(dists[cluster_mask]))
+            key = round(mean_dist, 4)
+            groups[key] = cluster_inds
+
+        if not pairs:
+            group_vals = sorted(list(groups.values()), key=lambda x: len(x))
+            return group_vals
+
+        keys = sorted(groups.keys(), key=abs)
+        used_keys = set()
+        pairs = []
+
+        for i, k1 in enumerate(keys):
+            for k2 in keys[i + 1:]:
+                if k2 in used_keys:
+                    continue
+                if abs(k1 + k2) < self.disttol:
+                    pairs.append([groups[k1], groups[k2]])
+                    used_keys.update({k1, k2})
+                if abs(k2) - abs(k1) > self.disttol:
+                    break
+        if keys[0] not in used_keys and abs(keys[0]) < self.disttol:
+            # pairs.append([groups[keys[0]], groups[keys[0]]])
+            central = groups[keys[0]]
+        else:
+            central = None
+
+        pairs.sort(key=lambda pair: len(pair[0]))
+        return pairs, central
 
     def _mass_check(self):
         """Checks that atoms of elements have the same mass, else exception"""
