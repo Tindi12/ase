@@ -295,6 +295,11 @@ class PointGroupAnalyzer:
                 if subcl_central is not None:
                     # Atoms in the central plane
                     ind_pairs = combinations(subcl_central, 2)
+                    if len(subcl_central) == 4:
+                        # Special case where midpoints can't cover the axes
+                        # that go through atoms
+                        fictional_pairs = [(i, i) for i in subcl_central]
+                        ind_pairs = list(ind_pairs) + fictional_pairs
                 elif len(subcl_pairs) != 0:
                     # Atoms in two planes of equal distance to central plane
                     ind_pairs = product(*subcl_pairs[0])
