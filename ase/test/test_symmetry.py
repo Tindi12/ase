@@ -69,6 +69,7 @@ molecules_from_testdata = [
     MoleculeData(label='S8', pointgroup='D4d', symmetry_number=8),
     MoleculeData(label='corannulene', pointgroup='C5v', symmetry_number=5),
     MoleculeData(label='ferrocene', pointgroup='D5d', symmetry_number=10),
+    MoleculeData(label='C70', pointgroup='D5h', symmetry_number=10),
 ]
 
 
