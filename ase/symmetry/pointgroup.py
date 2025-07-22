@@ -2,7 +2,8 @@ from functools import cached_property
 from itertools import combinations, product
 
 import numpy as np
-import scipy as sp
+from scipy.cluster.hierarchy import fclusterdata
+from scipy.spatial import KDTree
 
 from ase import Atom
 from ase.symmetry.operations import (
@@ -50,7 +51,7 @@ class PointGroupAnalyzer:
         self.costol = np.cos(self.angtol)
         self.pos = atoms.get_positions()
         self._pos_bak = self.pos.copy()  # Devel, test if self.pos is modified
-        self._kdtree = sp.spatial.KDTree(self.pos)
+        self._kdtree = KDTree(self.pos)
         self.symbols = atoms.get_chemical_symbols()
         self._mass_check()
 
@@ -617,7 +618,7 @@ class PointGroupAnalyzer:
 
         neighbor_list = []
         group_positions = self.pos[atom_indices]
-        tree = sp.spatial.KDTree(group_positions)
+        tree = KDTree(group_positions)
         dists, neighbors = tree.query(group_positions, k=n + 1)
         for dist_row, nbr_row in zip(dists, neighbors):
             min_dist = dist_row[1] if len(dist_row) > 1 else np.inf
@@ -698,7 +699,7 @@ class PointGroupAnalyzer:
                 continue
 
             # Cluster the 1D distance data
-            labels = sp.cluster.hierarchy.fclusterdata(
+            labels = fclusterdata(
                 sym_dists[:, None], t=self.disttol, criterion='distance'
             )
 
@@ -745,7 +746,7 @@ class PointGroupAnalyzer:
             raise Exception('Only one element for subdivision projection')
         dists = np.dot(positions, proj_axis) / np.linalg.norm(proj_axis)
 
-        labels = sp.cluster.hierarchy.fclusterdata(
+        labels = fclusterdata(
             dists[:, None], t=self.disttol, criterion='distance'
         )
 
