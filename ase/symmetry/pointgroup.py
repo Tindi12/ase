@@ -37,9 +37,9 @@ class PointGroupAnalyzer:
         other tolerances
     """
 
-    def __init__(self, atoms, eigtol=0.005, angtol=4., disttol=0.2,
-                 hardtol=1e-6):
-
+    def __init__(
+        self, atoms, eigtol=0.005, angtol=4.0, disttol=0.2, hardtol=1e-6
+    ):
         self.atoms = self._center_on_center_of_mass(atoms)
         self.eigtol = eigtol
         self.angtol = np.deg2rad(angtol)
@@ -194,7 +194,6 @@ class PointGroupAnalyzer:
 
         rot = Rotation(self.principal_axes[2], 2, tol=self.hardtol)
         if self._is_valid(rot):
-
             return 'D*h', [rot]
         else:
             return 'C*v', []
@@ -244,7 +243,8 @@ class PointGroupAnalyzer:
         mask = self._on_line(axis)
         off_inds = np.arange(len(self.pos))[~mask]
         filtered_clusters = [
-            cl[np.isin(cl, off_inds)] for cl in self.clusters
+            cl[np.isin(cl, off_inds)]
+            for cl in self.clusters
             if len(cl[np.isin(cl, off_inds)]) > 0
         ]
         sorted_clusters = sorted(filtered_clusters, key=lambda x: len(x))
@@ -416,8 +416,7 @@ class PointGroupAnalyzer:
         elif len(mirrors) == 0:
             return '', mirrors
         else:
-            C2_axes = [rot.axis for rot in rots
-                if rot.order == 2]
+            C2_axes = [rot.axis for rot in rots if rot.order == 2]
             if len(C2_axes) < 2:
                 return 'v', mirrors
             for ax1, ax2 in combinations(C2_axes, 2):
@@ -439,8 +438,8 @@ class PointGroupAnalyzer:
         for cluster in self.clusters:
             neighbor_list = self._get_neighbor_list(cluster)
             rots, partial_max_rot_order = self._get_spherical_rotations(
-                neighbor_list,
-                symmetry_axes)
+                neighbor_list, symmetry_axes
+            )
             symm_ops += rots
             max_rot_order = max(max_rot_order, partial_max_rot_order)
             if max_rot_order > 3:
@@ -573,8 +572,7 @@ class PointGroupAnalyzer:
                     symmetry_axes.append(rot.axis.copy())
 
             # Normal to plane of triple of atoms
-            triples = [(main_ind, x, y) for x, y in
-                combinations(other_inds, 2)]
+            triples = [(main_ind, x, y) for x, y in combinations(other_inds, 2)]
 
             for triple in triples:
                 pos = self.pos[list(triple)]
@@ -642,7 +640,7 @@ class PointGroupAnalyzer:
         """
 
         if np.linalg.norm(vector) < self.hardtol:
-            raise ValueError("Direction vector cannot be zero.")
+            raise ValueError('Direction vector cannot be zero.')
         vector /= np.linalg.norm(vector)
 
         pos_norms = np.linalg.norm(self.pos, axis=1)
@@ -655,7 +653,7 @@ class PointGroupAnalyzer:
         cos_angles[nonzero] = dots[nonzero] / pos_norms[nonzero]
 
         # if on the `vector` line, `cos_angles` should be close to +1 or -1
-        mask = (np.abs(cos_angles) > self.costol)
+        mask = np.abs(cos_angles) > self.costol
 
         return mask
 
@@ -701,9 +699,7 @@ class PointGroupAnalyzer:
 
             # Cluster the 1D distance data
             labels = sp.cluster.hierarchy.fclusterdata(
-                sym_dists[:, None],
-                t=self.disttol,
-                criterion='distance'
+                sym_dists[:, None], t=self.disttol, criterion='distance'
             )
 
             for label in np.unique(labels):
@@ -750,9 +746,7 @@ class PointGroupAnalyzer:
         dists = np.dot(positions, proj_axis) / np.linalg.norm(proj_axis)
 
         labels = sp.cluster.hierarchy.fclusterdata(
-            dists[:, None],
-            t=self.disttol,
-            criterion='distance'
+            dists[:, None], t=self.disttol, criterion='distance'
         )
 
         groups = {}
@@ -772,7 +766,7 @@ class PointGroupAnalyzer:
         pairs = []
 
         for i, k1 in enumerate(keys):
-            for k2 in keys[i + 1:]:
+            for k2 in keys[i + 1 :]:
                 if k2 in used_keys:
                     continue
                 if abs(k1 + k2) < self.disttol:
@@ -799,8 +793,7 @@ class PointGroupAnalyzer:
             masses_for_symbol = masses[mask]
 
             ref_mass = masses_for_symbol[0]
-            if not np.allclose(masses_for_symbol, ref_mass,
-                               atol=self.hardtol):
+            if not np.allclose(masses_for_symbol, ref_mass, atol=self.hardtol):
                 print(f'Masses not equal for {symbol}')
                 print('Current implementation requires equal mass')
                 raise Exception('Unique masses required')

@@ -20,15 +20,14 @@ class SymmetryOperation:
     """
 
     def __init__(self, matrix, order=2, axis=None, tol=1e-10):
-
         self.order = order
         self.axis = axis
 
         matrix = np.asarray(matrix)
         if matrix.shape != (3, 3):
-            raise ValueError(f"Matrix must be 3x3, got shape {matrix.shape}")
+            raise ValueError(f'Matrix must be 3x3, got shape {matrix.shape}')
         if not np.allclose(matrix.T @ matrix, np.eye(3), atol=tol):
-            raise ValueError("Matrix is not orthogonal")
+            raise ValueError('Matrix is not orthogonal')
 
         self.matrix = matrix
 

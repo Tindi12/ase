@@ -7,31 +7,34 @@ from ase.io import read
 from ase.symmetry import PointGroupAnalyzer
 
 
-@pytest.mark.parametrize('label, pg, sym', [
-    ('Al', 'Kh', 1),
-    ('CH3CONH2', 'C1', 1),
-    ('HCOOH', 'Cs', 1),
-    ('HOCl', 'Cs', 1),
-    ('CH3CHO', 'Cs', 1),
-    ('N2H4', 'C2', 2),
-    ('H2O', 'C2v', 2),
-    # C4H4NH and COF2 can be mistakenly identified as symmetric
-    # due to mass distribution, which might lead to incorrect
-    # identification as Cs
-    ('C4H4NH', 'C2v', 2),
-    ('COF2', 'C2v', 2),
-    ('butadiene', 'C2h', 2),
-    ('NH3', 'C3v', 3),
-    ('C2H4', 'D2h', 4),
-    ('C5H8', 'D2d', 4),
-    ('C2H6', 'D3d', 6),
-    ('C6H6', 'D6h', 12),
-    ('CH4', 'Td', 12),
-    ('C60', 'Ih', 60)
-])
+@pytest.mark.parametrize(
+    'label, pg, sym',
+    [
+        ('Al', 'Kh', 1),
+        ('CH3CONH2', 'C1', 1),
+        ('HCOOH', 'Cs', 1),
+        ('HOCl', 'Cs', 1),
+        ('CH3CHO', 'Cs', 1),
+        ('N2H4', 'C2', 2),
+        ('H2O', 'C2v', 2),
+        # C4H4NH and COF2 can be mistakenly identified as symmetric
+        # due to mass distribution, which might lead to incorrect
+        # identification as Cs
+        ('C4H4NH', 'C2v', 2),
+        ('COF2', 'C2v', 2),
+        ('butadiene', 'C2h', 2),
+        ('NH3', 'C3v', 3),
+        ('C2H4', 'D2h', 4),
+        ('C5H8', 'D2d', 4),
+        ('C2H6', 'D3d', 6),
+        ('C6H6', 'D6h', 12),
+        ('CH4', 'Td', 12),
+        ('C60', 'Ih', 60),
+    ],
+)
 def test_pointgroup(label, pg, sym):
     mol = molecule(label)
-    mol.euler_rotate(30., 30., 30.)
+    mol.euler_rotate(30.0, 30.0, 30.0)
     pga = PointGroupAnalyzer(mol)
     pg_calc = pga.pointgroup
     sym_calc = pga.symmetry_number
@@ -49,7 +52,7 @@ class MoleculeData:
 
     @property
     def datafile(self):
-        return f"pointgroup/{self.label}.xyz"
+        return f'pointgroup/{self.label}.xyz'
 
 
 molecules_from_testdata = [
@@ -79,7 +82,7 @@ molecules_from_testdata = [
 @pytest.mark.parametrize('moldata', molecules_from_testdata)
 def test_pointgroups_in_testdata(datadir, moldata):
     mol = read(datadir / moldata.datafile)
-    mol.euler_rotate(30., 30., 30.)
+    mol.euler_rotate(30.0, 30.0, 30.0)
     pga = PointGroupAnalyzer(mol)
     assert pga.pointgroup == moldata.pointgroup
     assert pga.symmetry_number == moldata.symmetry_number
@@ -88,15 +91,16 @@ def test_pointgroups_in_testdata(datadir, moldata):
 # Some molecules with slight deviations from perfect symmetry
 imperfect_molecules = [
     MoleculeData(label='C20', pointgroup='Ih', symmetry_number=60),
-    MoleculeData(label='thorium_nitrate_ion', pointgroup='Th',
-        symmetry_number=12),
+    MoleculeData(
+        label='thorium_nitrate_ion', pointgroup='Th', symmetry_number=12
+    ),
 ]
 
 
 @pytest.mark.parametrize('moldata', imperfect_molecules)
 def test_pointgroups_imperfect(datadir, moldata):
     mol = read(datadir / moldata.datafile)
-    mol.euler_rotate(30., 30., 30.)
+    mol.euler_rotate(30.0, 30.0, 30.0)
     pga = PointGroupAnalyzer(mol, eigtol=0.015, angtol=6, disttol=0.3)
     assert pga.pointgroup == moldata.pointgroup
     assert pga.symmetry_number == moldata.symmetry_number
