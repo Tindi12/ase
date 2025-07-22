@@ -79,6 +79,6 @@ class ImproperRotation(SymmetryOperation):
     def __init__(self, axis, order, tol):
         axis = _prepare_axis(axis, tol)
         matrix = SymmetryOperation._mirror_matrix(axis)
-        matrix @= SymmetryOperation._rotation_matrix(axis, order)
+        matrix = matrix @ SymmetryOperation._rotation_matrix(axis, order)
         matrix = matrix.T
         super().__init__(matrix, order, axis=axis)
