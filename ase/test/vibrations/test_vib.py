@@ -511,14 +511,6 @@ class TestDictMethods:
     def test_dict_indices(n2_vibdata, indices, expected_mask):
         vib_data_dict = n2_vibdata.todict()
         vib_data_dict['indices'] = indices
-
-        # Reduce size of Hessian if necessary
-        if indices is not None:
-            n_active = len(indices)
-            vib_data_dict['hessian'] = (
-                np.asarray(vib_data_dict['hessian']
-                        )[:n_active, :, :n_active, :].tolist())
-
         vib_data_fromdict = VibrationsData.fromdict(vib_data_dict)
         assert_array_almost_equal(vib_data_fromdict.get_mask(), expected_mask)
 

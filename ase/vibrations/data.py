@@ -265,7 +265,11 @@ class VibrationsData:
         return self._hessian2d.copy()
 
     def todict(self) -> Dict[str, Any]:
-        if np.allclose(self._indices, range(len(self._atoms))):
+        unconstrained_indices = self.indices_from_constraints(self._atoms)
+        if (
+            len(self._indices) == len(unconstrained_indices)
+            and (self._indices == unconstrained_indices).all()
+        ):
             indices = None
         else:
             indices = self.get_indices()
