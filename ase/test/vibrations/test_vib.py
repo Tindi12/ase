@@ -357,9 +357,22 @@ def n2_unstable_data():
             }
 
 
-@pytest.fixture()
-def n2_vibdata(n2_data):
-    return VibrationsData(n2_data['atoms'], n2_data['hessian'])
+@pytest.fixture(name="indices", params=[None])
+def fixture_indices(request: pytest.FixtureRequest) -> list[int] | None:
+    param = request.param
+    return [int(x) for x in param] if isinstance(param, list) else None
+
+
+@pytest.fixture
+def n2_vibdata(n2_data, indices):
+    # Trim hessian according to contributing atoms
+    if indices is not None:
+        h = n2_data['hessian']
+        h = h[indices, :, indices, :]
+        h.shape = (len(indices), 3, len(indices), 3)
+        n2_data["hessian"] = h
+
+    return VibrationsData(n2_data['atoms'], n2_data['hessian'], indices=indices)
 
 
 def test_init(n2_data):
@@ -460,46 +473,54 @@ def test_pdos(n2_vibdata):
     assert sum(pdos[0].get_weights()) == pytest.approx(3.0)
 
 
-def test_todict(n2_data, n2_vibdata):
-    vib_data_dict = n2_vibdata.todict()
+class TestDictMethods:
+    @staticmethod
+    @pytest.fixture(name="indices", params=[[], None, [0]])
+    def fixture_indices(request: pytest.FixtureRequest) -> list[int] | None:
+        param = request.param
+        return [int(x) for x in param] if isinstance(param, list) else None
 
-    assert vib_data_dict['indices'] is None
-    assert_array_almost_equal(vib_data_dict['atoms'].positions,
-                              n2_data['atoms'].positions)
-    assert_array_almost_equal(vib_data_dict['hessian'],
-                              n2_data['hessian'])
+    @staticmethod
+    def test_todict(n2_data, n2_vibdata):
+        vib_data_dict = n2_vibdata.todict()
 
+        vib_data_dict['indices'] == n2_vibdata._indices
+        assert_array_almost_equal(vib_data_dict['atoms'].positions,
+                                n2_data['atoms'].positions)
+        assert_array_almost_equal(vib_data_dict['hessian'],
+                                n2_data['hessian'])
 
-def test_dict_roundtrip(n2_vibdata):
-    vib_data_dict = n2_vibdata.todict()
-    vib_data_roundtrip = VibrationsData.fromdict(vib_data_dict)
+    @staticmethod
+    def test_dict_roundtrip(n2_vibdata):
+        vib_data_dict = n2_vibdata.todict()
+        vib_data_roundtrip = VibrationsData.fromdict(vib_data_dict)
 
-    for getter in ('get_atoms',):
-        assert (getattr(n2_vibdata, getter)()
-                == getattr(vib_data_roundtrip, getter)())
-    for array_getter in ('get_hessian', 'get_hessian_2d',
-                         'get_mask', 'get_indices'):
-        assert_array_almost_equal(
-            getattr(n2_vibdata, array_getter)(),
-            getattr(vib_data_roundtrip, array_getter)())
+        for getter in ('get_atoms',):
+            assert (getattr(n2_vibdata, getter)()
+                    == getattr(vib_data_roundtrip, getter)())
+        for array_getter in ('get_hessian', 'get_hessian_2d',
+                            'get_mask', 'get_indices'):
+            assert_array_almost_equal(
+                getattr(n2_vibdata, array_getter)(),
+                getattr(vib_data_roundtrip, array_getter)())
 
+    @staticmethod
+    @pytest.mark.parametrize('indices, expected_mask',
+                            [([1], [False, True]),
+                            (None, [True, True])])
+    def test_dict_indices(n2_vibdata, indices, expected_mask):
+        vib_data_dict = n2_vibdata.todict()
+        vib_data_dict['indices'] = indices
 
-@pytest.mark.parametrize('indices, expected_mask',
-                         [([1], [False, True]),
-                          (None, [True, True])])
-def test_dict_indices(n2_vibdata, indices, expected_mask):
-    vib_data_dict = n2_vibdata.todict()
-    vib_data_dict['indices'] = indices
+        # Reduce size of Hessian if necessary
+        if indices is not None:
+            n_active = len(indices)
+            vib_data_dict['hessian'] = (
+                np.asarray(vib_data_dict['hessian']
+                        )[:n_active, :, :n_active, :].tolist())
 
-    # Reduce size of Hessian if necessary
-    if indices is not None:
-        n_active = len(indices)
-        vib_data_dict['hessian'] = (
-            np.asarray(vib_data_dict['hessian']
-                       )[:n_active, :, :n_active, :].tolist())
-
-    vib_data_fromdict = VibrationsData.fromdict(vib_data_dict)
-    assert_array_almost_equal(vib_data_fromdict.get_mask(), expected_mask)
+        vib_data_fromdict = VibrationsData.fromdict(vib_data_dict)
+        assert_array_almost_equal(vib_data_fromdict.get_mask(), expected_mask)
 
 
 def test_jmol_roundtrip(testdir, n2_data):
