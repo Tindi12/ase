@@ -305,114 +305,269 @@ class TestVibrationsDataStaticMethods:
                     assert image.info[key] == value
 
 
-@pytest.fixture()
-def n2_data():
-    return {'atoms': Atoms('N2', positions=[[0., 0., 0.05095057],
-                                            [0., 0., 1.04904943]]),
-            'hessian': np.array([[[[4.67554672e-03, 0.0, 0.0],
-                                   [-4.67554672e-03, 0.0, 0.0]],
+@pytest.fixture(name="n3_data")
+def fixture_n3_data():
+    return {
+        "atoms": Atoms(
+            "N3",
+            positions=[
+                [-2.38718534e-20, -1.37505272e-18, -9.52602675e-02],
+                [4.19083314e-18, 1.20967172e-21, 1.00000000e00],
+                [-2.98538406e-20, -6.14940024e-21, 2.09526027e00],
+            ],
+        ),
+        "hessian": np.array(
+            [
+                [
+                    [
+                        [-0.051152827404534265, 0.0, 4.515076384965933e-17],
+                        [0.10285317614875701, 0.0, -3.4041960635573854e-17],
+                        [-0.05180366946913996, 0.0, -1.1112375713637364e-17],
+                    ],
+                    [
+                        [0.0, -0.051152827404534265, 1.4805479027902448e-17],
+                        [0.0, 0.10285317614875701, -1.111600225632703e-17],
+                        [0.0, -0.05180366946913996, -3.6906433293276164e-18],
+                    ],
+                    [
+                        [
+                            4.515076384965933e-17,
+                            1.4805479027902448e-17,
+                            23.6056441110992,
+                        ],
+                        [
+                            -5.627945322888836e-17,
+                            -1.4762943002566173e-17,
+                            -17.58123953472097,
+                        ],
+                        [
+                            1.112868937922907e-17,
+                            -4.253602533629244e-20,
+                            -6.025595710254095,
+                        ],
+                    ],
+                ],
+                [
+                    [
+                        [0.10285317614875701, 0.0, -5.627945322888836e-17],
+                        [-0.20549971084767998, 0.0, -4.8316210069774704e-20],
+                        [0.10285317614875701, 0.0, 5.632776436845992e-17],
+                    ],
+                    [
+                        [0.0, 0.10285317614875701, -1.4762943002566173e-17],
+                        [0.0, -0.20549971084767998, 1.1056563401597684e-17],
+                        [0.0, 0.10285317614875701, 3.707539920969443e-18],
+                    ],
+                    [
+                        [
+                            -3.4041960635573854e-17,
+                            -1.111600225632703e-17,
+                            -17.58123953472097,
+                        ],
+                        [
+                            -4.8316210069774704e-20,
+                            1.1056563401597684e-17,
+                            35.16486133719432,
+                        ],
+                        [
+                            3.409027684564367e-17,
+                            5.9438854729351e-20,
+                            -17.581239534721107,
+                        ],
+                    ],
+                ],
+                [
+                    [
+                        [-0.05180366946913996, 0.0, 1.112868937922907e-17],
+                        [0.10285317614875701, 0.0, 3.409027684564367e-17],
+                        [-0.051152827404534265, 0.0, -4.5215388654822585e-17],
+                    ],
+                    [
+                        [0.0, -0.05180366946913996, -4.253602533629244e-20],
+                        [0.0, 0.10285317614875701, 5.9438854729351e-20],
+                        [0.0, -0.051152827404534265, -1.68965916418262e-20],
+                    ],
+                    [
+                        [
+                            -1.1112375713637364e-17,
+                            -3.6906433293276164e-18,
+                            -6.025595710254095,
+                        ],
+                        [
+                            5.632776436845992e-17,
+                            3.707539920969443e-18,
+                            -17.581239534721107,
+                        ],
+                        [
+                            -4.5215388654822585e-17,
+                            -1.68965916418262e-20,
+                            23.605644111098822,
+                        ],
+                    ],
+                ],
+            ]
+        ),
+        "ref_frequencies": np.array(
+            [
+                77.38456049982454j,
+                77.3845604998238j,
+                0.032317878013440174j,
+                (0.03665752592158175 + 0j),
+                (0.036657527792466664 + 0j),
+                (3.5546375249195252 + 0j),
+                (3.554637524920577 + 0j),
+                (758.4595533374285 + 0j),
+                (1011.9237550816223 + 0j),
+            ]
+        ),
+        "ref_zpe": 0.11019504062377428,
+        "ref_forces": np.array(
+            [
+                [
+                    -6.755811053078452e-17,
+                    -2.7326135643188342e-17,
+                    -0.19633815231481458,
+                ],
+                [
+                    4.209280606671509e-17,
+                    2.722793972467623e-17,
+                    0.39270290915945033,
+                ],
+                [
+                    -2.6438967240289884e-17,
+                    1.537622420098163e-19,
+                    -0.19633815231481405,
+                ],
+            ]
+        ),
+    }
 
-                                  [[0.0, 4.67554672e-03, 0.0],
-                                  [0.0, -4.67554672e-03, 0.0]],
 
-                                  [[0.0, 0.0, 3.90392599e+01],
-                                   [0.0, 0.0, -3.90392599e+01]]],
-
-                                 [[[-4.67554672e-03, 0.0, 0.0],
-                                   [4.67554672e-03, 0.0, 0.0]],
-
-                                  [[0.0, -4.67554672e-03, 0.0],
-                                   [0.0, 4.67554672e-03, 0.0]],
-
-                                  [[0.0, 0.0, -3.90392599e+01],
-                                   [0.0, 0.0, 3.90392599e+01]]]]),
-            'ref_frequencies': [0.00000000e+00 + 0.j,
-                                6.06775530e-08 + 0.j,
-                                3.62010442e-06 + 0.j,
-                                1.34737571e+01 + 0.j,
-                                1.34737571e+01 + 0.j,
-                                1.23118496e+03 + 0.j],
-            'ref_zpe': 0.07799427233401508,
-            'ref_forces': np.array([[0., 0., -2.26722e-1],
-                                    [0., 0., 2.26722e-1]])
-            }
-
-
-@pytest.fixture()
-def n2_unstable_data():
-    return {'atoms': Atoms('N2', positions=[[0., 0., 0.45],
-                                            [0., 0., -0.45]]),
-            'hessian': np.array(
-                [-5.150829928323684, 0.0, -0.6867385017096544,
-                 5.150829928323684, 0.0, 0.6867385017096544, 0.0,
-                 -5.158454318599951, 0.0, 0.0, 5.158454318599951, 0.0,
-                 -0.6867385017096544, 0.0, 56.65107699250456,
-                 0.6867385017096544, 0.0, -56.65107699250456,
-                 5.150829928323684, 0.0, 0.6867385017096544,
-                 -5.150829928323684, 0.0, -0.6867385017096544, 0.0,
-                 5.158454318599951, 0.0, 0.0, -5.158454318599951, 0.0,
-                 0.6867385017096544, 0.0, -56.65107699250456,
-                 -0.6867385017096544, 0.0, 56.65107699250456
-                 ]).reshape((2, 3, 2, 3))
-            }
-
-
-@pytest.fixture(name="indices", params=[None])
-def fixture_indices(request: pytest.FixtureRequest) -> list[int] | None:
-    param = request.param
-    return [int(x) for x in param] if isinstance(param, list) else None
-
-
-@pytest.fixture
-def n2_vibdata(n2_data, indices):
+@pytest.fixture(name='n3_vibdata')
+def fixture_n3_vibdata(n3_data, indices):
     # Trim hessian according to contributing atoms
+    # This is only consistent if no constraints are set
     if indices is not None:
-        h = n2_data['hessian']
-        h = h[indices, :, indices, :]
-        h.shape = (len(indices), 3, len(indices), 3)
-        n2_data["hessian"] = h
+        h = n3_data['hessian'][indices][..., indices, :]
+        n3_data['hessian'] = h
 
-    return VibrationsData(n2_data['atoms'], n2_data['hessian'], indices=indices)
+    return VibrationsData(
+        n3_data['atoms'],
+        n3_data['hessian'],
+        indices=indices,
+    )
 
 
-def test_init(n2_data):
+@pytest.fixture(name="n3_unstable_data")
+def fixture_n3_unstable_data():
+    n3_unstable_data = {
+        "atoms": Atoms(
+            "CO2",
+            positions=[[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, 2.0]],
+        ),
+        "hessian": np.array(
+            [
+                [
+                    [
+                        [-3.45507633e00, 0.00000000e00, 0.00000000e00],
+                        [3.46346573e00, 0.00000000e00, 0.00000000e00],
+                        [-8.51681929e-03, 0.00000000e00, 0.00000000e00],
+                    ],
+                    [
+                        [0.00000000e00, -3.45507633e00, 0.00000000e00],
+                        [0.00000000e00, 3.46346573e00, 0.00000000e00],
+                        [0.00000000e00, -8.51681929e-03, 0.00000000e00],
+                    ],
+                    [
+                        [0.00000000e00, 0.00000000e00, 3.64109314e01],
+                        [0.00000000e00, 0.00000000e00, -2.93049847e01],
+                        [0.00000000e00, 0.00000000e00, -7.10725807e00],
+                    ],
+                ],
+                [
+                    [
+                        [3.46346573e00, 0.00000000e00, 0.00000000e00],
+                        [-6.92667661e00, 0.00000000e00, 0.00000000e00],
+                        [3.46346573e00, 0.00000000e00, 0.00000000e00],
+                    ],
+                    [
+                        [0.00000000e00, 3.46346573e00, 0.00000000e00],
+                        [0.00000000e00, -6.92667661e00, 0.00000000e00],
+                        [0.00000000e00, 3.46346573e00, 0.00000000e00],
+                    ],
+                    [
+                        [0.00000000e00, 0.00000000e00, -2.93049847e01],
+                        [0.00000000e00, 0.00000000e00, 5.86125920e01],
+                        [0.00000000e00, 0.00000000e00, -2.93049847e01],
+                    ],
+                ],
+                [
+                    [
+                        [-8.51681929e-03, 0.00000000e00, 0.00000000e00],
+                        [3.46346573e00, 0.00000000e00, 0.00000000e00],
+                        [-3.45507633e00, 0.00000000e00, 0.00000000e00],
+                    ],
+                    [
+                        [0.00000000e00, -8.51681929e-03, 0.00000000e00],
+                        [0.00000000e00, 3.46346573e00, 0.00000000e00],
+                        [0.00000000e00, -3.45507633e00, 0.00000000e00],
+                    ],
+                    [
+                        [0.00000000e00, 0.00000000e00, -7.10725807e00],
+                        [0.00000000e00, 0.00000000e00, -2.93049847e01],
+                        [0.00000000e00, 0.00000000e00, 3.64109314e01],
+                    ],
+                ],
+            ]
+        ),
+    }
+
+    return n3_unstable_data
+
+
+@pytest.fixture(name='indices', params=[None])
+def fixture_indices(request):
+    return request.param
+
+
+def test_init(n3_data):
     # Check that init runs without error; properties are checked in other
     # methods using the (identical) n2_vibdata fixture
-    VibrationsData(n2_data['atoms'], n2_data['hessian'])
+    VibrationsData(n3_data['atoms'], n3_data['hessian'])
 
 
-def test_energies_and_modes(n2_data, n2_vibdata):
-    energies, _modes = n2_vibdata.get_energies_and_modes()
-    assert_array_almost_equal(n2_data['ref_frequencies'],
+def test_energies_and_modes(n3_data, n3_vibdata):
+    energies, _ = n3_vibdata.get_energies_and_modes()
+    assert_array_almost_equal(n3_data['ref_frequencies'],
                               energies / units.invcm,
                               decimal=5)
-    assert_array_almost_equal(n2_data['ref_frequencies'],
-                              n2_vibdata.get_energies() / units.invcm,
+    assert_array_almost_equal(n3_data['ref_frequencies'],
+                              n3_vibdata.get_energies() / units.invcm,
                               decimal=5)
-    assert_array_almost_equal(n2_data['ref_frequencies'],
-                              n2_vibdata.get_frequencies(),
+    assert_array_almost_equal(n3_data['ref_frequencies'],
+                              n3_vibdata.get_frequencies(),
                               decimal=5)
 
-    assert (n2_vibdata.get_zero_point_energy()
-            == pytest.approx(n2_data['ref_zpe']))
+    assert (n3_vibdata.get_zero_point_energy()
+            == pytest.approx(n3_data['ref_zpe']))
 
-    assert n2_vibdata.tabulate() == (
+    assert n3_vibdata.tabulate() == (
         '\n'.join(VibrationsData._tabulate_from_energies(energies)) + '\n')
 
-    atoms_with_forces = n2_vibdata.show_as_force(-1, show=False)
+    atoms_with_forces = n3_vibdata.show_as_force(-1, show=False)
 
     try:
         assert_array_almost_equal(atoms_with_forces.get_forces(),
-                                  n2_data['ref_forces'])
+                                  n3_data['ref_forces'])
     except AssertionError:
         # Eigenvectors may be off by a sign change, which is allowed
         assert_array_almost_equal(atoms_with_forces.get_forces(),
-                                  -n2_data['ref_forces'])
+                                  -n3_data['ref_forces'])
 
 
-def test_imaginary_energies(n2_unstable_data):
-    vib_data = VibrationsData(n2_unstable_data['atoms'],
-                              n2_unstable_data['hessian'])
+def test_imaginary_energies(n3_unstable_data):
+    vib_data = VibrationsData(n3_unstable_data['atoms'],
+                              n3_unstable_data['hessian'])
 
     assert vib_data.tabulate() == (
         '\n'.join(VibrationsData._tabulate_from_energies(
@@ -420,105 +575,108 @@ def test_imaginary_energies(n2_unstable_data):
         + '\n')
 
 
-def test_zero_mass(n2_data):
-    atoms = n2_data['atoms']
-    atoms.set_masses([0., 1.])
-    vib_data = VibrationsData(atoms, n2_data['hessian'])
+def test_zero_mass(n3_data):
+    atoms = n3_data['atoms']
+    atoms.set_masses([0., 1., 1.])
+    vib_data = VibrationsData(atoms, n3_data['hessian'])
     with pytest.raises(ValueError):
         vib_data.get_energies_and_modes()
 
 
-def test_new_mass(n2_data, n2_vibdata):
-    original_masses = n2_vibdata.get_atoms().get_masses()
+def test_new_mass(n3_data, n3_vibdata):
+    original_masses = n3_vibdata.get_atoms().get_masses()
     new_masses = original_masses * 3
-    new_vib_data = n2_vibdata.with_new_masses(new_masses)
+    new_vib_data = n3_vibdata.with_new_masses(new_masses)
     assert_array_almost_equal(new_vib_data.get_atoms().get_masses(),
                               new_masses)
-    assert_array_almost_equal(n2_vibdata.get_energies() / np.sqrt(3),
+    assert_array_almost_equal(n3_vibdata.get_energies() / np.sqrt(3),
                               new_vib_data.get_energies())
 
 
-def test_fixed_atoms(n2_data):
-    vib_data = VibrationsData(n2_data['atoms'],
-                              n2_data['hessian'][1:, :, 1:, :],
-                              indices=[1, ])
-    assert vib_data.get_indices() == [1, ]
-    assert vib_data.get_mask().tolist() == [False, True]
+def test_fixed_atoms(n3_data):
+    vib_data = VibrationsData(n3_data['atoms'],
+                              n3_data['hessian'][1:, :, 1:, :],
+                              indices=[1, 2])
+    assert vib_data.get_indices().tolist() == [1, 2]
+    assert vib_data.get_mask().tolist() == [False, True, True]
 
 
-def test_constrained_atoms(n2_data):
-    tmpAtoms = n2_data['atoms'].copy()
+def test_constrained_atoms(n3_data):
+    tmpAtoms = n3_data['atoms'].copy()
     tmpAtoms.set_constraint(FixAtoms(0))
     vib_data = VibrationsData(tmpAtoms,
-                              n2_data['hessian'][1:, :, 1:, :])
-    assert vib_data.get_indices() == [1, ]
-    assert vib_data.get_mask().tolist() == [False, True]
+                              n3_data['hessian'][1:, :, 1:, :])
+    assert vib_data.get_indices().tolist() == [1, 2]
+    assert vib_data.get_mask().tolist() == [False, True, True]
 
 
-def test_dos(n2_vibdata):
+def test_dos(n3_vibdata):
     with pytest.warns(ComplexWarning):
-        dos = n2_vibdata.get_dos()
+        dos = n3_vibdata.get_dos()
+        real_energies = np.array(n3_vibdata.get_energies(), dtype=float)
     assert_array_almost_equal(dos.get_energies(),
-                              n2_vibdata.get_energies())
+                              real_energies)
 
 
-def test_pdos(n2_vibdata):
+def test_pdos(n3_vibdata):
     with pytest.warns(ComplexWarning):
-        pdos = n2_vibdata.get_pdos()
+        pdos = n3_vibdata.get_pdos()
+        real_energies = np.array(n3_vibdata.get_energies(), dtype=float)
     assert_array_almost_equal(pdos[0].get_energies(),
-                              n2_vibdata.get_energies())
+                              real_energies)
     assert_array_almost_equal(pdos[1].get_energies(),
-                              n2_vibdata.get_energies())
-    # 3N states = 6, divided equally over two N atoms = 3.0
+                              real_energies)
+    assert_array_almost_equal(pdos[2].get_energies(),
+                              real_energies)
+    # 3N states = 9, divided equally over three N atoms = 3.0
     assert sum(pdos[0].get_weights()) == pytest.approx(3.0)
 
 
 class TestDictMethods:
     @staticmethod
-    @pytest.fixture(name="indices", params=[[], None, [0]])
-    def fixture_indices(request: pytest.FixtureRequest) -> list[int] | None:
-        param = request.param
-        return [int(x) for x in param] if isinstance(param, list) else None
+    @pytest.fixture(name="indices", params=[[], None, [0], [0, 1]])
+    def fixture_indices(request):
+        return request.param
 
     @staticmethod
-    def test_todict(n2_data, n2_vibdata):
-        vib_data_dict = n2_vibdata.todict()
+    def test_todict(n3_data, n3_vibdata):
+        vib_data_dict = n3_vibdata.todict()
 
-        vib_data_dict['indices'] == n2_vibdata._indices
+        vib_data_dict['indices'] == n3_vibdata._indices
         assert_array_almost_equal(vib_data_dict['atoms'].positions,
-                                n2_data['atoms'].positions)
+                                n3_data['atoms'].positions)
         assert_array_almost_equal(vib_data_dict['hessian'],
-                                n2_data['hessian'])
+                                n3_data['hessian'])
 
     @staticmethod
-    def test_dict_roundtrip(n2_vibdata):
-        vib_data_dict = n2_vibdata.todict()
+    def test_dict_roundtrip(n3_vibdata):
+        vib_data_dict = n3_vibdata.todict()
         vib_data_roundtrip = VibrationsData.fromdict(vib_data_dict)
 
         for getter in ('get_atoms',):
-            assert (getattr(n2_vibdata, getter)()
+            assert (getattr(n3_vibdata, getter)()
                     == getattr(vib_data_roundtrip, getter)())
         for array_getter in ('get_hessian', 'get_hessian_2d',
                             'get_mask', 'get_indices'):
             assert_array_almost_equal(
-                getattr(n2_vibdata, array_getter)(),
+                getattr(n3_vibdata, array_getter)(),
                 getattr(vib_data_roundtrip, array_getter)())
 
     @staticmethod
     @pytest.mark.parametrize('indices, expected_mask',
-                            [([1], [False, True]),
-                            (None, [True, True])])
-    def test_dict_indices(n2_vibdata, indices, expected_mask):
-        vib_data_dict = n2_vibdata.todict()
+                            [([1], [False, True, False]),
+                            (None, [True, True, True])])
+    def test_dict_indices(n3_vibdata, indices, expected_mask):
+        vib_data_dict = n3_vibdata.todict()
         vib_data_dict['indices'] = indices
         vib_data_fromdict = VibrationsData.fromdict(vib_data_dict)
         assert_array_almost_equal(vib_data_fromdict.get_mask(), expected_mask)
 
 
-def test_jmol_roundtrip(testdir, n2_data):
-    ir_intensities = np.random.RandomState(42).rand(6)
+def test_jmol_roundtrip(testdir, n3_data):
+    ir_intensities = np.random.RandomState(42).rand(9)
 
-    vib_data = VibrationsData(n2_data['atoms'], n2_data['hessian'])
+    vib_data = VibrationsData(n3_data['atoms'], n3_data['hessian'])
     jmol_file = 'vib-data.xyz'
     vib_data.write_jmol(jmol_file, ir_intensities=ir_intensities)
 
@@ -532,7 +690,7 @@ def test_jmol_roundtrip(testdir, n2_data):
                                   vib_data.get_modes()[i])
 
 
-def test_bad_hessian(n2_data):
+def test_bad_hessian(n3_data):
     bad_hessians = (None, 'fish', 1,
                     np.array([1, 2, 3]),
                     np.eye(6),
@@ -541,19 +699,19 @@ def test_bad_hessian(n2_data):
 
     for bad_hessian in bad_hessians:
         with pytest.raises(ValueError):
-            VibrationsData(n2_data['atoms'], bad_hessian)
+            VibrationsData(n3_data['atoms'], bad_hessian)
 
 
-def test_bad_hessian2d(n2_data):
+def test_bad_hessian2d(n3_data):
     bad_hessians = (None, 'fish', 1,
                     np.array([1, 2, 3]),
-                    n2_data['hessian'],
+                    n3_data['hessian'],
                     np.array([[[1, 0, 0]],
                               [[0, 0, 1]]]))
 
     for bad_hessian in bad_hessians:
         with pytest.raises(ValueError):
-            VibrationsData.from_2d(n2_data['atoms'], bad_hessian)
+            VibrationsData.from_2d(n3_data['atoms'], bad_hessian)
 
 
 def test_vibration_on_surface(testdir):
