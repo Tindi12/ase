@@ -50,7 +50,7 @@ calculators = {
     'demonnano': dict(input_arguments={},
                       basis_path='hello'),
     'dftb': {},
-    'dftd3': dict(directory='.'), # Disable tmp folder with unpredictable name
+    'dftd3': dict(directory='.'),  # Disable tmp folder with unpredictable name
     'dmol': {},
     'gamess_us': {},
     'gaussian': {},
