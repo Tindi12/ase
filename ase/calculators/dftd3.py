@@ -3,6 +3,7 @@
 import os
 import subprocess
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from warnings import warn
 
 import numpy as np
@@ -46,6 +47,7 @@ class DFTD3(BaseCalculator):
                  command=None,  # Command for running dftd3
                  dft=None,  # DFT calculator
                  comm=world,
+                 directory=None,
                  **kwargs):
 
         # Convert from 'func' keyword to 'xc'. Internally, we only store
@@ -72,7 +74,12 @@ class DFTD3(BaseCalculator):
             if dft_xc is not None:
                 kwargs['xc'] = dft_xc
 
-        dftd3 = PureDFTD3(label=label, command=command, comm=comm, **kwargs)
+        dftd3 = PureDFTD3(
+            label=label,
+            command=command,
+            comm=comm,
+            directory=directory,
+            **kwargs)
 
         # dftd3 only implements energy, forces, and stresses (for periodic
         # systems). But, if a DFT calculator is attached, and that calculator
@@ -148,7 +155,21 @@ class PureDFTD3(FileIOCalculator):
                  label='ase_dftd3',  # Label for dftd3 output files
                  command=None,  # Command for running dftd3
                  comm=world,
+                 directory=None,
                  **kwargs):
+
+        if directory is None:
+            # Create a temporary directory for the temporary files,
+            # so we don't clutter CWD and don't get collisions between
+            # jobs running in the same folder.
+            #
+            # For GPAW calculators, where DFTD3 is created in parallel on
+            # all MPI tasks, this will result in a folder created for each
+            # MPI task, only one will be used.  Broadcasting the folder
+            # name would result in a race condition when the folder is
+            # created in Calculator.calculate()
+            self._tmpdir = TemporaryDirectory()
+            directory = self._tmpdir.name
 
         # FileIOCalculator would default to self.name to get the envvar
         # which determines the command.
@@ -157,6 +178,7 @@ class PureDFTD3(FileIOCalculator):
 
         super().__init__(label=label,
                          command=command,
+                         directory=directory,
                          **kwargs)
 
         # TARP: This is done because the calculator does not call

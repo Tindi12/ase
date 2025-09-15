@@ -874,7 +874,7 @@ class Calculator(BaseCalculator):
                 msg = (
                     'Concurrent use of directory '
                     + self._directory
-                    + 'by multiple Calculator instances detected. Please '
+                    + ' by multiple Calculator instances detected. Please '
                     'use one directory per instance.'
                 )
                 raise RuntimeError(msg) from e
