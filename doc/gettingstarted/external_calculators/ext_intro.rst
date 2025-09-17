@@ -1,6 +1,10 @@
 External calculators
 --------------------
 
+.. note::
+
+     This tutorial is deprecated and will be removed in future, please check the maintained version in :ref:`ext_calc_gpaw`.
+
 Many external calculators can be used with ASE, including GPAW_, Abinit_, Vasp_, Siesta_, `Quantum ESPRESSO`_, Asap_, LAMMPS_ and many more, see :ref:`supported calculators` for the full list.
 
 .. _Asap: http://wiki.fysik.dtu.dk/asap
