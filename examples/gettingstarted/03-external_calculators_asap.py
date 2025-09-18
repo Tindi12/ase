@@ -25,8 +25,9 @@ ASAP currently implements:
 #
 #
 
-from ase.build import bulk
 from asap3 import EMT
+
+from ase.build import bulk
 
 atoms = bulk('Cu', 'fcc', a=3.614)
 atoms.calc = EMT()
