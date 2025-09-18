@@ -28,7 +28,7 @@ ASAP currently implements:
 from ase.build import bulk
 from asap3 import EMT
 
-atoms = bulk("Cu","fcc",a=3.614)
+atoms = bulk('Cu', 'fcc', a=3.614)
 atoms.calc = EMT()
 energy = atoms.get_potential_energy()
 print(energy)

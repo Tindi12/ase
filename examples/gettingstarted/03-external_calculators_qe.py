@@ -67,4 +67,5 @@ calc = Espresso(
 
 atoms = bulk('Si')
 atoms.calc = calc
-atoms.get_potential_energy()
+energy = atoms.get_potential_energy()
+print(energy)
