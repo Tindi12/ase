@@ -3,11 +3,11 @@ from ase.atoms import Atoms as v3Atoms
 from ase.outputs import ArrayProperty, all_outputs
 
 
-class DummyAtoms(v3Atoms):
+class Atoms(v3Atoms):
     """
     Dummy class to illustrate how `Atoms.store` works with
-    `CalculationResults`. Will be overwritten once this is
-    merged with the branch that implements the updated
+    `CalculationResults`. Will be adjusted accordingly when
+    merging with the branch that implements the updated
     Atoms interface.
     """
 
