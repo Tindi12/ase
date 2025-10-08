@@ -1,6 +1,6 @@
 from copy import deepcopy
 from types import MappingProxyType
-from typing import Any
+from typing import Any, Mapping
 
 import numpy as np
 
@@ -18,23 +18,10 @@ class CalculationResults:
     Storred data is immutable - setter functions don't allow overwriting
     non-empty attributes and getter functions return a read-only proxy.
 
-    Parameters
-    ----------
-    metadata : dict, optional
-        Arbitrary information about the calculation.
-    properties : ase.outputs.Properties
-        Calculated properties, compliant with `ase.outputs.all_outputs`.
-
     Attributes
     ----------
-    metadata : dict
-    properties : ase.outputs.Properties
-
-    Methods
-    -------
-    add_metadata(key, val)
-    add_property(key, val)
-
+    metadata
+    properties
 
     """
 
@@ -45,6 +32,14 @@ class CalculationResults:
     def __init__(
         self, metadata: dict = None, properties: dict | Properties | None = None
     ) -> None:
+        """
+        Parameters
+        ----------
+        metadata : , optional
+            Arbitrary information about the calculation.
+        properties : ase.outputs.Properties or dict, optional
+            Calculated properties, compliant with `ase.outputs.all_outputs`.
+        """
         self._metadata = {}
         if metadata is not None:
             self.metadata = metadata
@@ -56,7 +51,8 @@ class CalculationResults:
         self._properties = properties
 
     @property
-    def metadata(self) -> MappingProxyType:
+    def metadata(self) -> Mapping[str, Any]:
+        """Read-only Mapping[str, Any] to store calculation metadata."""
         return MappingProxyType(self._metadata)
 
     @metadata.setter
@@ -71,6 +67,7 @@ class CalculationResults:
 
     @property
     def properties(self) -> Properties:
+        """ase.outputs.Properties to store calculation results."""
         return self._properties
 
     @properties.setter
@@ -89,7 +86,7 @@ class CalculationResults:
             data = Properties(data)
         self._properties = data
 
-    def add_metadata(self, key: str, val: int | float | np.ndarray) -> None:
+    def add_metadata(self, key: str, val: Any) -> None:
         if key in self._metadata:
             raise AttributeError(
                 f'{key} is already present in the metadata '
