@@ -1,5 +1,8 @@
 import pytest
 
+import ase
+from ase.build import bulk
+
 
 def pytest_collection_modifyitems(config, items):
     """By default skips tests with "ase_v4" mark."""
@@ -10,3 +13,8 @@ def pytest_collection_modifyitems(config, items):
         if '_4' in str(item.fspath):
             if not run_v4:
                 item.add_marker(skip_marker)
+
+
+@pytest.fixture
+def atoms() -> ase.Atoms:
+    return bulk('Cu', 'fcc', a=3.6)
