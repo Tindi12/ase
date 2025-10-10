@@ -3,7 +3,7 @@ import pytest
 
 from ase._4.calculators.emt import EMT
 
-pytestmark = pytest.mark.ase_v4
+pytestmark = pytest.mark.asev4
 
 
 def test_emt(atoms):
