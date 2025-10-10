@@ -11,8 +11,8 @@ class Atoms(v3Atoms):
     Atoms interface.
     """
 
-    def __init__(self, kwargs) -> None:
-        super.__init__(**kwargs)
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
 
     def store(self, results: CalculationResults, label: str = '') -> None:
         """
