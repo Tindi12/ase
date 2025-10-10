@@ -1,14 +1,10 @@
 import numpy as np
 import pytest
 
-from ase._4.calculators.emt import EMT
-
 pytestmark = pytest.mark.asev4
 
 
-def test_emt(atoms):
-    calculator = EMT()
-
+def test_emt(atoms, calculator):
     properties = ['energy', 'energies', 'free_energy', 'forces', 'stress']
     results = calculator.evaluate(atoms, properties=properties)
 

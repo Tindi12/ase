@@ -419,7 +419,6 @@ class Version4Adaptor(BaseCalculator):
     def __init__(self, *args, **kwargs):
         self._v3_calculator = self.wrapped_class(*args, **kwargs)
 
-    # input atoms are old-style
     def evaluate(
         self, atoms: V3Atoms, properties: list[str] = ['energy']
     ) -> CalculationResults:

@@ -1,6 +1,9 @@
 import pytest
 
-import ase
+from ase import Atoms as V3Atoms
+from ase._4.atoms import Atoms as V4Atoms
+from ase._4.calculators.calculator import BaseCalculator
+from ase._4.calculators.emt import EMT
 from ase.build import bulk
 
 
@@ -16,5 +19,23 @@ def pytest_collection_modifyitems(config, items):
 
 
 @pytest.fixture
-def atoms() -> ase.Atoms:
+def atoms() -> V3Atoms:
     return bulk('Cu', 'fcc', a=3.6)
+
+
+# a bit hacky for now
+@pytest.fixture
+def v4atoms(atoms) -> V4Atoms:
+    v4atoms = V4Atoms(
+        symbols='Cu',
+        positions=atoms.positions,
+        cell=atoms.cell,
+        pbc=atoms.pbc,
+    )
+    return v4atoms
+
+
+@pytest.fixture
+def calculator() -> BaseCalculator:
+    calculator = EMT()
+    return calculator
