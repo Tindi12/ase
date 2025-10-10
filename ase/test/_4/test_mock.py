@@ -1,6 +1,6 @@
 import pytest
 
-pytestmark = pytest.mark.ase_v4
+pytestmark = pytest.mark.asev4
 
 
 def test_mock():
