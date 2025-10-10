@@ -101,7 +101,6 @@ class CalculationResults:
                 f'properties {self.recognised_properties.keys()}.'
             )
 
-        print(self)
         self._properties._setvalue(key, val)
 
     def __repr__(self) -> str:
