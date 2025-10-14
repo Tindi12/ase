@@ -64,3 +64,16 @@ class Atoms(v3Atoms):
 
     def get_stresses(self, include_ideal_gas=False, voigt=True):
         raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
+
+    @property
+    def calc(self):
+        raise NotImplementedError("Calculator no longer lives in Atoms")
+
+    @calc.setter
+    def calc(self, calc):
+        raise NotImplementedError("Calculator no longer lives in Atoms")
+
+    @calc.deleter
+    def calc(self):
+        raise NotImplementedError("Calculator no longer lives in Atoms")
+    
