@@ -1,7 +1,9 @@
+from functools import cached_property
+from ase._4.calculators.calculator import BaseCalculator
 from ase._4.calculators.results import CalculationResults
 from ase.atoms import Atoms as V3Atoms, _LimitedAtoms
 from ase.outputs import ArrayProperty, all_outputs
-from ase.test._4.optimize import OptimizableAtomsv4
+from ase.utils.abc import Optimizable
 
 # consider renaming this to V4Atoms during transition period
 # 
@@ -48,6 +50,40 @@ class Atoms(_LimitedAtoms):
             else:
                 self.info[label + prop_name] = prop_val
 
-    def __ase_optimizable__(self):
-        from ase._4.optimize import OptimizableV4Atoms
-        return OptimizableV4Atoms(self)
+
+class PotentialEnergySurface(Optimizable):
+    def __init__(self, atoms: Atoms, calc: BaseCalculator):
+        self.atoms = atoms
+        self.calc = calc
+
+    def get_x(self):
+        return self.atoms.get_positions().ravel()
+
+    def set_x(self, x):
+        self.atoms.set_positions(x.reshape(-1, 3))
+
+    def get_gradient(self):
+        results = self.calc.evaluate(self.atoms, properties="forces")
+        return results.properties["forces"].ravel()
+
+    @cached_property
+    def _value_property(self):
+        # This boolean is in principle invalidated if the
+        # calculator changes.  This can lead to weird things
+        # in multi-step optimizations.
+        if 'free_energy' in self.calc.implemented_properties:
+            return 'free_energy'
+        else:
+            return 'energy'
+
+    def get_value(self):
+        results = self.calc.evaluate(self.atoms,
+                                     properties=self._value_property)
+        return results.properties[self._value_property]
+
+    def iterimages(self):
+        # XXX document purpose of iterimages
+        return self.atoms.iterimages()
+
+    def ndofs(self):
+        return 3 * len(self.atoms)
