@@ -1,9 +1,11 @@
 from ase._4.calculators.results import CalculationResults
-from ase.atoms import Atoms as v3Atoms
+from ase.atoms import Atoms as V3Atoms, _LimitedAtoms
 from ase.outputs import ArrayProperty, all_outputs
+from ase.test._4.optimize import OptimizableAtomsv4
 
-
-class Atoms(v3Atoms):
+# consider renaming this to V4Atoms during transition period
+# 
+class Atoms(_LimitedAtoms):
     """
     Dummy class to illustrate how `Atoms.store` works with
     `CalculationResults`. Will be adjusted accordingly when
@@ -15,7 +17,7 @@ class Atoms(v3Atoms):
         super().__init__(**kwargs)
 
     @classmethod
-    def from_v3atoms(cls, v3atoms: v3Atoms):
+    def from_v3atoms(cls, v3atoms: V3Atoms):
         return Atoms(
             symbols=v3atoms.symbols,
             positions=v3atoms.positions,
@@ -46,38 +48,6 @@ class Atoms(v3Atoms):
             else:
                 self.info[label + prop_name] = prop_val
 
-    def get_potential_energy(
-        self, force_consistent=False, apply_constraint=True
-    ):
-        raise NotImplementedError('moved to Calculator.evalute() in ASEv4')
-
-    def get_potential_energies(
-        self, force_consistent=False, apply_constraint=True
-    ):
-        raise NotImplementedError('moved to Calculator.evalute() in ASEv4')
-
-    def get_total_energy(self):
-        raise NotImplementedError('moved to Calculator.evalute() in ASEv4')
-
-    def get_forces(self, apply_constraint=True, md=False):
-        raise NotImplementedError('moved to Calculator.evalute() in ASEv4')
-
-    def get_stress(
-        self, voigt=True, apply_constraint=True, include_ideal_gas=False
-    ):
-        raise NotImplementedError('moved to Calculator.evalute() in ASEv4')
-
-    def get_stresses(self, include_ideal_gas=False, voigt=True):
-        raise NotImplementedError('moved to Calculator.evalute() in ASEv4')
-
-    @property
-    def calc(self):
-        raise NotImplementedError('Calculator no longer lives in Atoms')
-
-    @calc.setter
-    def calc(self, calc):
-        raise NotImplementedError('Calculator no longer lives in Atoms')
-
-    @calc.deleter
-    def calc(self):
-        raise NotImplementedError('Calculator no longer lives in Atoms')
+    def __ase_optimizable__(self):
+        from ase._4.optimize import OptimizableV4Atoms
+        return OptimizableV4Atoms(self)
