@@ -3,6 +3,8 @@ import pytest
 
 from ase._4.calculators.results import CalculationResults
 
+pytestmark = pytest.mark.asev4
+
 
 def test_data_at_initialisation(metadata, properties):
     # Data assigned at initialisation
