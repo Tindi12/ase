@@ -267,8 +267,7 @@ class Atoms:
         else:
             self.info = dict(info)
 
-        if calculator is not None:
-            self.calc = calculator
+        self.calc = calculator
 
     @property
     def symbols(self):
