@@ -414,7 +414,7 @@ class Version4Adaptor(BaseCalculator):
     with ASE 4.x interface.
     """
 
-    wrapped_class: V3BaseCalculator
+    wrapped_class: type[V3BaseCalculator]
 
     def __init__(self, *args, **kwargs):
         self._v3_calculator = self.wrapped_class(*args, **kwargs)
