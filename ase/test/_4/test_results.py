@@ -35,7 +35,7 @@ def test_wrong_dtype():
     # shouldn't allow non-dict or non-Properties
     res = CalculationResults()
     with pytest.raises(TypeError):
-        res.metadata = 'test'    
+        res.metadata = 'test'
     with pytest.raises(TypeError):
         res.properties = 'test'
 
