@@ -36,3 +36,24 @@ class Atoms(v3Atoms):
                 self.arrays[label + prop_name] = prop_val
             else:
                 self.info[label + prop_name] = prop_val
+
+    def get_potential_energy(self, force_consistent=False,
+                             apply_constraint=True):
+        raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
+
+    def get_potential_energies(self, force_consistent=False,
+                             apply_constraint=True):
+        raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
+
+    def get_total_energy(self):
+        raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
+
+    def get_forces(self, apply_constraint=True, md=False):
+        raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
+
+    def get_stress(self, voigt=True, apply_constraint=True,
+                   include_ideal_gas=False):
+        raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
+
+    def get_stressess(self, include_ideal_gas=False, voigt=True):
+        raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
