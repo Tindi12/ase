@@ -76,4 +76,3 @@ class Atoms(v3Atoms):
     @calc.deleter
     def calc(self):
         raise NotImplementedError("Calculator no longer lives in Atoms")
-    
