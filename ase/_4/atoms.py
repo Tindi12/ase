@@ -55,5 +55,5 @@ class Atoms(v3Atoms):
                    include_ideal_gas=False):
         raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
 
-    def get_stressess(self, include_ideal_gas=False, voigt=True):
+    def get_stresses(self, include_ideal_gas=False, voigt=True):
         raise NotImplementedError("moved to Calculator.evalute() in ASEv4")
