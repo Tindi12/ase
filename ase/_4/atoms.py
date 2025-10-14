@@ -14,6 +14,13 @@ class Atoms(v3Atoms):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
+    @classmethod
+    def from_v3atoms(cls, v3atoms: v3Atoms):
+        return Atoms(symbols=v3atoms.symbols,
+                     positions=v3atoms.positions,
+                     cell=v3atoms.cell,
+                     pbc=v3atoms.pbc)
+
     def store(self, results: CalculationResults, label: str = '') -> None:
         """
         Stores properties from CalculationResults in Atoms.info and
