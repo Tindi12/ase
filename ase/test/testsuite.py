@@ -162,7 +162,7 @@ class CLICommand:
                 print(name)
             sys.exit(0)
 
-        if args.nogui:
+        if args.nogui and 'DISPLAY' in os.environ:
             os.environ.pop('DISPLAY')
 
         pytest_args = []
