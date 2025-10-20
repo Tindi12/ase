@@ -1,5 +1,3 @@
-# fmt: off
-
 """
 This module defines the ASE interface to SIESTA.
 
@@ -18,7 +16,7 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import numpy as np
 
@@ -84,6 +82,21 @@ def format_block(name, block):
     return '\n'.join(lines)
 
 
+def bandpath2bandlines(path, npoints=50):
+    pathstr = path.path.replace(',', '')
+    kpts = np.array([path.special_points[k] for k in pathstr if k != ','])
+    labels = [r"\Gamma" if k=='G' else k for k in pathstr]
+    lengths = np.ones(len(kpts))
+    dists = np.linalg.norm(np.diff(kpts, axis=0), axis=1)
+    lengths[1:] = np.round(npoints*dists/dists.min(), 0) 
+    block = [
+        [int(n), *k, l] for n, k, l in zip(lengths, kpts, labels)
+    ]
+    return '\n'.join([
+        'BandLinesScale ReciprocalLatticeVectors',
+        format_block('BandLines', block)])
+
+
 def bandpath2bandpoints(path):
     return '\n'.join([
         'BandLinesScale ReciprocalLatticeVectors',
@@ -97,7 +110,7 @@ class SiestaParameters(Parameters):
             mesh_cutoff=200 * Ry,
             energy_shift=100 * meV,
             kpts=None,
-            xc='LDA',
+            xc='PBE',
             basis_set='DZP',
             spin='non-polarized',
             species=(),
@@ -108,6 +121,11 @@ class SiestaParameters(Parameters):
             restart=None,
             fdf_arguments=None,
             atomic_coord_format='xyz',
+            set_masses=False,
+            path_format='lines',
+            path_npoints=50,
+            blocks=None,
+            supercell=None,
             bandpath=None):
         kwargs = locals()
         kwargs.pop('self')
@@ -347,7 +365,7 @@ class Siesta(FileIOCalculator):
         if not isinstance(fdf_arguments, dict):
             raise TypeError("fdf_arguments must be a dictionary.")
 
-    def write_input(self, atoms, properties=None, system_changes=None):
+    def write_input(self, atoms, directory=None, filename=None, properties=None, system_changes=None):
         """Write input (fdf)-file.
         See calculator.py for further details.
 
@@ -362,7 +380,12 @@ class Siesta(FileIOCalculator):
             properties=properties,
             system_changes=system_changes)
 
-        filename = self.getpath(ext='fdf')
+        filename = self.getpath(ext='fdf', directory=directory)
+
+        if directory is None:
+            directory = Path(self.directory)
+        else:
+            directory = Path(directory)
 
         more_fdf_args = {}
 
@@ -375,7 +398,7 @@ class Siesta(FileIOCalculator):
 
             more_fdf_args['DM.UseSaveDM'] = True
 
-        if 'density' in properties:
+        if properties is not None and 'density' in properties:
             more_fdf_args['SaveRho'] = True
 
         species, species_numbers = self.species(atoms)
@@ -401,11 +424,16 @@ class Siesta(FileIOCalculator):
             mesh_cutoff=self['mesh_cutoff'],
             energy_shift=self['energy_shift'],
             fdf_user_args=self['fdf_arguments'],
+            supercell=self['supercell'],
             more_fdf_args=more_fdf_args,
             species_numbers=species_numbers,
             atomic_coord_format=self['atomic_coord_format'].lower(),
             kpts=self['kpts'],
             bandpath=self['bandpath'],
+            set_masses=self['set_masses'],
+            path_format=self['path_format'],
+            path_npoints=self['path_npoints'],
+            blocks=self['blocks'],
             species_info=species_info,
         )
 
@@ -414,7 +442,7 @@ class Siesta(FileIOCalculator):
 
         writer.link_pseudos_into_directory(
             symlink_pseudos=self['symlink_pseudos'],
-            directory=Path(self.directory))
+            directory=directory)
 
     def read(self, filename):
         """Read structural parameters from file .XV file
@@ -429,12 +457,15 @@ class Siesta(FileIOCalculator):
             self.atoms = read_siesta_xv(fd)
         self.read_results()
 
-    def getpath(self, fname=None, ext=None):
+    def getpath(self, directory=None, fname=None, ext=None):
         """ Returns the directory/fname string """
         if fname is None:
             fname = self.prefix
         if ext is not None:
             fname = f'{fname}.{ext}'
+
+        if directory is not None:
+            return Path(directory) / fname
         return Path(self.directory) / fname
 
     def pseudo_qualifier(self):
@@ -463,7 +494,7 @@ class Siesta(FileIOCalculator):
         """
         Read the ion.xml file of each specie
         """
-        species, _species_numbers = self.species(atoms)
+        species, species_numbers = self.species(atoms)
 
         ion_results = {}
         for species_number, spec in enumerate(species, start=1):
@@ -475,7 +506,7 @@ class Siesta(FileIOCalculator):
                     label = symbol
                 else:
                     label = f"{symbol}.{self.pseudo_qualifier()}"
-                pseudopotential = self.getpath(label, 'psf')
+                pseudopotential = self.getpath(label, 'psml')
             else:
                 pseudopotential = Path(spec['pseudopotential'])
                 label = pseudopotential.stem
@@ -512,7 +543,7 @@ class Siesta(FileIOCalculator):
 
 
 def generate_atomic_coordinates(atoms: Atoms, species_numbers,
-                                atomic_coord_format: str):
+                                atomic_coord_format: str, masses: bool=False):
     """Write atomic coordinates.
 
     Parameters
@@ -523,7 +554,9 @@ def generate_atomic_coordinates(atoms: Atoms, species_numbers,
         An atoms object.
     """
     if atomic_coord_format == 'xyz':
-        return generate_atomic_coordinates_xyz(atoms, species_numbers)
+        return generate_atomic_coordinates_xyz(atoms, species_numbers, masses)
+    elif atomic_coord_format == 'fractional':
+        return generate_atomic_coordinates_fractional(atoms, species_numbers, masses)
     elif atomic_coord_format == 'zmatrix':
         return generate_atomic_coordinates_zmatrix(atoms, species_numbers)
     else:
@@ -560,7 +593,7 @@ def generate_atomic_coordinates_zmatrix(atoms: Atoms, species_numbers):
     # yield block('AtomicCoordinatesOrigin', [origin])
 
 
-def generate_atomic_coordinates_xyz(atoms: Atoms, species_numbers):
+def generate_atomic_coordinates_xyz(atoms: Atoms, species_numbers, masses: bool=False):
     """Write atomic coordinates.
 
     Parameters
@@ -570,15 +603,38 @@ def generate_atomic_coordinates_xyz(atoms: Atoms, species_numbers):
     atoms : Atoms
         An atoms object.
     """
+    if masses:
+        info = [[*atom.position, number, atom.mass]
+                for atom, number in zip(atoms, species_numbers)]
+    else:
+        info = [[*atom.position, number]
+                for atom, number in zip(atoms, species_numbers)]
     yield '\n'
     yield var('AtomicCoordinatesFormat', 'Ang')
-    yield block('AtomicCoordinatesAndAtomicSpecies',
-                [[*atom.position, number]
-                 for atom, number in zip(atoms, species_numbers)])
+    yield block('AtomicCoordinatesAndAtomicSpecies', info)
     yield '\n'
 
-    # origin = tuple(-atoms.get_celldisp().flatten())
-    # yield block('AtomicCoordinatesOrigin', [origin])
+
+def generate_atomic_coordinates_fractional(atoms: Atoms, species_numbers, masses: bool=False):
+    """Write atomic coordinates.
+
+    Parameters
+    ----------
+    fd : IO
+        An open file object.
+    atoms : Atoms
+        An atoms object.
+    """
+    if masses:
+        info = [[*atom.scaled_position, number, atom.mass]
+                for atom, number in zip(atoms, species_numbers)]
+    else:
+        info = [[*atom.scaled_position, number]
+                for atom, number in zip(atoms, species_numbers)]
+    yield '\n'
+    yield var('AtomicCoordinatesFormat', 'Fractional')
+    yield block('AtomicCoordinatesAndAtomicSpecies', info)
+    yield '\n'
 
 
 @dataclass
@@ -603,7 +659,7 @@ class SpeciesInfo:
                     label = symbol
                 else:
                     label = f"{symbol}.{self.pseudo_qualifier}"
-                src_path = self.pseudo_path / f"{label}.psf"
+                src_path = self.pseudo_path / f"{label}.psml"
             else:
                 src_path = Path(spec['pseudopotential'])
 
@@ -626,7 +682,7 @@ class SpeciesInfo:
 
             label = '.'.join(np.array(name.split('.'))[:-1])
             pseudo_name = ''
-            if src_path.suffix != '.psf':
+            if src_path.suffix != '.psml':
                 pseudo_name = f'{label}{src_path.suffix}'
             string = '    %d %d %s %s' % (species_number, atomic_number, label,
                                           pseudo_name)
@@ -685,6 +741,11 @@ class FDFWriter:
     atomic_coord_format: str
     kpts: object  # ?
     bandpath: object  # ?
+    path_format: str
+    path_npoints: int
+    blocks: Union[None, list]
+    set_masses: bool
+    supercell: Union[None, tuple]
     species_info: object
 
     def write(self, fd):
@@ -742,10 +803,17 @@ class FDFWriter:
             yield from SiestaInput.generate_kpts(kpts)
 
         if self.bandpath is not None:
-            lines = bandpath2bandpoints(self.bandpath)
+            if self.path_format == 'points':
+                lines = bandpath2bandpoints(self.bandpath)
+            elif self.path_format == 'lines':
+                lines = bandpath2bandlines(self.bandpath, self.path_npoints)
             assert isinstance(lines, str)  # rename this variable?
             yield lines
             yield '\n'
+
+        if self.blocks is not None:
+            for block in self.blocks:
+                yield block
 
     def generate_atoms_text(self, atoms: Atoms):
         """Translate the Atoms object to fdf-format."""
@@ -762,7 +830,17 @@ class FDFWriter:
             yield block('LatticeVectors', cell)
 
         yield from generate_atomic_coordinates(
-            atoms, self.species_numbers, self.atomic_coord_format)
+            atoms, self.species_numbers,
+            self.atomic_coord_format, self.set_masses)
+
+        if self.supercell is not None:
+            s0, s1, s2, cut = self.supercell
+            yield '\n'
+            yield f'SuperCell_1    {s0}\n'
+            yield f'SuperCell_2    {s1}\n'
+            yield f'SuperCell_3    {s2}\n'
+            yield f'kgrid_cutoff   {cut} Ang\n'
+            yield 'Eigenvectors    .true.\n\n'
 
         # Write magnetic moments.
         magmoms = atoms.get_initial_magnetic_moments()
