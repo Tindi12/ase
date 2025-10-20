@@ -103,6 +103,16 @@ def bandpath2bandpoints(path):
         format_block('BandPoints', path.kpts)])
 
 
+def get_U_block(hubbard):
+    lines = []
+    for symbol, (U, n, l) in hubbard.items():
+        lines.append([symbol, 1])
+        lines.append([f"n={n}", l])
+        lines.append([f"{U:.2f}", 0.00])
+        lines.append([0.00, 0.00])
+    return format_block('DFTU.proj', lines)
+
+
 class SiestaParameters(Parameters):
     def __init__(
             self,
@@ -124,6 +134,7 @@ class SiestaParameters(Parameters):
             set_masses=False,
             path_format='lines',
             path_npoints=50,
+            hubbard_U=None,
             blocks=None,
             supercell=None,
             bandpath=None):
@@ -433,6 +444,7 @@ class Siesta(FileIOCalculator):
             set_masses=self['set_masses'],
             path_format=self['path_format'],
             path_npoints=self['path_npoints'],
+            hubbard_U=self['hubbard_U'],
             blocks=self['blocks'],
             species_info=species_info,
         )
@@ -743,6 +755,7 @@ class FDFWriter:
     bandpath: object  # ?
     path_format: str
     path_npoints: int
+    hubbard_U: dict
     blocks: Union[None, list]
     set_masses: bool
     supercell: Union[None, tuple]
@@ -801,6 +814,10 @@ class FDFWriter:
         if self.kpts is not None:
             kpts = np.array(self.kpts)
             yield from SiestaInput.generate_kpts(kpts)
+
+        if self.hubbard_U is not None:
+            yield get_U_block(self.hubbard_U)
+            yield '\n'
 
         if self.bandpath is not None:
             if self.path_format == 'points':
