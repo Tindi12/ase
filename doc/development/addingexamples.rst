@@ -25,6 +25,14 @@ Sphinx-Gallery
 We are using Sphinx-Gallery to test and display our examples.
 Every time a change is proposed on Gitlab (to the code or the documentation), all examples are
 tested and errors are flagged.
+If you do not have Sphinx-Gallery installed in your python environment,
+you can install the necessary packages with:
+
+.. code-block:: console
+
+    $ pip install sphinx_book_theme
+    $ pip install sphinx-gallery
+
 
 Tutorial Guidelines
 ===================
@@ -112,7 +120,7 @@ For this, you can run the following two commands from the terminal:
 
     $ make browse
 
-
+It might be that you have to install additional packages (e.g. 'asap3') for the whole documentation to be build.
 
 
 
