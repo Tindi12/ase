@@ -1,4 +1,5 @@
-""" _genetic_algorithm_optimization
+""".. _genetic_algorithm_optimization:
+
 Genetic Algorithm - Optimization of Structures
 ==============================================
 This example sketches a simple *screening* stage before relaxation:
@@ -14,86 +15,81 @@ For the tutorial, we:
 competitive with the current best.
 
 This keeps the code/idea simple; replace the descriptor/model as needed.
+
+The method was first described in the supplemental material of
+
+L. B. Vilhelmsen and B. Hammer
+:doi:`Systematic Study of Au6 to Au12 Gold Clusters on MgO(100)
+F Centers Using Density-Functional Theory <10.1103/PhysRevLett.108.126101>`
+Physical Review Letters, Vol. 108 (Mar 2012), 126101
+
+and a full account of the method is given in
+
+L. B. Vilhelmsen and B. Hammer
+:doi:`A genetic algorithm for first principles global optimization of
+supported nano structures <10.1063/1.4886337>`
+Journal of Chemical Physics, Vol 141, 044711 (2014)
+
+A Brief Overview of the Implementation
+--------------------------------------
+
+The GA relies on the ase.db module for tracking which structures have
+been found. Before the GA optimization starts the user therefore needs
+to prepare this database and appropriate folders. This is done through
+an initialization script as the one described in the next section. In
+this initialization the starting population is generated and
+added to the database.
+
+
+After initialization the main script is run. This script defines
+objects responsible for the different parts of the GA and then creates
+and locally relaxes new candidates. It is up to the user to define
+when the main script should terminate. An example of a main script is
+given in the next section.  Notice that because of the persistent data
+storage the main script can be executed multiple times to generate new
+candidates.
+
+The GA implementation generally follows a responsibility driven
+approach. This means that each part of the GA is isolated into
+individual classes making it possible to put together an optimizer
+satisfying the needs of a specific optimization problem.
+
+This tutorial will use the following parts of the GA:
+
+* A population responsible for proposing new candidates to pair
+  together.
+* A paring operator which combines two candidates.
+* A set of mutations.
+* A comparator which determines if two structures are different.
+* A starting population generator.
+
+Each of the above components are described in the supplemental
+material of the first reference given above and will not be discussed
+here. The example will instead focus on the technical aspect of
+executing the GA.
+
+A Basic Example
+---------------
+The user needs to specify the following three properties about the
+structure that needs to be optimized.
+
+* A list of atomic numbers for the structure to be optimized
+
+* A super cell in which to do the optimization. If the structure to
+  optimize resides on a surface or in a support this supercell
+  contains the atoms which should not be considered explicitly by the
+  GA.
+
+* A box defining the volume of the super cell in which to randomly
+  distribute the starting population.
+
+As an example we will find the structure of a
+:mol:`Ag_2Au_2` cluster on a Au(111) surface using the
+EMT optimizer.
+
+The script doing all the initialisations should be run in the folder
+in which the GA optimisation is to take place. The script looks as follows:
 """
-
-# %%
-#
-# The method was first described in the supplemental material of
-
-#    | L. B. Vilhelmsen and B. Hammer
-#    | :doi:`Systematic Study of Au6 to Au12 Gold Clusters on MgO(100)
-# F Centers
-# Using Density-Functional Theory`
-#    | Physical Review Letters, Vol. 108 (Mar 2012), 126101
-
-# and a full account of the method is given in
-
-#    | L. B. Vilhelmsen and B. Hammer
-#    | :doi:`A genetic algorithm for first principles global optimization of
-# supported nano structures`
-#    | Journal of Chemical Physics, Vol 141, 044711 (2014)
-
-# %%
-# A Brief Overview of the Implementation
-# ======================================
-
-# The GA relies on the ase.db module for tracking which structures have
-# been found. Before the GA optimization starts the user therefore needs
-# to prepare this database and appropriate folders. This is done through
-# an initialization script as the one described in the next section. In
-# this initialization the starting population is generated and
-# added to the database.
-
-
-# After initialization the main script is run. This script defines
-# objects responsible for the different parts of the GA and then creates
-# and locally relaxes new candidates. It is up to the user to define
-# when the main script should terminate. An example of a main script is
-# given in the next section.  Notice that because of the persistent data
-# storage the main script can be executed multiple times to generate new
-# candidates.
-
-# The GA implementation generally follows a responsibility driven
-# approach. This means that each part of the GA is isolated into
-# individual classes making it possible to put together an optimizer
-# satisfying the needs of a specific optimization problem.
-
-# This tutorial will use the following parts of the GA:
-
-# * A population responsible for proposing new candidates to pair
-#   together.
-# * A paring operator which combines two candidates.
-# * A set of mutations.
-# * A comparator which determines if two structures are different.
-# * A starting population generator.
-
-# Each of the above components are described in the supplemental
-# material of the first reference given above and will not be discussed
-# here. The example will instead focus on the technical aspect of
-# executing the GA.
-
-# %%
-# A Basic Example
-# ===============
-# The user needs to specify the following three properties about the
-# structure that needs to be optimized.
-
-# * A list of atomic numbers for the structure to be optimized
-
-# * A super cell in which to do the optimization. If the structure to
-#   optimize resides on a surface or in a support this supercell
-#   contains the atoms which should not be considered explicitly by the
-#   GA.
-
-# * A box defining the volume of the super cell in which to randomly
-#   distribute the starting population.
-
-# As an example we will find the structure of a
-# :mol:`Ag_2Au_2` cluster on a Au(111) surface using the
-# EMT optimizer.
-
-# The script doing all the initialisations should be run in the folder
-# in which the GA optimisation is to take place. The script looks as follows:
 
 import sys
 import time
@@ -146,9 +142,13 @@ import matplotlib.pyplot as plt
 
 from ase.visualize.plot import plot_atoms
 
-fig, ax = plt.subplots()
-plot_atoms(slab, ax, rotation=('0x,0y,0z'))
-ax.set_axis_off()
+fig, (ax1,ax2) = plt.subplots(1,2)
+plot_atoms(slab, ax1, rotation=('0x,0y,0z'))
+plot_atoms(slab, ax2, rotation=('270x,0y,0z'))
+ax1.text(1, -1, 'xy-axis view')
+ax2.text(1, -1, 'xz-axis view')
+ax1.set_axis_off()
+ax2.set_axis_off()
 
 # %%
 
@@ -181,8 +181,19 @@ sg = StartGenerator(
 population_size = 20
 starting_population = [sg.get_new_candidate() for i in range(population_size)]
 
+
+# %%
+# Let's visualize the first 3 structure of the starting population:
+
+fig, axs = plt.subplots(2,2)
+for iax, ax in enumerate(axs.reshape(-1)):
+    plot_atoms(starting_population[iax], ax, rotation=('0x,0y,0z'))
+    ax.set_axis_off()
+
+# Alternatively, you can uncomment the following lines:
 # from ase.visualize import view   # uncomment these lines
 # view(starting_population)        # to see the starting population
+
 
 # create the database to store information in
 d = PrepareDB(
@@ -192,228 +203,234 @@ d = PrepareDB(
 for a in starting_population:
     d.add_unrelaxed_candidate(a)
 
+
+# %%
+# Having initialized the GA optimization we now need to actually run the
+# GA. The main script running the GA consists of first an initialization
+# part, and then a loop proposing new structures and locally optimizing
+# them. The main script can look as follows:
+
+
+# Change the following three parameters to suit your needs
+population_size = 20
+mutation_probability = 0.3
+n_to_test = 20
+
+# Initialize the different components of the GA
+da = DataConnection('gadb.db')
+atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
+n_to_optimize = len(atom_numbers_to_optimize)
+slab = da.get_slab()
+all_atom_types = get_all_atom_types(slab, atom_numbers_to_optimize)
+blmin = closest_distances_generator(all_atom_types, ratio_of_covalent_radii=0.7)
+
+comp = InteratomicDistanceComparator(
+    n_top=n_to_optimize,
+    pair_cor_cum_diff=0.015,
+    pair_cor_max=0.7,
+    dE=0.02,
+    mic=False,
+)
+
+pairing = CutAndSplicePairing(slab, n_to_optimize, blmin)
+mutations = OperationSelector(
+    [1.0, 1.0, 1.0],
+    [
+        MirrorMutation(blmin, n_to_optimize),
+        RattleMutation(blmin, n_to_optimize),
+        PermutationMutation(n_to_optimize),
+    ],
+)
+
+# Relax all unrelaxed structures (e.g. the starting population)
+while da.get_number_of_unrelaxed_candidates() > 0:
+    a = da.get_an_unrelaxed_candidate()
+    a.calc = EMT()
+    print('Relaxing starting candidate {}'.format(a.info['confid']))
+    dyn = BFGS(a, trajectory=None, logfile=None)
+    dyn.run(fmax=0.05, steps=100)
+    a.info['key_value_pairs']['raw_score'] = -a.get_potential_energy()
+    da.add_relaxed_step(a)
+
+# create the population
+population = Population(
+    data_connection=da, population_size=population_size, comparator=comp
+)
+
+# test n_to_test new candidates
+for i in range(n_to_test):
+    print(f'Now starting configuration number {i}')
+    a1, a2 = population.get_two_candidates()
+    a3, desc = pairing.get_new_individual([a1, a2])
+    if a3 is None:
+        continue
+    da.add_unrelaxed_candidate(a3, description=desc)
+
+    # Check if we want to do a mutation
+    if random() < mutation_probability:
+        a3_mut, desc = mutations.get_new_individual([a3])
+        if a3_mut is not None:
+            da.add_unrelaxed_step(a3_mut, desc)
+            a3 = a3_mut
+
+    # Relax the new candidate
+    a3.calc = EMT()
+    dyn = BFGS(a3, trajectory=None, logfile=None)
+    dyn.run(fmax=0.05, steps=100)
+    a3.info['key_value_pairs']['raw_score'] = -a3.get_potential_energy()
+    da.add_relaxed_step(a3)
+    population.update()
+
+write('all_candidates.traj', da.get_all_relaxed_candidates())
+
+
+# %%
+# The above script proposes and locally relaxes 20 new candidates. To
+# speed up the execution of this sample the local relaxations are
+# limited to 100 steps. This restriction should not be set in a real
+# application. *Note* it is important to set the ``raw_score``, as
+# it is what is being optimized (maximized). It is really an input in the
+# ``atoms.info['key_value_pairs']`` dictionary.
 #
-## %%
-## Having initialized the GA optimization we now need to actually run the
-## GA. The main script running the GA consists of first an initialization
-## part, and then a loop proposing new structures and locally optimizing
-## them. The main script can look as follows:
+# The GA progress can be monitored by running the tool
+# ``ase/ga/tools/get_all_candidates`` in the
+# same folder as the GA. This will create a trajectory file
+# ``all_candidates.traj`` which includes all locally relaxed candidates
+# the GA has tried. This script can be run at the same time as the main
+# script is running. This is possible because the ase.db database
+# is being updated as the GA progresses.
+
+
+# %%
+# Running the GA in Parallel
+# ==========================
 #
-#
-## Change the following three parameters to suit your needs
-#population_size = 20
-#mutation_probability = 0.3
-#n_to_test = 20
-#
-## Initialize the different components of the GA
-#da = DataConnection('gadb.db')
-#atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
-#n_to_optimize = len(atom_numbers_to_optimize)
-#slab = da.get_slab()
-#all_atom_types = get_all_atom_types(slab, atom_numbers_to_optimize)
-#blmin = closest_distances_generator(all_atom_types, ratio_of_covalent_radii=0.7)
-#
-#comp = InteratomicDistanceComparator(
-#    n_top=n_to_optimize,
-#    pair_cor_cum_diff=0.015,
-#    pair_cor_max=0.7,
-#    dE=0.02,
-#    mic=False,
-#)
-#
-#pairing = CutAndSplicePairing(slab, n_to_optimize, blmin)
-#mutations = OperationSelector(
-#    [1.0, 1.0, 1.0],
-#    [
-#        MirrorMutation(blmin, n_to_optimize),
-#        RattleMutation(blmin, n_to_optimize),
-#        PermutationMutation(n_to_optimize),
-#    ],
-#)
-#
-## Relax all unrelaxed structures (e.g. the starting population)
-#while da.get_number_of_unrelaxed_candidates() > 0:
-#    a = da.get_an_unrelaxed_candidate()
-#    a.calc = EMT()
-#    print('Relaxing starting candidate {}'.format(a.info['confid']))
-#    dyn = BFGS(a, trajectory=None, logfile=None)
-#    dyn.run(fmax=0.05, steps=100)
-#    a.info['key_value_pairs']['raw_score'] = -a.get_potential_energy()
-#    da.add_relaxed_step(a)
-#
-## create the population
-#population = Population(
-#    data_connection=da, population_size=population_size, comparator=comp
-#)
-#
-## test n_to_test new candidates
-#for i in range(n_to_test):
-#    print(f'Now starting configuration number {i}')
-#    a1, a2 = population.get_two_candidates()
-#    a3, desc = pairing.get_new_individual([a1, a2])
-#    if a3 is None:
-#        continue
-#    da.add_unrelaxed_candidate(a3, description=desc)
-#
-#    # Check if we want to do a mutation
-#    if random() < mutation_probability:
-#        a3_mut, desc = mutations.get_new_individual([a3])
-#        if a3_mut is not None:
-#            da.add_unrelaxed_step(a3_mut, desc)
-#            a3 = a3_mut
-#
-#    # Relax the new candidate
-#    a3.calc = EMT()
-#    dyn = BFGS(a3, trajectory=None, logfile=None)
-#    dyn.run(fmax=0.05, steps=100)
-#    a3.info['key_value_pairs']['raw_score'] = -a3.get_potential_energy()
-#    da.add_relaxed_step(a3)
-#    population.update()
-#
-#write('all_candidates.traj', da.get_all_relaxed_candidates())
-#
-#
-## %%
-## The above script proposes and locally relaxes 20 new candidates. To
-## speed up the execution of this sample the local relaxations are
-## limited to 100 steps. This restriction should not be set in a real
-## application. *Note* it is important to set the ``raw_score``, as
-## it is what is being optimized (maximized). It is really an input in the
-## ``atoms.info['key_value_pairs']`` dictionary.
-#
-## The GA progress can be monitored by running the tool
-## ``ase/ga/tools/get_all_candidates`` in the
-## same folder as the GA. This will create a trajectory file
-## ``all_candidates.traj`` which includes all locally relaxed candidates
-## the GA has tried. This script can be run at the same time as the main
-## script is running. This is possible because the ase.db database
-## is being updated as the GA progresses.
-#
-#
-## %%
-## Running the GA in Parallel
-## ==========================
-#
-## One of the great advantages of a GA is that many structures can be
-## relaxed in parallel. This GA implementation includes two classes which
-## facilitates running the GA in parallel. One class can be used for
-## running several single threaded optimizations simultaneously on the
-## same compute node, and the other class integrates the GA into the PBS
-## queuing system used at many high performance computer clusters.
-#
-#
-## Relaxations in Parallel on the Same Computer
-## --------------------------------------------
-#
-## In order to relax several structures simultaneously on the same
-## computer a separate script relaxing one structure needs to be
-## created. Continuing the example from above we therefore create a
-## script taking as input the filename of the structure to relax and
-## which as output saves a trajectory file with the locally optimized
-## structure. It is important that the relaxed structure is named as in
-## this script, since the parallel integration assumes this file naming
-## scheme. For the example described above this script could look like
-#
-#fname = sys.argv[1]
-#
-#print(f'Now relaxing {fname}')
-#a = read(fname)
-#
-#a.calc = EMT()
-#dyn = BFGS(a, trajectory=None, logfile=None)
-#vb = VariansBreak(a, dyn)
-#dyn.attach(vb.write)
-#dyn.run(fmax=0.05)
-#
-#a.info['key_value_pairs']['raw_score'] = -a.get_potential_energy()
-#
-#write(fname[:-5] + '_done.traj', a)
-#
-#print(f'Done relaxing {fname}')
-#
-## %%
-## The main script needs to initialize the parallel controller and then
-## the script needs to be changed the two places where structures are
-## relaxed. The changed main script now looks like
+# One of the great advantages of a GA is that many structures can be
+# relaxed in parallel. This GA implementation includes two classes which
+# facilitates running the GA in parallel. One class can be used for
+# running several single threaded optimizations simultaneously on the
+# same compute node, and the other class integrates the GA into the PBS
+# queuing system used at many high performance computer clusters.
 #
 #
-#population_size = 20
-#mutation_probability = 0.3
-#n_to_test = 100
+# Relaxations in Parallel on the Same Computer
+# --------------------------------------------
 #
-#
-## Initialize the different components of the GA
-#da = DataConnection('gadb.db')
-#tmp_folder = 'tmp_folder/'
-#
-## An extra object is needed to handle the parallel execution
-#parallel_local_run = ParallelLocalRun(
-#    data_connection=da, tmp_folder=tmp_folder, n_simul=4, calc_script='calc.py'
-#)
-#
-#atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
-#n_to_optimize = len(atom_numbers_to_optimize)
-#slab = da.get_slab()
-#all_atom_types = get_all_atom_types(slab, atom_numbers_to_optimize)
-#blmin = closest_distances_generator(all_atom_types, ratio_of_covalent_radii=0.7)
-#
-#comp = InteratomicDistanceComparator(
-#    n_top=n_to_optimize,
-#    pair_cor_cum_diff=0.015,
-#    pair_cor_max=0.7,
-#    dE=0.02,
-#    mic=False,
-#)
-#pairing = CutAndSplicePairing(slab, n_to_optimize, blmin)
-#mutations = OperationSelector(
-#    [1.0, 1.0, 1.0],
-#    [
-#        MirrorMutation(blmin, n_to_optimize),
-#        RattleMutation(blmin, n_to_optimize),
-#        PermutationMutation(n_to_optimize),
-#    ],
-#)
-#
-## Relax all unrelaxed structures (e.g. the starting population)
-#while da.get_number_of_unrelaxed_candidates() > 0:
-#    a = da.get_an_unrelaxed_candidate()
-#    parallel_local_run.relax(a)
-#
-## Wait until the starting population is relaxed
-#while parallel_local_run.get_number_of_jobs_running() > 0:
-#    time.sleep(5.0)
-#
-## create the population
-#population = Population(
-#    data_connection=da, population_size=population_size, comparator=comp
-#)
-#
-## test n_to_test new candidates
-#for i in range(n_to_test):
-#    print(f'Now starting configuration number {i}')
-#    a1, a2 = population.get_two_candidates()
-#    a3, desc = pairing.get_new_individual([a1, a2])
-#    if a3 is None:
-#        continue
-#    da.add_unrelaxed_candidate(a3, description=desc)
-#
-#    # Check if we want to do a mutation
-#    if random() < mutation_probability:
-#        a3_mut, desc = mutations.get_new_individual([a3])
-#        if a3_mut is not None:
-#            da.add_unrelaxed_step(a3_mut, desc)
-#            a3 = a3_mut
-#
-#    # Relax the new candidate
-#    parallel_local_run.relax(a3)
-#    population.update()
-#
-## Wait until the last candidates are relaxed
-#while parallel_local_run.get_number_of_jobs_running() > 0:
-#    time.sleep(5.0)
-#
-#write('all_candidates.traj', da.get_all_relaxed_candidates())
-#
+# In order to relax several structures simultaneously on the same
+# computer a separate script relaxing one structure needs to be
+# created. Continuing the example from above we therefore create a
+# script taking as input the filename of the structure to relax and
+# which as output saves a trajectory file with the locally optimized
+# structure. It is important that the relaxed structure is named as in
+# this script, since the parallel integration assumes this file naming
+# scheme. 
+# For the example described above this script could look like
+# below, however, we are using the formerly written file and not the 
+# system argument for demonstration purooses. Comment the first line
+# and uncomment the line below if you want to use the system argument.
+
+
+fname='all_candidates.traj' #comment this if you want to use the system argument
+# fname = sys.argv[1] #uncomment
+
+print(f'Now relaxing {fname}')
+a = read(fname)
+
+a.calc = EMT()
+dyn = BFGS(a, trajectory=None, logfile=None)
+vb = VariansBreak(a, dyn)
+dyn.attach(vb.write)
+dyn.run(fmax=0.05)
+
+a.info['key_value_pairs']['raw_score'] = -a.get_potential_energy()
+
+write(fname[:-5] + '_done.traj', a)
+
+print(f'Done relaxing {fname}')
+
+# %%
+# The main script needs to initialize the parallel controller and then
+# the script needs to be changed the two places where structures are
+# relaxed. The changed main script now looks like
+
+
+population_size = 20
+mutation_probability = 0.3
+n_to_test = 100
+
+
+# Initialize the different components of the GA
+da = DataConnection('gadb.db')
+tmp_folder = 'tmp_folder/'
+
+# An extra object is needed to handle the parallel execution
+parallel_local_run = ParallelLocalRun(
+    data_connection=da, tmp_folder=tmp_folder, n_simul=4, calc_script='ga-optimization-calc.py'
+)
+
+atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
+n_to_optimize = len(atom_numbers_to_optimize)
+slab = da.get_slab()
+all_atom_types = get_all_atom_types(slab, atom_numbers_to_optimize)
+blmin = closest_distances_generator(all_atom_types, ratio_of_covalent_radii=0.7)
+
+comp = InteratomicDistanceComparator(
+    n_top=n_to_optimize,
+    pair_cor_cum_diff=0.015,
+    pair_cor_max=0.7,
+    dE=0.02,
+    mic=False,
+)
+pairing = CutAndSplicePairing(slab, n_to_optimize, blmin)
+mutations = OperationSelector(
+    [1.0, 1.0, 1.0],
+    [
+        MirrorMutation(blmin, n_to_optimize),
+        RattleMutation(blmin, n_to_optimize),
+        PermutationMutation(n_to_optimize),
+    ],
+)
+
+# Relax all unrelaxed structures (e.g. the starting population)
+while da.get_number_of_unrelaxed_candidates() > 0:
+    a = da.get_an_unrelaxed_candidate()
+    parallel_local_run.relax(a)
+
+# Wait until the starting population is relaxed
+while parallel_local_run.get_number_of_jobs_running() > 0:
+    time.sleep(5.0)
+
+# create the population
+population = Population(
+    data_connection=da, population_size=population_size, comparator=comp
+)
+
+# test n_to_test new candidates
+for i in range(n_to_test):
+    print(f'Now starting configuration number {i}')
+    a1, a2 = population.get_two_candidates()
+    a3, desc = pairing.get_new_individual([a1, a2])
+    if a3 is None:
+        continue
+    da.add_unrelaxed_candidate(a3, description=desc)
+
+    # Check if we want to do a mutation
+    if random() < mutation_probability:
+        a3_mut, desc = mutations.get_new_individual([a3])
+        if a3_mut is not None:
+            da.add_unrelaxed_step(a3_mut, desc)
+            a3 = a3_mut
+
+    # Relax the new candidate
+    parallel_local_run.relax(a3)
+    population.update()
+
+# Wait until the last candidates are relaxed
+while parallel_local_run.get_number_of_jobs_running() > 0:
+    time.sleep(5.0)
+
+write('all_candidates.traj', da.get_all_relaxed_candidates())
+
 #
 ## %%
 #
