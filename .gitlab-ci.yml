@@ -198,9 +198,9 @@ doc:
     - >
       python3 -c
       "import sys; from ase.test.factories import MachineInformation; MachineInformation().cfg.parser.write(sys.stdout)"
-      > ase_docs_config.ini
+      | tee ase_docs_config.ini
     - ase info
-    - ase info --calculators
+    - ase -T info --calculators
     - which sphinx-build
   script:
     - scriv collect --keep || echo Not compiling changelog then  # Avoid error
