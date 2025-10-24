@@ -197,7 +197,7 @@ doc:
   script:
     - scriv collect --keep || echo Not compiling changelog then  # Avoid error
     - python -m ase.utils.sphinx run # test scripts
-    - sphinx-build -W doc doc/build
+    - sphinx-build -j 8 -W doc doc/build
     - mv doc/build web-html
   cache:
     paths:
