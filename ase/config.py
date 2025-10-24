@@ -7,7 +7,7 @@ import warnings
 from collections.abc import Mapping
 from pathlib import Path
 
-from ase.calculators.names import builtin, names, templates
+from ase.calculators.names import names, templates
 
 ASE_CONFIG_FILE = Path.home() / ".config/ase/config.ini"
 
