@@ -26,16 +26,14 @@ We will use the SSSP-efficiency pseudopotential set.
 # environment variables, e.g. ASE_ESPRESSO_COMMAND. Check the docs for
 # each calculator to see what is currently implemented.
 
-from asetest import paths as datapaths
-
 from ase.build import bulk
-from ase.calculators.espresso import Espresso, EspressoProfile
+from ase.calculators.espresso import Espresso
 
-pseudo_dir = datapaths.DataFiles().paths['espresso'][0]
-if pseudo_dir.exists():
-    print(f'using pseudopotentials from {pseudo_dir}')
-command = 'mpirun /home/ase/calculators/espresso/bin/pw.x'
-profile = EspressoProfile(command=command, pseudo_dir=pseudo_dir)
+# pseudo_dir = datapaths.DataFiles().paths['espresso'][0]
+# if pseudo_dir.exists():
+#     print(f'using pseudopotentials from {pseudo_dir}')
+# command = 'mpirun /home/ase/calculators/espresso/bin/pw.x'
+# profile = EspressoProfile(command=command, pseudo_dir=pseudo_dir)
 
 # %%
 # Each Calculator has its own keywords to match the input syntax of the
@@ -47,7 +45,7 @@ profile = EspressoProfile(command=command, pseudo_dir=pseudo_dir)
 
 
 calc = Espresso(
-    profile=profile,
+#     profile=profile,
     pseudo_dir=pseudo_dir,
     kpts=(3, 3, 3),
     input_data={
