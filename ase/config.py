@@ -139,11 +139,6 @@ class Config(Mapping):
 
         cfg = cls()
         cfg._read_paths(paths)
-
-        # add sections for builtin calculators
-        for name in builtin:
-            cfg.parser.add_section(name)
-            cfg.parser[name]["builtin"] = "True"
         return cfg
 
 
