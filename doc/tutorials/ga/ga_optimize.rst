@@ -4,6 +4,16 @@
 Optimization with a Genetic Algorithm
 =====================================
 
+.. note::
+
+  We are currently moving to a new way to display our examples.
+  For this example we have an updated version, which you 
+  can find :ref:`here <genetic_algorithm_optimization>`.
+  The example on this page is deprecated and will be removed 
+  once all examples have been moved to 
+  the new format.
+
+
 A genetic algorithm (GA) has been implemented for global structure
 optimization within ase. The optimizer consists of its own module
 :mod:`ase.ga` which includes all classes needed for the optimizer.

@@ -40,6 +40,7 @@ nitpick_ignore = [
 ]
 sphinx_gallery_conf = {
     'filename_pattern': r'/*\.py',
+    'ignore_pattern': r'/*\_download.py',
     # "copyfile_regex": r".*\.(xyz|dat)",
     'examples_dirs': ['../examples'],
     'gallery_dirs': ['examples_generated'],

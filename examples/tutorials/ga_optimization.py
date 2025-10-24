@@ -121,7 +121,6 @@ from ase.ga.utilities import (
     get_angles_distribution,
     get_atoms_connections,
     get_atoms_distribution,
-    get_neighborlist,
     get_rings,
 )
 from ase.io import read, write
@@ -142,7 +141,7 @@ import matplotlib.pyplot as plt
 
 from ase.visualize.plot import plot_atoms
 
-fig, (ax1,ax2) = plt.subplots(1,2)
+fig, (ax1, ax2) = plt.subplots(1, 2)
 plot_atoms(slab, ax1, rotation=('0x,0y,0z'))
 plot_atoms(slab, ax2, rotation=('270x,0y,0z'))
 ax1.text(1, -1, 'xy-axis view')
@@ -185,7 +184,7 @@ starting_population = [sg.get_new_candidate() for i in range(population_size)]
 # %%
 # Let's visualize the first 3 structure of the starting population:
 
-fig, axs = plt.subplots(2,2)
+fig, axs = plt.subplots(2, 2)
 for iax, ax in enumerate(axs.reshape(-1)):
     plot_atoms(starting_population[iax], ax, rotation=('0x,0y,0z'))
     ax.set_axis_off()
@@ -323,14 +322,20 @@ write('all_candidates.traj', da.get_all_relaxed_candidates())
 # which as output saves a trajectory file with the locally optimized
 # structure. It is important that the relaxed structure is named as in
 # this script, since the parallel integration assumes this file naming
-# scheme. 
+# scheme.
+#
 # For the example described above this script could look like
-# below, however, we are using the formerly written file and not the 
-# system argument for demonstration purooses. Comment the first line
+# below, however, we are using the formerly written file and not the
+# system argument for demonstration purooses.
+# Comment the first line
 # and uncomment the line below if you want to use the system argument.
+# You can also directly download this
+# :download:`here <ga_optimization_calc_download.py>`
 
 
-fname='all_candidates.traj' #comment this if you want to use the system argument
+fname = (
+    'all_candidates.traj'  # comment this if you want to use the system argument
+)
 # fname = sys.argv[1] #uncomment
 
 print(f'Now relaxing {fname}')
@@ -356,7 +361,7 @@ print(f'Done relaxing {fname}')
 
 population_size = 20
 mutation_probability = 0.3
-n_to_test = 100
+n_to_test = 10  # here you propbably want to test more
 
 
 # Initialize the different components of the GA
@@ -365,7 +370,10 @@ tmp_folder = 'tmp_folder/'
 
 # An extra object is needed to handle the parallel execution
 parallel_local_run = ParallelLocalRun(
-    data_connection=da, tmp_folder=tmp_folder, n_simul=4, calc_script='ga-optimization-calc.py'
+    data_connection=da,
+    tmp_folder=tmp_folder,
+    n_simul=4,
+    calc_script='ga_basic_calc_download.py',
 )
 
 atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
@@ -431,305 +439,311 @@ while parallel_local_run.get_number_of_jobs_running() > 0:
 
 write('all_candidates.traj', da.get_all_relaxed_candidates())
 
+
+# %%
+# Notice how the main script is not cluttered by the local optimization
+# logic and is therefore now also easier to read. ``n_simul`` controls
+# the number of simultaneous relaxations, and can of course also be set
+# to 1 effectively giving the same result as in the non parallel
+# situation.
 #
-## %%
+# The ``relax`` method on the ``ParallelLocalRun`` class only returns
+# control to the main script when there is an execution thread
+# available. In the above example the relax method immediately returns
+# control to the main script the first 4 times it is called, but the
+# fifth time control is first returned when one of the first four
+# relaxations have been completed.
+
+
+# %%
+# Running the GA together with a queing system
+# ============================================
 #
-## Notice how the main script is not cluttered by the local optimization
-## logic and is therefore now also easier to read. ``n_simul`` controls
-## the number of simultaneous relaxations, and can of course also be set
-## to 1 effectively giving the same result as in the non parallel
-## situation.
+# The GA has been implemented with first principles structure
+# optimization in mind. When using for instance DFT calculations for the
+# local relaxations relaxing one structure can take many hours. For this
+# reason the GA has been made so that it can work together with queing
+# systems where each candidate is relaxed in a separate job. With this
+# in mind the main script of the GA can thus also be considered a
+# controller script which every time it is invoked gathers the current
+# population, checks with a queing system for the number of jobs
+# submitted, and submits new jobs. For a typical application the main
+# script can thus be invoked by a crontab once every hour.
 #
-## The ``relax`` method on the ``ParallelLocalRun`` class only returns
-## control to the main script when there is an execution thread
-## available. In the above example the relax method immediately returns
-## control to the main script the first 4 times it is called, but the
-## fifth time control is first returned when one of the first four
-## relaxations have been completed.
+# To run the GA together with a queing system the user needs to specify
+# a function which takes as input a job name and the path to the
+# trajectory file that needs to be submitted (the ``jtg`` function in
+# the sample script below). From this the function generates a PBS job
+# file which is submitted to the queing system. The calculator script
+# specified in the jobfile needs to obey the same naming scheme as the
+# sample calculator script in the previous section. The sample
+# relaxation script given in the previous can be used as starting point
+# for a relaxation script.
 #
-#
-## %%
-#
-## Running the GA together with a queing system
-## ============================================
-#
-## The GA has been implemented with first principles structure
-## optimization in mind. When using for instance DFT calculations for the
-## local relaxations relaxing one structure can take many hours. For this
-## reason the GA has been made so that it can work together with queing
-## systems where each candidate is relaxed in a separate job. With this
-## in mind the main script of the GA can thus also be considered a
-## controller script which every time it is invoked gathers the current
-## population, checks with a queing system for the number of jobs
-## submitted, and submits new jobs. For a typical application the main
-## script can thus be invoked by a crontab once every hour.
-#
-## To run the GA together with a queing system the user needs to specify
-## a function which takes as input a job name and the path to the
-## trajectory file that needs to be submitted (the ``jtg`` function in
-## the sample script below). From this the function generates a PBS job
-## file which is submitted to the queing system. The calculator script
-## specified in the jobfile needs to obey the same naming scheme as the
-## sample calculator script in the previous section. The sample
-## relaxation script given in the previous can be used as starting point
-## for a relaxation script.
-#
-## Handling of the parallel logic is in this case in the main script. The
-## parameter n_simul given to the ``PBSQueueRun`` object determines how
-## many relaxations should be in the queuing system simultaneously. The
-## main script now looks the following:
+# Handling of the parallel logic is in this case in the main script. The
+# parameter n_simul given to the ``PBSQueueRun`` object determines how
+# many relaxations should be in the queuing system simultaneously. The
+# main script now looks the following:
 #
 #
-#def jtg(job_name, traj_file):
-#    s = '#!/bin/sh\n'
-#    s += '#PBS -l nodes=1:ppn=12\n'
-#    s += '#PBS -l walltime=48:00:00\n'
-#    s += f'#PBS -N {job_name}\n'
-#    s += '#PBS -q q12\n'
-#    s += 'cd $PBS_O_WORKDIR\n'
-#    s += f'python calc.py {traj_file}\n'
-#    return s
+# .. code-block:: python
+#
+#    def jtg(job_name, traj_file):
+#        s = '#!/bin/sh\n'
+#        s += '#PBS -l nodes=1:ppn=12\n'
+#        s += '#PBS -l walltime=48:00:00\n'
+#        s += f'#PBS -N {job_name}\n'
+#        s += '#PBS -q q12\n'
+#        s += 'cd $PBS_O_WORKDIR\n'
+#        s += f'python calc.py {traj_file}\n'
+#        return s
 #
 #
-#population_size = 20
-#mutation_probability = 0.3
+#    population_size = 20
+#    mutation_probability = 0.3
 #
-## Initialize the different components of the GA
-#da = DataConnection('gadb.db')
-#tmp_folder = 'tmp_folder/'
-## The PBS queing interface is created
-#pbs_run = PBSQueueRun(
-#    da,
-#    tmp_folder=tmp_folder,
-#    job_prefix='Ag2Au2_opt',
-#    n_simul=5,
-#    job_template_generator=jtg,
-#)
+#    # Initialize the different components of the GA
+#    da = DataConnection('gadb.db')
+#    tmp_folder = 'tmp_folder/'
+#    # The PBS queing interface is created
+#    pbs_run = PBSQueueRun(
+#        da,
+#        tmp_folder=tmp_folder,
+#        job_prefix='Ag2Au2_opt',
+#        n_simul=5,
+#        job_template_generator=jtg,
+#    )
 #
-#atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
-#n_to_optimize = len(atom_numbers_to_optimize)
-#slab = da.get_slab()
-#all_atom_types = get_all_atom_types(slab, atom_numbers_to_optimize)
-#blmin = closest_distances_generator(all_atom_types, ratio_of_covalent_radii=0.7)
+#    atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
+#    n_to_optimize = len(atom_numbers_to_optimize)
+#    slab = da.get_slab()
+#    all_atom_types = get_all_atom_types(slab, atom_numbers_to_optimize)
+#    blmin = closest_distances_generator(all_atom_types,
+#                                        ratio_of_covalent_radii=0.7)
 #
-#comp = InteratomicDistanceComparator(
-#    n_top=n_to_optimize,
-#    pair_cor_cum_diff=0.015,
-#    pair_cor_max=0.7,
-#    dE=0.02,
-#    mic=False,
-#)
-#pairing = CutAndSplicePairing(slab, n_to_optimize, blmin)
-#mutations = OperationSelector(
-#    [1.0, 1.0, 1.0],
-#    [
-#        MirrorMutation(blmin, n_to_optimize),
-#        RattleMutation(blmin, n_to_optimize),
-#        PermutationMutation(n_to_optimize),
-#    ],
-#)
+#    comp = InteratomicDistanceComparator(
+#        n_top=n_to_optimize,
+#        pair_cor_cum_diff=0.015,
+#        pair_cor_max=0.7,
+#        dE=0.02,
+#        mic=False,
+#    )
+#    pairing = CutAndSplicePairing(slab, n_to_optimize, blmin)
+#    mutations = OperationSelector(
+#        [1.0, 1.0, 1.0],
+#        [
+#            MirrorMutation(blmin, n_to_optimize),
+#            RattleMutation(blmin, n_to_optimize),
+#            PermutationMutation(n_to_optimize),
+#        ],
+#    )
 #
-## Relax all unrelaxed structures (e.g. the starting population)
-#while (
-#    da.get_number_of_unrelaxed_candidates() > 0
-#    and not pbs_run.enough_jobs_running()
-#):
-#    a = da.get_an_unrelaxed_candidate()
-#    pbs_run.relax(a)
+#    # Relax all unrelaxed structures (e.g. the starting population)
+#    while (
+#        da.get_number_of_unrelaxed_candidates() > 0
+#        and not pbs_run.enough_jobs_running()
+#    ):
+#        a = da.get_an_unrelaxed_candidate()
+#        pbs_run.relax(a)
 #
-## create the population
-#population = Population(
-#    data_connection=da, population_size=population_size, comparator=comp
-#)
+#    # create the population
+#    population = Population(
+#        data_connection=da, population_size=population_size, comparator=comp
+#    )
 #
-## Submit new candidates until enough are running
-#while (
-#    not pbs_run.enough_jobs_running()
-#    and len(population.get_current_population()) > 2
-#):
-#    a1, a2 = population.get_two_candidates()
-#    a3, desc = pairing.get_new_individual([a1, a2])
-#    if a3 is None:
-#        continue
-#    da.add_unrelaxed_candidate(a3, description=desc)
+#    # Submit new candidates until enough are running
+#    while (
+#        not pbs_run.enough_jobs_running()
+#        and len(population.get_current_population()) > 2
+#    ):
+#        a1, a2 = population.get_two_candidates()
+#        a3, desc = pairing.get_new_individual([a1, a2])
+#        if a3 is None:
+#            continue
+#        da.add_unrelaxed_candidate(a3, description=desc)
 #
-#    if random() < mutation_probability:
-#        a3_mut, desc = mutations.get_new_individual([a3])
-#        if a3_mut is not None:
-#            da.add_unrelaxed_step(a3_mut, desc)
-#            a3 = a3_mut
-#    pbs_run.relax(a3)
+#        if random() < mutation_probability:
+#            a3_mut, desc = mutations.get_new_individual([a3])
+#            if a3_mut is not None:
+#                da.add_unrelaxed_step(a3_mut, desc)
+#                a3 = a3_mut
+#        pbs_run.relax(a3)
 #
-#write('all_candidates.traj', da.get_all_relaxed_candidates())
+#    write('all_candidates.traj', da.get_all_relaxed_candidates())
 #
-## %%
-## Parameterising the GA search for structure screening
-## ====================================================
-## Relaxing every candidate suggested by the GA is very inefficient. Many
-## of these structures are poor suggestions and are immediately discarded
-## when they are compared to the current population. For this reason it
-## can be very effective to screen the candidate before relaxation to have
-## a guess whether the candidate has a chance to enter the population or
-## not. If this is not the case they can be rejected without the need for
-## a costly DFT calculation. By doing this you could, for example, use a
-## more drastic mutation resulting in both potentially very good but also
-## very bad candidates without having to waste a lot of CPU power
-## evaluating the poor suggestions.
+# Parameterising the GA search for structure screening
+# ====================================================
+# Relaxing every candidate suggested by the GA is very inefficient. Many
+# of these structures are poor suggestions and are immediately discarded
+# when they are compared to the current population. For this reason it
+# can be very effective to screen the candidate before relaxation to have
+# a guess whether the candidate has a chance to enter the population or
+# not. If this is not the case they can be rejected without the need for
+# a costly DFT calculation. By doing this you could, for example, use a
+# more drastic mutation resulting in both potentially very good but also
+# very bad candidates without having to waste a lot of CPU power
+# evaluating the poor suggestions.
 #
-## Parameterising the whole database of structures and relating the
-## parameters for the individual structures to their DFT energy is one
-## example of how to handle this. As the database of structures grows doing
-## the GA search, the fit parameters and the guessed energy becomes more
-## refined. As a result, the screening becomes more precise.
+# Parameterising the whole database of structures and relating the
+# parameters for the individual structures to their DFT energy is one
+# example of how to handle this. As the database of structures grows doing
+# the GA search, the fit parameters and the guessed energy becomes more
+# refined. As a result, the screening becomes more precise.
 #
-## Below is a sample script of how this method can be implemented and used.
-## The script is a direct extension of the above tutorial. A number of
-## predefined parameterising methods are available and its implementation
-## is by no means restricted to the use of one of those. In the example a
-## linear relationship is expected between every parameter and the DFT
-## energy. The main script for the GA run hence could look like:
-#
-#
-#def jtg(job_name, traj_file):
-#    s = '#!/bin/sh\n'
-#    s += '#PBS -l nodes=1:ppn=16\n'
-#    s += '#PBS -l walltime=100:00:00\n'
-#    s += f'#PBS -N {job_name}\n'
-#    s += '#PBS -q q16\n'
-#    s += 'cd $PBS_O_WORKDIR\n'
-#    s += 'NPROCS==`wc -l < $PBS_NODEFILE`\n'
-#    s += 'mpirun --mca mpi_warn_on_fork 0 -np $NPROCS '
-#    s += f'gpaw-python calc_gpaw.py {traj_file}\n'
-#    return s
+# Below is a sample script of how this method can be implemented and used.
+# The script is a direct extension of the above tutorial. A number of
+# predefined parameterising methods are available and its implementation
+# is by no means restricted to the use of one of those. In the example a
+# linear relationship is expected between every parameter and the DFT
+# energy. The main script for the GA run hence could look like:
 #
 #
-#def combine_parameters(conf):
-#    # Get and combine selected parameters
-#    parameters = []
-#    gets = [
-#        get_atoms_connections(conf)
-#        + get_rings(conf)
-#        + get_angles_distribution(conf)
-#        + get_atoms_distribution(conf)
-#    ]
-#    for get in gets:
-#        parameters += get
-#    return parameters
+# .. code-block:: python
+#
+#    def jtg(job_name, traj_file):
+#        s = '#!/bin/sh\n'
+#        s += '#PBS -l nodes=1:ppn=16\n'
+#        s += '#PBS -l walltime=100:00:00\n'
+#        s += f'#PBS -N {job_name}\n'
+#        s += '#PBS -q q16\n'
+#        s += 'cd $PBS_O_WORKDIR\n'
+#        s += 'NPROCS==`wc -l < $PBS_NODEFILE`\n'
+#        s += 'mpirun --mca mpi_warn_on_fork 0 -np $NPROCS '
+#        s += f'gpaw-python calc_gpaw.py {traj_file}\n'
+#        return s
 #
 #
-#def should_we_skip(conf, comparison_energy, weights):
-#    parameters = combine_parameters(conf)
-#    # Return if weights not defined (too few completed
-#    # calculated structures to make a good fit)
-#    if weights is None:
-#        return False
-#    regression_energy = sum(p * q for p, q in zip(weights, parameters))
-#    # Skip with 90% likelihood if energy appears to go up 5 eV or more
-#    if (regression_energy - comparison_energy) > 5 and random() < 0.9:
-#        return True
+#    def combine_parameters(conf):
+#        # Get and combine selected parameters
+#        parameters = []
+#        gets = [
+#            get_atoms_connections(conf)
+#            + get_rings(conf)
+#            + get_angles_distribution(conf)
+#            + get_atoms_distribution(conf)
+#        ]
+#        for get in gets:
+#            parameters += get
+#        return parameters
+#
+#
+#    def should_we_skip(conf, comparison_energy, weights):
+#        parameters = combine_parameters(conf)
+#        # Return if weights not defined (too few completed
+#        # calculated structures to make a good fit)
+#        if weights is None:
+#            return False
+#        regression_energy = sum(p * q for p, q in zip(weights, parameters))
+#        # Skip with 90% likelihood if energy appears to go up 5 eV or more
+#        if (regression_energy - comparison_energy) > 5 and random() < 0.9:
+#            return True
+#        else:
+#            return False
+#
+#
+#    population_size = 20
+#    mutation_probability = 0.3
+#
+#    # Initialize the different components of the GA
+#    da = DataConnection('gadb.db')
+#    tmp_folder = 'work_folder/'
+#    # The PBS queing interface is created
+#    pbs_run = PBSQueueRun(
+#        da,
+#        tmp_folder=tmp_folder,
+#        job_prefix='Ag2Au2_opt',
+#        n_simul=5,
+#        job_template_generator=jtg,
+#        find_neighbors=get_neighborlist,
+#        perform_parametrization=combine_parameters,
+#    )
+#
+#    atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
+#    n_to_optimize = len(atom_numbers_to_optimize)
+#    slab = da.get_slab()
+#    all_atom_types = get_all_atom_types(slab, atom_numbers_to_optimize)
+#    blmin = closest_distances_generator(all_atom_types,
+#                                        ratio_of_covalent_radii=0.7)
+#
+#    comp = InteratomicDistanceComparator(
+#        n_top=n_to_optimize,
+#        pair_cor_cum_diff=0.015,
+#        pair_cor_max=0.7,
+#        dE=0.02,
+#        mic=False,
+#    )
+#    pairing = CutAndSplicePairing(slab, n_to_optimize, blmin)
+#    mutations = OperationSelector(
+#        [1.0, 1.0, 1.0],
+#        [
+#            MirrorMutation(blmin, n_to_optimize),
+#            RattleMutation(blmin, n_to_optimize),
+#            PermutationMutation(n_to_optimize),
+#        ],
+#    )
+#
+#    # Relax all unrelaxed structures (e.g. the starting population)
+#    while (
+#        da.get_number_of_unrelaxed_candidates() > 0
+#        and not pbs_run.enough_jobs_running()
+#    ):
+#        a = da.get_an_unrelaxed_candidate()
+#        pbs_run.relax(a)
+#
+#
+#    # create the population
+#    population = Population(
+#        data_connection=da, population_size=population_size,
+#                        comparator=comp
+#    )
+#
+#    # create the regression expression for estimating the energy
+#    all_trajs = da.get_all_relaxed_candidates()
+#    sampled_points = []
+#    sampled_energies = []
+#    for conf in all_trajs:
+#        no_of_conn = list(get_parametrization(conf))
+#        if no_of_conn not in sampled_points:
+#            sampled_points.append(no_of_conn)
+#            sampled_energies.append(conf.get_potential_energy())
+#
+#    sampled_points = np.array(sampled_points)
+#    sampled_energies = np.array(sampled_energies)
+#
+#    if len(sampled_points) > 0 and
+#        len(sampled_energies) >= len(sampled_points[0]):
+#        weights = np.linalg.lstsq(sampled_points,
+#                                  sampled_energies, rcond=-1)[0]
 #    else:
-#        return False
+#        weights = None
 #
+#    # Submit new candidates until enough are running
+#    while (
+#        not pbs_run.enough_jobs_running()
+#        and len(population.get_current_population()) > 2
+#    ):
+#        a1, a2 = population.get_two_candidates()
 #
-#population_size = 20
-#mutation_probability = 0.3
+#        # Selecting the "worst" parent energy
+#        # which the child should be compared to
+#        ce_a1 = da.get_atoms(a1.info['relax_id']).get_potential_energy()
+#        ce_a2 = da.get_atoms(a2.info['relax_id']).get_potential_energy()
+#        comparison_energy = min(ce_a1, ce_a2)
 #
-## Initialize the different components of the GA
-#da = DataConnection('gadb.db')
-#tmp_folder = 'work_folder/'
-## The PBS queing interface is created
-#pbs_run = PBSQueueRun(
-#    da,
-#    tmp_folder=tmp_folder,
-#    job_prefix='Ag2Au2_opt',
-#    n_simul=5,
-#    job_template_generator=jtg,
-#    find_neighbors=get_neighborlist,
-#    perform_parametrization=combine_parameters,
-#)
+#        a3, desc = pairing.get_new_individual([a1, a2])
+#        if a3 is None:
+#            continue
+#        if should_we_skip(a3, comparison_energy, weights):
+#            continue
+#        da.add_unrelaxed_candidate(a3, description=desc)
 #
-#atom_numbers_to_optimize = da.get_atom_numbers_to_optimize()
-#n_to_optimize = len(atom_numbers_to_optimize)
-#slab = da.get_slab()
-#all_atom_types = get_all_atom_types(slab, atom_numbers_to_optimize)
-#blmin = closest_distances_generator(all_atom_types, ratio_of_covalent_radii=0.7)
+#        if random() < mutation_probability:
+#            a3_mut, desc_mut = mutations.get_new_individual([a3])
+#            if a3_mut is not None and not should_we_skip(
+#                a3_mut, comparison_energy, weights
+#            ):
+#                da.add_unrelaxed_step(a3_mut, desc_mut)
+#                a3 = a3_mut
+#        pbs_run.relax(a3)
 #
-#comp = InteratomicDistanceComparator(
-#    n_top=n_to_optimize,
-#    pair_cor_cum_diff=0.015,
-#    pair_cor_max=0.7,
-#    dE=0.02,
-#    mic=False,
-#)
-#pairing = CutAndSplicePairing(slab, n_to_optimize, blmin)
-#mutations = OperationSelector(
-#    [1.0, 1.0, 1.0],
-#    [
-#        MirrorMutation(blmin, n_to_optimize),
-#        RattleMutation(blmin, n_to_optimize),
-#        PermutationMutation(n_to_optimize),
-#    ],
-#)
-#
-## Relax all unrelaxed structures (e.g. the starting population)
-#while (
-#    da.get_number_of_unrelaxed_candidates() > 0
-#    and not pbs_run.enough_jobs_running()
-#):
-#    a = da.get_an_unrelaxed_candidate()
-#    pbs_run.relax(a)
-#
-#
-## create the population
-#population = Population(
-#    data_connection=da, population_size=population_size, comparator=comp
-#)
-#
-## create the regression expression for estimating the energy
-#all_trajs = da.get_all_relaxed_candidates()
-#sampled_points = []
-#sampled_energies = []
-#for conf in all_trajs:
-#    no_of_conn = list(get_parametrization(conf))
-#    if no_of_conn not in sampled_points:
-#        sampled_points.append(no_of_conn)
-#        sampled_energies.append(conf.get_potential_energy())
-#
-#sampled_points = np.array(sampled_points)
-#sampled_energies = np.array(sampled_energies)
-#
-#if len(sampled_points) > 0 and len(sampled_energies) >= len(sampled_points[0]):
-#    weights = np.linalg.lstsq(sampled_points, sampled_energies, rcond=-1)[0]
-#else:
-#    weights = None
-#
-## Submit new candidates until enough are running
-#while (
-#    not pbs_run.enough_jobs_running()
-#    and len(population.get_current_population()) > 2
-#):
-#    a1, a2 = population.get_two_candidates()
-#
-#    # Selecting the "worst" parent energy
-#    # which the child should be compared to
-#    ce_a1 = da.get_atoms(a1.info['relax_id']).get_potential_energy()
-#    ce_a2 = da.get_atoms(a2.info['relax_id']).get_potential_energy()
-#    comparison_energy = min(ce_a1, ce_a2)
-#
-#    a3, desc = pairing.get_new_individual([a1, a2])
-#    if a3 is None:
-#        continue
-#    if should_we_skip(a3, comparison_energy, weights):
-#        continue
-#    da.add_unrelaxed_candidate(a3, description=desc)
-#
-#    if random() < mutation_probability:
-#        a3_mut, desc_mut = mutations.get_new_individual([a3])
-#        if a3_mut is not None and not should_we_skip(
-#            a3_mut, comparison_energy, weights
-#        ):
-#            da.add_unrelaxed_step(a3_mut, desc_mut)
-#            a3 = a3_mut
-#    pbs_run.relax(a3)
-#
-#write('all_candidates.traj', da.get_all_relaxed_candidates())
+#    write('all_candidates.traj', da.get_all_relaxed_candidates())
