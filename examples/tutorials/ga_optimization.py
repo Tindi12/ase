@@ -182,7 +182,7 @@ starting_population = [sg.get_new_candidate() for i in range(population_size)]
 
 
 # %%
-# Let's visualize the first 3 structure of the starting population:
+# Let's visualize the first 4 structure of the starting population:
 
 fig, axs = plt.subplots(2, 2)
 for iax, ax in enumerate(axs.reshape(-1)):
@@ -213,7 +213,7 @@ for a in starting_population:
 # Change the following three parameters to suit your needs
 population_size = 20
 mutation_probability = 0.3
-n_to_test = 20
+n_to_test = 10
 
 # Initialize the different components of the GA
 da = DataConnection('gadb.db')
@@ -286,7 +286,7 @@ write('all_candidates.traj', da.get_all_relaxed_candidates())
 # %%
 # The above script proposes and locally relaxes 20 new candidates. To
 # speed up the execution of this sample the local relaxations are
-# limited to 100 steps. This restriction should not be set in a real
+# limited to 10 steps. This restriction should not be set in a real
 # application. *Note* it is important to set the ``raw_score``, as
 # it is what is being optimized (maximized). It is really an input in the
 # ``atoms.info['key_value_pairs']`` dictionary.
@@ -330,7 +330,7 @@ write('all_candidates.traj', da.get_all_relaxed_candidates())
 # Comment the first line
 # and uncomment the line below if you want to use the system argument.
 # You can also directly download this
-# :download:`here <ga_optimization_calc_download.py>`
+# :download:`here <ga_basic_calc_download.py>`
 
 
 fname = (
