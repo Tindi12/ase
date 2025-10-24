@@ -190,13 +190,14 @@ bleeding-edge:
 doc:
   image: registry.gitlab.com/ase/ase:ase-full-monty
   variables:
-    ASE_CONFIG_PATH: "ase_docs_config.ini"
+    ASE_CONFIG_PATH: ase_docs_config.ini
   before_script:
     - pip install scriv sphinx_book_theme sphinx-gallery
     - pip install --no-deps .[docs]
-    # Magical incantation to get the calculator configurations used by the test suite
+    # Magical incantation to get the full calculator configurations used by
+    # the test suite
     - >
-      python3 -c
+      ASE_CONFIG_PATH=/home/ase/aseconfig.ini python3 -c
       "import sys; from ase.test.factories import MachineInformation; MachineInformation().cfg.parser.write(sys.stdout)"
       | tee ase_docs_config.ini
     - ase info
