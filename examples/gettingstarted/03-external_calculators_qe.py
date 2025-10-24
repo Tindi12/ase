@@ -45,8 +45,6 @@ from ase.calculators.espresso import Espresso
 
 
 calc = Espresso(
-#     profile=profile,
-    pseudo_dir=pseudo_dir,
     kpts=(3, 3, 3),
     input_data={
         'control': {'tprnfor': True, 'tstress': True},
