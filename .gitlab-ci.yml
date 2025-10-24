@@ -189,9 +189,16 @@ bleeding-edge:
 
 doc:
   image: registry.gitlab.com/ase/ase:ase-full-monty
+  variables:
+    ASE_CONFIG_PATH: "ase_docs_config.ini"
   before_script:
     - pip install scriv sphinx_book_theme sphinx-gallery
     - pip install --no-deps .[docs]
+    # Magical incantation to get the calculator configurations used by the test suite
+    - >
+      python3 -c
+      "import sys; from ase.test.factories import MachineInformation; MachineInformation().cfg.parser.write(sys.stdout)"
+      > ase_docs_config.ini
     - ase info
     - ase info --calculators
     - which sphinx-build
