@@ -10,6 +10,7 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.intersphinx',
     'sphinx.ext.imgconverter',
+    'sphinx_gallery.gen_gallery',
 ]
 
 extlinks = {
@@ -21,8 +22,8 @@ extlinks = {
 source_suffix = '.rst'
 master_doc = 'index'
 project = 'ASE'
+author = 'ASE developers'
 copyright = f'{datetime.date.today().year}, ASE-developers'
-templates_path = ['templates']
 exclude_patterns = ['build']
 default_role = 'math'
 pygments_style = 'sphinx'
@@ -37,12 +38,29 @@ nitpick_ignore = [
     ('envvar', 'SIESTA_PP_PATH'),
     ('envvar', 'VASP_SCRIPT'),
 ]
+sphinx_gallery_conf = {
+    'filename_pattern': r'/*\.py',
+    # "copyfile_regex": r".*\.(xyz|dat)",
+    'examples_dirs': ['../examples'],
+    'gallery_dirs': ['examples_generated'],
+    'min_reported_time': 60,
+    'reference_url': {'ase': None},
+    'remove_config_comments': True,
+    'prefer_full_module': ['ase'],
+}
 
-html_theme = 'sphinx_rtd_theme'
-html_style = 'ase.css'
+html_theme = 'sphinx_book_theme'
+html_logo = 'static/ase256.png'
 html_favicon = 'static/ase.ico'
 html_static_path = ['static']
 html_last_updated_fmt = '%a, %d %b %Y %H:%M:%S'
+
+html_theme_options = {
+    # https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/header-links.html
+    'gitlab_url': 'https://gitlab.com/ase/ase',
+    # https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/indices.html
+    'primary_sidebar_end': ['indices.html'],
+}
 
 latex_elements = {'papersize': 'a4paper'}
 latex_show_urls = 'inline'

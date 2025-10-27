@@ -210,7 +210,6 @@ class GPMin(Optimizer, GaussianProcess):
         """
         # update the training set
         self.x_list.append(r)
-        f = f.reshape(-1)
         y = np.append(np.array(e).reshape(-1), -f)
         self.y_list.append(y)
 
@@ -251,18 +250,19 @@ class GPMin(Optimizer, GaussianProcess):
         self.noise = ratio * self.kernel.weight
 
     def step(self, f=None):
+        gradient = self._get_gradient(f)
         optimizable = self.optimizable
-        if f is None:
-            f = optimizable.get_forces()
 
-        r0 = optimizable.get_positions().reshape(-1)
-        e0 = optimizable.get_potential_energy()
+        f = gradient.reshape(-1, 3)
+
+        r0 = optimizable.get_x()
+        e0 = optimizable.get_value()
         self.update(r0, e0, f)
 
         r1 = self.relax_model(r0)
-        optimizable.set_positions(r1.reshape(-1, 3))
-        e1 = optimizable.get_potential_energy()
-        f1 = optimizable.get_forces()
+        optimizable.set_x(r1)
+        e1 = optimizable.get_value()
+        f1 = optimizable.get_gradient()
         self.function_calls += 1
         self.force_calls += 1
         count = 0
@@ -270,9 +270,9 @@ class GPMin(Optimizer, GaussianProcess):
             self.update(r1, e1, f1)
             r1 = self.relax_model(r0)
 
-            optimizable.set_positions(r1.reshape(-1, 3))
-            e1 = optimizable.get_potential_energy()
-            f1 = optimizable.get_forces()
+            optimizable.set_x(r1)
+            e1 = optimizable.get_value()
+            f1 = optimizable.get_gradient()
             self.function_calls += 1
             self.force_calls += 1
             if self.converged(f1):

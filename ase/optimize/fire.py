@@ -134,7 +134,7 @@ class FIRE(Optimizer):
             Use of ``maxmove`` is deprecated; please use ``maxstep``.
 
         """
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        super().__init__(atoms, restart, logfile, trajectory, **kwargs)
 
         self.dt = dt
 
@@ -156,27 +156,25 @@ class FIRE(Optimizer):
         self.position_reset_callback = position_reset_callback
 
     def initialize(self):
-        self.v = None
+        self.vel = None
 
     def read(self):
-        self.v, self.dt = self.load()
+        self.vel, self.dt = self.load()
 
     def step(self, f=None):
+        gradient = self._get_gradient(f)
         optimizable = self.optimizable
 
-        if f is None:
-            f = optimizable.get_forces()
-
-        if self.v is None:
-            self.v = np.zeros((len(optimizable), 3))
+        if self.vel is None:
+            self.vel = np.zeros(optimizable.ndofs())
             if self.downhill_check:
-                self.e_last = optimizable.get_potential_energy()
-                self.r_last = optimizable.get_positions().copy()
-                self.v_last = self.v.copy()
+                self.e_last = optimizable.get_value()
+                self.r_last = optimizable.get_x()
+                self.vel_last = self.vel.copy()
         else:
             is_uphill = False
             if self.downhill_check:
-                e = optimizable.get_potential_energy()
+                e = optimizable.get_value()
                 # Check if the energy actually decreased
                 if e > self.e_last:
                     # If not, reset to old positions...
@@ -184,31 +182,33 @@ class FIRE(Optimizer):
                         self.position_reset_callback(
                             optimizable, self.r_last, e,
                             self.e_last)
-                    optimizable.set_positions(self.r_last)
+                    optimizable.set_x(self.r_last)
                     is_uphill = True
-                self.e_last = optimizable.get_potential_energy()
-                self.r_last = optimizable.get_positions().copy()
-                self.v_last = self.v.copy()
+                self.e_last = optimizable.get_value()
+                self.r_last = optimizable.get_x()
+                self.vel_last = self.vel.copy()
 
-            vf = np.vdot(f, self.v)
+            vf = np.vdot(gradient, self.vel)
+            grad2 = np.vdot(gradient, gradient)
             if vf > 0.0 and not is_uphill:
-                self.v = (1.0 - self.a) * self.v + self.a * f / np.sqrt(
-                    np.vdot(f, f)) * np.sqrt(np.vdot(self.v, self.v))
+                self.vel = (
+                    (1.0 - self.a) * self.vel + self.a * gradient / np.sqrt(
+                        grad2) * np.sqrt(np.vdot(self.vel, self.vel)))
                 if self.Nsteps > self.Nmin:
                     self.dt = min(self.dt * self.finc, self.dtmax)
                     self.a *= self.fa
                 self.Nsteps += 1
             else:
-                self.v[:] *= 0.0
+                self.vel[:] *= 0.0
                 self.a = self.astart
                 self.dt *= self.fdec
                 self.Nsteps = 0
 
-        self.v += self.dt * f
-        dr = self.dt * self.v
+        self.vel += self.dt * gradient
+        dr = self.dt * self.vel
         normdr = np.sqrt(np.vdot(dr, dr))
         if normdr > self.maxstep:
             dr = self.maxstep * dr / normdr
-        r = optimizable.get_positions()
-        optimizable.set_positions(r + dr)
-        self.dump((self.v, self.dt))
+        r = optimizable.get_x()
+        optimizable.set_x(r + dr)
+        self.dump((self.vel, self.dt))

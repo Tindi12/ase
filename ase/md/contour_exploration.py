@@ -211,7 +211,7 @@ class ContourExploration(Dynamics):
         """ Call Dynamics.run and adjust max_steps """
         return Dynamics.run(self, steps=steps)
 
-    def log(self):
+    def log(self, gradient):
         if self.logfile is not None:
             # name = self.__class__.__name__
             if self.nsteps == 0:
@@ -382,7 +382,6 @@ class ContourExploration(Dynamics):
 
     def step(self, f=None):
         atoms = self._actual_atoms
-
         if f is None:
             f = atoms.get_forces()
 

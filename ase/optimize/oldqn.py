@@ -158,7 +158,7 @@ class GoodOldQuasiNewton(Optimizer):
 
         """
 
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        super().__init__(atoms, restart, logfile, trajectory, **kwargs)
 
         self.eps = 1e-12
         self.hessianupdate = hessianupdate
@@ -166,7 +166,7 @@ class GoodOldQuasiNewton(Optimizer):
         self.verbosity = verbosity
         self.diagonal = diagonal
 
-        n = len(self.optimizable) * 3
+        n = self.optimizable.ndofs()
         if radius is None:
             self.radius = 0.05 * np.sqrt(n) / 10.0
         else:
@@ -201,7 +201,7 @@ class GoodOldQuasiNewton(Optimizer):
 
     def set_default_hessian(self):
         # set unit matrix
-        n = len(self.optimizable) * 3
+        n = self.optimizable.ndofs()
         hessian = np.zeros((n, n))
         for i in range(n):
             hessian[i][i] = self.diagonal
@@ -290,14 +290,11 @@ class GoodOldQuasiNewton(Optimizer):
     def step(self, forces=None):
         """ Do one QN step
         """
+        forces = self._get_gradient(forces)
 
-        if forces is None:
-            forces = self.optimizable.get_forces()
-
-        pos = self.optimizable.get_positions().ravel()
-        G = -self.optimizable.get_forces().ravel()
-
-        energy = self.optimizable.get_potential_energy()
+        pos = self.optimizable.get_x()
+        G = -self.optimizable.get_gradient()
+        energy = self.optimizable.get_value()
 
         if hasattr(self, 'oldenergy'):
             self.write_log('energies ' + str(energy) +
@@ -313,7 +310,7 @@ class GoodOldQuasiNewton(Optimizer):
 
             if (energy - self.oldenergy) > de:
                 self.write_log('reject step')
-                self.optimizable.set_positions(self.oldpos.reshape((-1, 3)))
+                self.optimizable.set_x(self.oldpos)
                 G = self.oldG
                 energy = self.oldenergy
                 self.radius *= 0.5
@@ -363,7 +360,7 @@ class GoodOldQuasiNewton(Optimizer):
         for i in range(n):
             step += D[i] * V[i]
 
-        pos = self.optimizable.get_positions().ravel()
+        pos = self.optimizable.get_x()
         pos += step
 
         energy_estimate = self.get_energy_estimate(D, Gbar, b)
@@ -371,7 +368,7 @@ class GoodOldQuasiNewton(Optimizer):
         self.gbar_estimate = self.get_gbar_estimate(D, Gbar, b)
         self.old_gbar = Gbar
 
-        self.optimizable.set_positions(pos.reshape((-1, 3)))
+        self.optimizable.set_x(pos)
 
     def get_energy_estimate(self, D, Gbar, b):
 
@@ -426,8 +423,8 @@ class GoodOldQuasiNewton(Optimizer):
 
     def get_hessian_inertia(self, eigenvalues):
         # return number of negative modes
-        self.write_log("eigenvalues {:2.2f} {:2.2f} {:2.2f} ".format(
-            eigenvalues[0], eigenvalues[1], eigenvalues[2]))
+        txt = ' '.join(f'{eig:2.2f}' for eig in eigenvalues[:3])
+        self.write_log(f'eigenvalues {txt}')
         n = 0
         while eigenvalues[n] < 0:
             n += 1
