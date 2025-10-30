@@ -376,7 +376,7 @@ class Siesta(FileIOCalculator):
         if not isinstance(fdf_arguments, dict):
             raise TypeError("fdf_arguments must be a dictionary.")
 
-    def write_input(self, atoms, directory=None, filename=None, properties=None, system_changes=None):
+    def write_input(self, atoms, properties=None, system_changes=None):
         """Write input (fdf)-file.
         See calculator.py for further details.
 
@@ -391,12 +391,7 @@ class Siesta(FileIOCalculator):
             properties=properties,
             system_changes=system_changes)
 
-        filename = self.getpath(ext='fdf', directory=directory)
-
-        if directory is None:
-            directory = Path(self.directory)
-        else:
-            directory = Path(directory)
+        filename = self.getpath(ext='fdf')
 
         more_fdf_args = {}
 
@@ -454,7 +449,7 @@ class Siesta(FileIOCalculator):
 
         writer.link_pseudos_into_directory(
             symlink_pseudos=self['symlink_pseudos'],
-            directory=directory)
+            directory=Path(self.directory))
 
     def read(self, filename):
         """Read structural parameters from file .XV file
