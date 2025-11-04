@@ -611,7 +611,7 @@ class ASEGUIWindow(MainWindow):
 
         self.moviebar = MovieToolbar(self.win, gui)
         self.moviebar.tkframe.pack(
-            anchor=tk.N, side=tk.TOP, expand=True, fill=tk.X)
+            anchor=tk.N, side=tk.TOP, expand=False, fill=tk.X)
 
         self.canvas = tk.Canvas(self.win,
                                 width=self.size[0],
