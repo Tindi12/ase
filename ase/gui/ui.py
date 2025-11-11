@@ -554,11 +554,16 @@ class MenuItem:
 
 
 class MainWindow(BaseWindow):
-    def __init__(self, title, close=None, menu=[]):
+    def __init__(self, title, close=None, config=None, menu=[]):
         self.win = tk.Tk()
         super().__init__(title, close)
 
-        # self.win.tk.call('tk', 'scaling', 3.0)
+        if 'gui_scaling' in config:
+            # Most people would understand scaling = 1.0 to mean 'no change'
+            # or 'default' but this isn't how tk works. Let's relate the value
+            # given to tk's actual default:
+            scaling = self.win.tk.call('tk', 'scaling') * config['gui_scaling']
+            self.win.tk.call('tk', 'scaling', scaling)
         # self.win.tk.call('tk', 'scaling', '-displayof', '.', 7)
 
         self.menu = {}
@@ -648,7 +653,7 @@ class ASEGUIWindow(MainWindow):
     def __init__(self, close, menu, config,
                  scroll, scroll_event,
                  press, move, release, resize):
-        super().__init__('ASE-GUI', close, menu)
+        super().__init__('ASE-GUI', close, config, menu)
 
         self.size = np.array([450, 450])
 

@@ -14,6 +14,7 @@ gui_default_settings = {
     'gui_graphs_string': 'i, e - E[-1]',  # default for the graph command
     'gui_foreground_color': '#000000',
     'gui_background_color': '#ffffff',
+    'gui_scaling': 1.0,
     'covalent_radii': None,
     'radii_scale': 0.89,
     'force_vector_scale': 1.0,
