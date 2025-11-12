@@ -597,7 +597,7 @@ class View:
         line((x2, y2, end[0], end[1]), width)
 
     def draw_axes(self):
-        axes_length = 15
+        axes_length = 15 * self.config['gui_scaling']
 
         rgb = ['red', 'green', 'blue']
 
