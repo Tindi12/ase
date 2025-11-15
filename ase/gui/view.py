@@ -602,8 +602,8 @@ class View:
         rgb = ['red', 'green', 'blue']
 
         for i in self.axes[:, 2].argsort():
-            a = 20
-            b = self.window.size[1] - 20
+            a = 20 * self.config['gui_scaling']
+            b = self.window.size[1] - a
             c = int(self.axes[i][0] * axes_length + a)
             d = int(-self.axes[i][1] * axes_length + b)
             self.window.line((a, b, c, d))
