@@ -554,7 +554,7 @@ class MenuItem:
 
 
 class MainWindow(BaseWindow):
-    def __init__(self, title, close=None, config=None, menu=[]):
+    def __init__(self, title, close=None, config={}, menu=[]):
         self.win = tk.Tk()
         super().__init__(title, close)
 
