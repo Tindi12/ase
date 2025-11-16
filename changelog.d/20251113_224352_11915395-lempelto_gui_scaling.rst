@@ -23,12 +23,13 @@
 ..
 .. - A bullet item for the Molecular dynamics category.
 ..
- GUI
- ---
 
- - A scaling constant 'gui_scaling' can now specified via ~/.ase/gui.py.
-   Depending on the windowing system used, this may help make the GUI more
-   readable on high DPI monitors.
+GUI
+---
+
+- A scaling constant 'gui_scaling' can now specified via ~/.ase/gui.py.
+  Depending on the windowing system used, this may help make the GUI more
+  readable on high DPI monitors.
 
 .. Development
 .. -----------
