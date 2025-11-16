@@ -121,8 +121,8 @@ function of the distance between atom 0 and 5::
 The symbols are the same as used in the plotting data function.
 
 
-Defaults
---------
+Configuring the GUI
+-------------------
 
 Certain defaults for the GUI can be set using a file ``~/.ase/gui.py``.
 If the file exists, it is executed after initializing the variables and
@@ -140,8 +140,19 @@ dictionary, and atoms can be referred to using atomic symbols.
   gui_default_settings['gui_graphs_string'] = "i, e - min(E), fmax"
   gui_default_settings['covalent_radii'] = [[29,1.6]]  # or {29: 1.6}
 
-To see a list of all settings that can be changed, along with their stock
-values, do
+.. tip::
+  
+  The text in the GUI is displayed very small on many modern high-DPI
+  monitors. If adjusting your the operating system's scaling settings
+  does not work, adding the following setting in the configuration file
+  may help:
+
+  ::
+
+    gui_default_settings['gui_scaling'] = 1.2  # Try different values
+
+To see a list of all settings that can be changed, along with their
+default values, do:
 
 ::
 
@@ -152,7 +163,7 @@ values, do
 .. _high contrast:
 
 High contrast settings
-----------------------
+......................
 
 In revision 2600 or later, it is possible to change the foreground and
 background colors used to draw the atoms, for instance to draw white
