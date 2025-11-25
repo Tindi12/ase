@@ -12,6 +12,7 @@ import ase.gui.ui as ui
 from ase import Atoms, __version__
 from ase.gui.defaults import read_defaults
 from ase.gui.i18n import _
+from ase.gui.icons import Icons
 from ase.gui.images import Images
 from ase.gui.nanoparticle import SetupNanoparticle
 from ase.gui.nanotube import SetupNanotube
@@ -51,6 +52,8 @@ class GUI(View):
         self.config = read_defaults()
         if show_bonds:
             self.config['show_bonds'] = True
+
+        self.icons = Icons()
 
         menu = self.get_menu_data()
 
