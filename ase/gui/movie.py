@@ -111,13 +111,13 @@ class MovieToolbar:
             widget.grid(row=0, column=next(columncounter))
             return widget
 
-        self.graphbutton_icon = tk.PhotoImage(file=gui.icons.graph)
+        self.graphbutton_icon = tk.PhotoImage(file=gui.icons.graph).subsample(2)
         self.graphbutton = add(tk.Button(
             tkframe, image=self.graphbutton_icon,
             command=self.gui.plot_graph_standard
         ))
 
-        self.moviebutton_icon = tk.PhotoImage(file=gui.icons.movie)
+        self.moviebutton_icon = tk.PhotoImage(file=gui.icons.movie).subsample(2)
         self.moviebutton = add(tk.Button(
             tkframe, image=self.moviebutton_icon, command=self.gui.movie
         ))
