@@ -136,6 +136,7 @@ class MovieToolbar:
         # "Set" atoms means something (anything) changed including
         # which frame number we are displaying:
         gui.obs.set_atoms.register(self._update_atoms)
+        gui.obs.set_atoms.register(self._update_button_states)
 
         # "New" atoms may change the number of images altogether:
         gui.obs.new_atoms.register(self._update_number_of_images)
@@ -153,3 +154,11 @@ class MovieToolbar:
         framenum = int(sliderval)
         self.numlabel['text'] = sliderval
         self.gui.set_frame(framenum)
+
+    def _update_button_states(self):
+        if len(self.gui.images) > 1:
+            self.graphbutton['state'] = tk.ACTIVE
+            self.slider['state'] = tk.ACTIVE
+        else:
+            self.graphbutton['state'] = tk.DISABLED
+            self.slider['state'] = tk.DISABLED
