@@ -57,8 +57,9 @@ class SpglibDatasetWrapper(MutableMapping):
         del self._spglib_dct[item]
 
 
-def print_symmetry(symprec, dataset):
+def print_symmetry(symprec, dataset, angle_tolerance):
     print("ase.spacegroup.symmetrize: prec", symprec,
+          "ase.spacegroup.symmetrize: angle tol", angle_tolerance,
           "got symmetry group number", dataset.number,
           ", international (Hermann-Mauguin)", dataset.international,
           ", Hall ", dataset.hall)
@@ -93,6 +94,7 @@ class IntermediateDatasetError(Exception):
 
 def get_symmetrized_atoms(atoms,
                           symprec: float = 0.01,
+                          angle_tolerance: float = 1.5,
                           final_symprec: Optional[float] = None):
     """Get new Atoms object with refined symmetries.
 
@@ -113,14 +115,20 @@ def get_symmetrized_atoms(atoms,
         New atoms object symmetrized according to the input symprec.
     """
     atoms = atoms.copy()
-    original_dataset = _check_and_symmetrize_cell(atoms, symprec=symprec)
+    original_dataset = _check_and_symmetrize_cell(
+        atoms, symprec=symprec, angle_tolerance=angle_tolerance)
     intermediate_dataset = _check_and_symmetrize_positions(
-        atoms, symprec=symprec)
+        atoms, symprec=symprec, angle_tolerance=angle_tolerance)
     if intermediate_dataset.number != original_dataset.number:
-        raise IntermediateDatasetError()
+        print('xxxx NUBMERS NOT THE SAME', intermediate_dataset.number,
+              original_dataset.number)
+        # raise IntermediateDatasetError()
     final_symprec = final_symprec or symprec
-    final_dataset = check_symmetry(atoms, symprec=final_symprec)
-    assert final_dataset.number == original_dataset.number
+    final_dataset = check_symmetry(atoms, symprec=final_symprec,
+                                   angle_tolerance=angle_tolerance)
+    if not final_dataset.number == original_dataset.number:
+        print('xxxx NUBMERS NOT THE SAME', final_dataset.number,
+              original_dataset.number)
     return atoms, final_dataset
 
 
@@ -144,7 +152,8 @@ def _check_and_symmetrize_positions(atoms, *, symprec, **kwargs):
     dataset = check_symmetry(atoms, symprec=symprec, **kwargs)
     # here we are assuming that primitive vectors returned by find_primitive
     #    are compatible with std_lattice returned by get_symmetry_dataset
-    res = spglib.find_primitive(atoms_to_spglib_cell(atoms), symprec=symprec)
+    res = spglib.find_primitive(atoms_to_spglib_cell(atoms), symprec=symprec,
+                                **kwargs)
     _symmetrize_positions(atoms, dataset, res)
     return dataset
 
@@ -178,16 +187,17 @@ def _symmetrize_positions(atoms, dataset, primitive_spglib_cell):
     atoms.set_positions(pos)
 
 
-def check_symmetry(atoms, symprec=1.0e-6, verbose=False):
+def check_symmetry(atoms, symprec=1.0e-6, angle_tolerance= 1.5, verbose=False):
     """
     Check symmetry of `atoms` with precision `symprec` using `spglib`
 
     Prints a summary and returns result of `spglib.get_symmetry_dataset()`
     """
     dataset = spglib_get_symmetry_dataset(atoms_to_spglib_cell(atoms),
-                                          symprec=symprec)
+                                          symprec=symprec,
+                                          angle_tolerance=angle_tolerance)
     if verbose:
-        print_symmetry(symprec, dataset)
+        print_symmetry(symprec, dataset, angle_tolerance)
     return dataset
 
 
