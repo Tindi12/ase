@@ -609,6 +609,8 @@ class ASEGUIWindow(MainWindow):
         self.fg = config['gui_foreground_color']
         self.bg = config['gui_background_color']
 
+        gui.icons.set_scaling(self.win.tk.call('tk', 'scaling'))
+
         self.moviebar = MovieToolbar(self.win, gui)
         self.moviebar.tkframe.pack(
             anchor=tk.N, side=tk.TOP, expand=False, fill=tk.X)
