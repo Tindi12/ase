@@ -46,6 +46,7 @@ sphinx_gallery_conf = {
     'min_reported_time': 60,
     'reference_url': {'ase': None},
     'remove_config_comments': True,
+    'parallel': 8,
     'prefer_full_module': ['ase'],
     'within_subsection_order': 'FileNameSortKey',
 }
