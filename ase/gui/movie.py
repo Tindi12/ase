@@ -203,14 +203,6 @@ class MovieToolbar:
         gui.obs.set_atoms.register(self._update_atoms)
         gui.obs.set_atoms.register(self._update_button_states)
 
-        ### PROBLEM:
-        # _update_atoms changes the slider's value, which invokes slidercommand
-        # -> slidercommand calls set_frame
-        # -> set_frame calls view.set_atoms
-        # -> view.set_atoms notifies the set_atoms observer
-        # -> _update_atoms is registered to the set_atoms observer
-        # -> infinite loop
-
         # "New" atoms may change the number of images altogether:
         gui.obs.new_atoms.register(self._update_number_of_images)
 
@@ -256,7 +248,8 @@ class MovieToolbar:
     def slidercommand(self, sliderval: str):
         framenum = int(sliderval)
         self.numlabel['text'] = sliderval
-        self.gui.set_frame(framenum)
+        if framenum != self.gui.frame:
+            self.gui.set_frame(framenum)
 
     def _update_button_states(self):
         if len(self.gui.images) > 1:
