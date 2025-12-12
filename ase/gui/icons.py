@@ -1,19 +1,19 @@
-import os.path as op
 import tkinter as tk
+from pathlib import Path
 
 
 class Icons:
     def __init__(self):
-        icon_dir = op.join(op.dirname(op.realpath(__file__)), 'icons')
+        icon_dir = Path(__file__).parent / 'icons'
         self.files = {}
-        self.files['play'] = op.join(icon_dir, 'CarbonPlay.png')
-        self.files['pause'] = op.join(icon_dir, 'CarbonPause.png')
-        self.files['back'] = op.join(icon_dir, 'CarbonArrowLeft.png')
-        self.files['forward'] = op.join(icon_dir, 'CarbonArrowRight.png')
-        self.files['first'] = op.join(icon_dir, 'ASESkipBack.png')
-        self.files['last'] = op.join(icon_dir, 'ASESkipForward.png')
-        self.files['movie'] = op.join(icon_dir, 'CarbonDataPlayer.png')
-        self.files['graph'] = op.join(icon_dir, 'CarbonChartLine.png')
+        self.files['play'] = icon_dir / 'CarbonPlay.png'
+        self.files['pause'] = icon_dir / 'CarbonPause.png'
+        self.files['back'] = icon_dir / 'CarbonArrowLeft.png'
+        self.files['forward'] = icon_dir / 'CarbonArrowRight.png'
+        self.files['first'] = icon_dir / 'ASESkipBack.png'
+        self.files['last'] = icon_dir / 'ASESkipForward.png'
+        self.files['movie'] = icon_dir / 'CarbonDataPlayer.png'
+        self.files['graph'] = icon_dir / 'CarbonChartLine.png'
 
         self.images = {}
 
