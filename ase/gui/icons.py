@@ -8,6 +8,10 @@ class Icons:
         self.files = {}
         self.files['play'] = op.join(icon_dir, 'CarbonPlay.png')
         self.files['pause'] = op.join(icon_dir, 'CarbonPause.png')
+        self.files['back'] = op.join(icon_dir, 'CarbonArrowLeft.png')
+        self.files['forward'] = op.join(icon_dir, 'CarbonArrowRight.png')
+        self.files['first'] = op.join(icon_dir, 'ASESkipBack.png')
+        self.files['last'] = op.join(icon_dir, 'ASESkipForward.png')
         self.files['movie'] = op.join(icon_dir, 'CarbonDataPlayer.png')
         self.files['graph'] = op.join(icon_dir, 'CarbonChartLine.png')
 

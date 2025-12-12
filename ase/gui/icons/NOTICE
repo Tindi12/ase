@@ -1,0 +1,16 @@
+The icons inside this folder are adapted from the IBM Carbon design system.
+For the original source, see:
+https://github.com/carbon-design-system/carbon
+
+The following files are unmodified except for a change in file type:
+  CarbonDataPlayer.png
+  CarbonPageScroll.png
+  CarbonPause.png
+  CarbonPlay.png
+  CarbonArrowLeft.png
+  CarbonArrowRight.png
+  CarbonChartLine.png
+
+The following files are derivatives based on the work of IBM Corp:
+  ASESkipBack.png
+  ASESkipForward.png
