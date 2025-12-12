@@ -554,9 +554,6 @@ class View:
         if self.window['toggle-show-axes']:
             self.draw_axes()
 
-        if len(self.images) > 1:
-            self.draw_frame_number()
-
         self.window.update()
 
         if status:
@@ -601,11 +598,6 @@ class View:
             d = int(-self.axes[i][1] * axes_length + b)
             self.window.line((a, b, c, d))
             self.window.text(c, d, 'XYZ'[i], color=rgb[i])
-
-    def draw_frame_number(self):
-        x, y = self.window.size
-        self.window.text(x, y, '{}'.format(self.frame),
-                         anchor='SE')
 
     def release(self, event):
         if event.button in [4, 5]:
