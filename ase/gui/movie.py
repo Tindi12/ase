@@ -144,10 +144,13 @@ class MovieToolbar:
                      showvalue=False),
             padx=(4, 2)
             )
-        self._update_number_of_images()
-
         add(tk.Label(tkframe, text='Image'))
-        self.numlabel = add(tk.Label(tkframe, text='0'), padx=(0, 4))
+        nlwidth = len(str(len(self.gui.images) - 1))
+        self.numlabel = add(
+            tk.Label(tkframe, text='0', width=nlwidth, anchor='w'),
+            padx=(0, 4)
+        )
+        self._update_number_of_images()
 
         self.firstbutton_icon = gui.icons['first']
         self.firstbutton = add(
@@ -241,6 +244,7 @@ class MovieToolbar:
 
     def _update_number_of_images(self):
         self.slider['to'] = len(self.gui.images) - 1
+        self.numlabel['width'] = len(str(len(self.gui.images) - 1))
 
     def _update_atoms(self):
         self.slider.set(self.gui.frame)
