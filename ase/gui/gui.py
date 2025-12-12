@@ -52,8 +52,9 @@ class GUI(View):
 
         # Not always logical to go to last frame but it's more consistent
         # than if we don't do anything.
-        self.obs.new_images.register(self.goto_last_frame)
         self.images = images
+        self.images.history.initialize_history()
+        self.obs.new_images.register(self.goto_last_frame)
 
         self.config = read_defaults()
         if show_bonds:
@@ -103,6 +104,31 @@ class GUI(View):
         if expr is not None and expr != '' and len(self.images) > 1:
             self.plot_graphs(expr=expr, ignore_if_nan=True)
 
+    def redo_history(self, key=None):
+        self.images.history.redo_history(self.frame)
+        self.set_frame()
+        self.draw()
+
+    def undo_history(self, key=None):
+        # Let's end any rotate/move mode that may still be active so the
+        # current positions are saved to the history:
+        if self.moving:
+            self.toggle_arrowkey_mode(self.arrowkey_mode)
+        self.images.history.undo_history(self.frame)
+        self.set_frame()
+        self.draw()
+
+    def update_history(self, mask=None):
+        if mask is not None:
+            for i, update in enumerate(mask):
+                if update:
+                    self.images.history.update_history(i)
+        else:
+            self.images.history.update_history(self.frame)
+
+    def clear_history(self):
+        self.images.history.initialize_history()
+
     @property
     def moving(self):
         return self.arrowkey_mode != self.ARROWKEY_SCAN
@@ -124,6 +150,7 @@ class GUI(View):
         if self.arrowkey_mode == mode:
             self.arrowkey_mode = self.ARROWKEY_SCAN
             self.move_atoms_mask = None
+            self.update_history()
         else:
             self.arrowkey_mode = mode
             self.move_atoms_mask = self.images.selected.copy()
@@ -245,6 +272,7 @@ class GUI(View):
         self.images.selected[:] = False
         self.set_frame()
         self.draw()
+        self.update_history()
 
     def constraints_window(self):
         from ase.gui.constraints import Constraints
@@ -399,6 +427,7 @@ class GUI(View):
 
     def new_atoms(self, atoms):
         "Set a new atoms object."
+        self.images.history.isolate_history(self.frame)
         rpt = getattr(self.images, 'repeat', None)
         self.images.repeat_images(np.ones(3, int))
         self.images.initialize([atoms])
@@ -406,6 +435,7 @@ class GUI(View):
         self.images.repeat_images(rpt)
         self.set_frame(frame=0, focus=True)
         self.obs.new_atoms.notify()
+        self.images.history.update_history(self.frame)
 
     def exit(self, event=None):
         for process in self.subprocesses:
@@ -431,6 +461,7 @@ class GUI(View):
         for atoms in self.images:
             atoms.wrap()
         self.set_frame()
+        self.update_history()
 
     @property
     def clipboard(self):
@@ -503,7 +534,10 @@ class GUI(View):
               M(_('_Quit'), self.exit, 'Ctrl+Q')]),
 
             (_('_Edit'),
-             [M(_('Select _all'), self.select_all),
+             [M(_('Undo'), self.undo_history, 'Ctrl+Z'),
+              M(_('Redo'), self.redo_history, 'Ctrl+Shift+Z'),
+              M('---'),
+              M(_('Select _all'), self.select_all),
               M(_('_Invert selection'), self.invert_selection),
               M(_('Select _constrained atoms'), self.select_constrained_atoms),
               M(_('Select _immobile atoms'), self.select_immobile_atoms),

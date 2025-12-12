@@ -11,6 +11,7 @@ from ase.constraints import FixAtoms
 from ase.data import covalent_radii
 from ase.geometry import find_mic
 from ase.gui.defaults import read_defaults
+from ase.gui.history import History
 from ase.gui.i18n import _
 from ase.io import read, string2index, write
 
@@ -24,6 +25,7 @@ class Images:
             images = [Atoms()]
         self.notify_new_images = notify_new_images
         self.initialize(images)
+        self.history = History(self)
 
         # Note: This is to notify if images are added or removed.
         # Not for smaller changes such as editing the images or
@@ -42,8 +44,9 @@ class Images:
         # This might be dangerous since initialize() is normally called when
         # list of images changes, and that one does a lot of things which we
         # don't do here.
-        self.images._images.append(self.atoms.copy())
-        self.images.filenames.append(None)
+        self._images.append(image)
+        self.filenames.append(None)
+        self.history.append_image(image)
         self.notify_new_images()
 
     # XXXXXXX hack
