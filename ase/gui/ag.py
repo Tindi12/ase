@@ -106,4 +106,5 @@ class CLICommand:
                 del os.environ['MPLBACKEND']
 
             gui = GUI(images, args.rotations, args.bonds, args.graph)
+            images.notify_new_images = gui.obs.new_images.notify  # XXX hack
             gui.run()

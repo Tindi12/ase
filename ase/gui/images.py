@@ -16,13 +16,18 @@ from ase.io import read, string2index, write
 
 
 class Images:
-    def __init__(self, images=None):
+    def __init__(self, images=None, *, notify_new_images=lambda: None):
         self.covalent_radii = covalent_radii.copy()
         self.config = read_defaults()
         self.atom_scale = self.config['radii_scale']
         if images is None:
             images = [Atoms()]
+        self.notify_new_images = notify_new_images
         self.initialize(images)
+
+        # Note: This is to notify if images are added or removed.
+        # Not for smaller changes such as editing the images or
+        # selection or something like that.
 
     def __len__(self):
         return len(self._images)
@@ -32,6 +37,14 @@ class Images:
 
     def __iter__(self):
         return iter(self._images)
+
+    def add_image(self, image):
+        # This might be dangerous since initialize() is normally called when
+        # list of images changes, and that one does a lot of things which we
+        # don't do here.
+        self.images._images.append(self.atoms.copy())
+        self.images.filenames.append(None)
+        self.notify_new_images()
 
     # XXXXXXX hack
     # compatibility hacks while allowing variable number of atoms
@@ -99,6 +112,7 @@ class Images:
         self.selected_ordered = []
         self.visible = np.ones(self.maxnatoms, bool)
         self.repeat = np.ones(3, int)
+        self.notify_new_images()
 
     def get_radii(self, atoms: Atoms) -> np.ndarray:
         radii = np.array([self.covalent_radii[z] for z in atoms.numbers])

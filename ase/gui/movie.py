@@ -205,10 +205,7 @@ class MovieToolbar:
         gui.obs.set_atoms.register(self._update_button_states)
 
         # "New" atoms may change the number of images altogether:
-        gui.obs.new_atoms.register(self._update_number_of_images)
-
-        # This is not reliable at all, for example if user opens new atoms,
-        # we will not detect that.
+        gui.obs.new_images.register(self._update_number_of_images)
 
     def click(self, step, firstlast=False):
         if firstlast and step < 0:
