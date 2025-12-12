@@ -70,6 +70,7 @@ class GUI(View):
 
         self.subprocesses = []  # list of external processes
         self.movie_window = None
+        self.movie_timer = None
         self.simulation = {}  # Used by modules on Calculate menu.
         self.module_state = {}  # Used by modules to store their state.
 
