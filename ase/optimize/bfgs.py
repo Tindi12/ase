@@ -5,32 +5,10 @@ from pathlib import Path
 from typing import IO, Optional, Union
 
 import numpy as np
-from numpy.linalg import eigh
 
 from ase import Atoms
 from ase.optimize.optimize import Optimizer, UnitCellFilter
-
-
-class BFGSState:
-    def __init__(self, hessian):
-        self.hessian = hessian
-
-    @property
-    def H(self):
-        return self.hessian
-
-    def update(self, pos, forces, pos0, forces0):
-        dpos = pos - pos0
-
-        if np.abs(dpos).max() < 1e-7:
-            # Same configuration again (maybe a restart):
-            return
-
-        dforces = forces - forces0
-        a = dpos @ dforces
-        dg = self.hessian @ dpos
-        b = dpos @ dg
-        self.hessian -= np.outer(dforces, dforces) / a + np.outer(dg, dg) / b
+from ase._4.optimize.bfgs import BFGSState
 
 
 class BFGS(Optimizer):
@@ -137,26 +115,13 @@ class BFGS(Optimizer):
         pos = pos.ravel()
         gradient = gradient.ravel()
         self.update(pos, -gradient, self.pos0, self.forces0)
-        omega, V = eigh(self.state.H)
 
-        # FUTURE: Log this properly
-        # # check for negative eigenvalues of the hessian
-        # if any(omega < 0):
-        #     n_negative = len(omega[omega < 0])
-        #     msg = '\n** BFGS Hessian has {} negative eigenvalues.'.format(
-        #         n_negative
-        #     )
-        #     print(msg, flush=True)
-        #     if self.logfile is not None:
-        #         self.logfile.write(msg)
-        #         self.logfile.flush()
-
-        dpos = np.dot(V, -np.dot(gradient, V) / np.fabs(omega))
         # XXX Here we are calling gradient_norm() on some positions.
         # Should there be a general norm concept
-        steplengths = self.optimizable.gradient_norm(dpos)
         self.pos0 = pos
         self.forces0 = -gradient.copy()
+        dpos = self.state.compute_step(gradient)
+        steplengths = self.optimizable.gradient_norm(dpos)
         return dpos, steplengths
 
     def determine_step(self, dpos, steplengths):
