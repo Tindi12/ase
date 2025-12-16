@@ -12,8 +12,25 @@ from ase.optimize.optimize import Optimizer, UnitCellFilter
 
 
 class BFGSState:
-    def __init__(self, H):
-        self.H = H
+    def __init__(self, hessian):
+        self.hessian = hessian
+
+    @property
+    def H(self):
+        return self.hessian
+
+    def update(self, pos, forces, pos0, forces0):
+        dpos = pos - pos0
+
+        if np.abs(dpos).max() < 1e-7:
+            # Same configuration again (maybe a restart):
+            return
+
+        dforces = forces - forces0
+        a = dpos @ dforces
+        dg = self.hessian @ dpos
+        b = dpos @ dg
+        self.hessian -= np.outer(dforces, dforces) / a + np.outer(dg, dg) / b
 
 
 class BFGS(Optimizer):
@@ -164,17 +181,8 @@ class BFGS(Optimizer):
         if self.state is None:
             self.state = BFGSState(self.H0)
             return
-        dpos = pos - pos0
 
-        if np.abs(dpos).max() < 1e-7:
-            # Same configuration again (maybe a restart):
-            return
-
-        dforces = forces - forces0
-        a = np.dot(dpos, dforces)
-        dg = np.dot(self.state.H, dpos)
-        b = np.dot(dpos, dg)
-        self.state.H -= np.outer(dforces, dforces) / a + np.outer(dg, dg) / b
+        self.state.update(pos, forces, pos0, forces0)
 
     def replay_trajectory(self, traj):
         """Initialize hessian from old trajectory."""
