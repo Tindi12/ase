@@ -92,7 +92,7 @@ def new_bfgs(tolerance=0.01):
         value = target.get_value()
         gradient_norm = target.gradient_norm(newgradient)
 
-        state.update(newx, newgradient, x, gradient)
+        state.update(newx, -newgradient, x, -gradient)
 
         x = newx
         gradient = newgradient
