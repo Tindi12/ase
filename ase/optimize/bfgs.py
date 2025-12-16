@@ -147,7 +147,9 @@ class BFGS(Optimizer):
             self.state = BFGSState(self.H0)
             return
 
-        self.state.update(pos, forces, pos0, forces0)
+        # We'll want to work with gradients in the future,
+        # but (awkwardly) this method gets 'forces' for backwards compatibility
+        self.state.update(pos, -forces, pos0, -forces0)
 
     def replay_trajectory(self, traj):
         """Initialize hessian from old trajectory."""

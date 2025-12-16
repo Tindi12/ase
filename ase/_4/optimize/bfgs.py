@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 
 class BFGSState:
@@ -13,18 +14,20 @@ class BFGSState:
         omega, vectors = np.linalg.eigh(self.hessian)
         return -vectors @ (gradient @ vectors / np.fabs(omega))
 
-    def update(self, pos, forces, pos0, forces0):
+    def update(self, pos, gradient, pos0, gradient0):
         dpos = pos - pos0
 
         if np.abs(dpos).max() < 1e-7:
             # Same configuration again (maybe a restart):
             return
 
-        dforces = forces - forces0
-        a = dpos @ dforces
+        dgradient = gradient - gradient0
+        a = dpos @ dgradient
         dg = self.hessian @ dpos
         b = dpos @ dg
-        self.hessian -= np.outer(dforces, dforces) / a + np.outer(dg, dg) / b
+        self.hessian -= (
+            -np.outer(dgradient, dgradient) / a + np.outer(dg, dg) / b
+        )
 
 
 def setup_surface():
@@ -32,10 +35,10 @@ def setup_surface():
     from ase.calculators.emt import EMT
 
     rng = np.random.RandomState(42)
-    atoms = fcc111('Au', size=(2, 2, 2), vacuum=5.0)
-    atoms.rattle(stdev=0.05, rng=rng)
+    atoms = fcc111('Au', size=(1, 2, 2), vacuum=5.0)
+    atoms.rattle(stdev=0.01, rng=rng)
     cell = atoms.get_cell()
-    cell[:2, :2] += 0.1 * rng.random((2, 2))
+    cell[:2, :2] += 0.05 * rng.random((2, 2))
     atoms.set_cell(cell, scale_atoms=True)
     atoms.calc = EMT()
     return atoms
@@ -92,12 +95,15 @@ def new_bfgs(tolerance=0.01):
         value = target.get_value()
         gradient_norm = target.gradient_norm(newgradient)
 
-        state.update(newx, -newgradient, x, -gradient)
+        state.update(newx, newgradient, x, gradient)
 
         x = newx
         gradient = newgradient
 
 
+
+
+# @pytest.mark.skip
 def test_surface():
     from ase.filters import FrechetCellFilter
     from ase.optimize.bfgs import BFGS as OldBFGS
@@ -110,15 +116,17 @@ def test_surface():
         pass
     # bfgs.run(fmax=0.01)
 
-import pytest
+
 @pytest.mark.skip
 def test_surface_cellawarebfgs():
     from ase.filters import FrechetCellFilter
     from ase.optimize.cellawarebfgs import CellAwareBFGS
 
     atoms = setup_surface()
-    bfgs = CellAwareBFGS(FrechetCellFilter(atoms, exp_cell_factor=1.0))
-    bfgs.run(fmax=0.01)
+    bfgs = CellAwareBFGS(
+        FrechetCellFilter(atoms, exp_cell_factor=1.0, mask=[1, 1, 0, 0, 0, 1])
+    )
+    bfgs.run(fmax=0.01, smax=0.001)
 
 
 def test_new_bfgs():
