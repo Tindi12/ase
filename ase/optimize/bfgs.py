@@ -11,6 +11,11 @@ from ase import Atoms
 from ase.optimize.optimize import Optimizer, UnitCellFilter
 
 
+class BFGSState:
+    def __init__(self, H):
+        self.H = H
+
+
 class BFGS(Optimizer):
     # default parameters
     defaults = {**Optimizer.defaults, 'alpha': 70.0}
@@ -72,6 +77,9 @@ class BFGS(Optimizer):
         self.alpha = alpha
         if self.alpha is None:
             self.alpha = self.defaults['alpha']
+
+        self.state = None
+
         super().__init__(
             atoms=atoms, restart=restart,
             logfile=logfile, trajectory=trajectory,
@@ -81,18 +89,18 @@ class BFGS(Optimizer):
     def initialize(self):
         # initial hessian
         self.H0 = np.eye(self.optimizable.ndofs()) * self.alpha
+        self.state = None  # BFGSState(self.H0)
 
-        self.H = None
         self.pos0 = None
         self.forces0 = None
 
     def read(self):
         file = self.load()
         if len(file) == 5:
-            (self.H, self.pos0, self.forces0, self.maxstep,
+            (self.state.H, self.pos0, self.forces0, self.maxstep,
              self.atoms.orig_cell) = file
         else:
-            self.H, self.pos0, self.forces0, self.maxstep = file
+            self.state.H, self.pos0, self.forces0, self.maxstep = file
 
     def step(self, gradient=None):
         gradient = self._get_gradient(gradient)
@@ -103,16 +111,16 @@ class BFGS(Optimizer):
         dpos = self.determine_step(dpos, steplengths)
         optimizable.set_x(pos + dpos)
         if isinstance(self.atoms, UnitCellFilter):
-            self.dump((self.H, self.pos0, self.forces0, self.maxstep,
+            self.dump((self.state.H, self.pos0, self.forces0, self.maxstep,
                        self.atoms.orig_cell))
         else:
-            self.dump((self.H, self.pos0, self.forces0, self.maxstep))
+            self.dump((self.state.H, self.pos0, self.forces0, self.maxstep))
 
     def prepare_step(self, pos, gradient):
         pos = pos.ravel()
         gradient = gradient.ravel()
         self.update(pos, -gradient, self.pos0, self.forces0)
-        omega, V = eigh(self.H)
+        omega, V = eigh(self.state.H)
 
         # FUTURE: Log this properly
         # # check for negative eigenvalues of the hessian
@@ -153,8 +161,8 @@ class BFGS(Optimizer):
         return dpos
 
     def update(self, pos, forces, pos0, forces0):
-        if self.H is None:
-            self.H = self.H0
+        if self.state is None:
+            self.state = BFGSState(self.H0)
             return
         dpos = pos - pos0
 
@@ -164,16 +172,16 @@ class BFGS(Optimizer):
 
         dforces = forces - forces0
         a = np.dot(dpos, dforces)
-        dg = np.dot(self.H, dpos)
+        dg = np.dot(self.state.H, dpos)
         b = np.dot(dpos, dg)
-        self.H -= np.outer(dforces, dforces) / a + np.outer(dg, dg) / b
+        self.state.H -= np.outer(dforces, dforces) / a + np.outer(dg, dg) / b
 
     def replay_trajectory(self, traj):
         """Initialize hessian from old trajectory."""
         if isinstance(traj, str):
             from ase.io.trajectory import Trajectory
             traj = Trajectory(traj, 'r')
-        self.H = None
+        self.state = None
         atoms = traj[0]
         pos0 = atoms.get_positions().ravel()
         forces0 = atoms.get_forces().ravel()
