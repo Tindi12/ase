@@ -358,12 +358,18 @@ class UnitCellFilter(Filter):
             breaks energy/force consistency.
         """
 
+        from ase._4.optimize.bfgs import CellUtility
+
         Filter.__init__(self, atoms=atoms, indices=range(len(atoms)))
         self.atoms = atoms
+
         if orig_cell is None:
-            self.orig_cell = atoms.get_cell()
+            orig_cell = atoms.get_cell()
         else:
-            self.orig_cell = orig_cell
+            orig_cell = orig_cell
+
+        self._utility = CellUtility(orig_cell.copy())
+
         self.stress = None
 
         if mask is None:
@@ -385,8 +391,13 @@ class UnitCellFilter(Filter):
         self.copy = self.atoms.copy
         self.arrays = self.atoms.arrays
 
-        from ase._4.optimize.bfgs import CellUtility
-        self._utility = CellUtility(self.orig_cell.copy())
+    @property
+    def orig_cell(self):
+        return self._utility.orig_cell
+
+    @orig_cell.setter
+    def orig_cell(self, value):
+        self._utility.orig_cell[:] = value
 
     def deform_grad(self):
         return self._utility.deform_grad(self.atoms.cell)
