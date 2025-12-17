@@ -589,10 +589,9 @@ class FrechetCellFilter(UnitCellFilter):
             exp_cell_factor=self.exp_cell_factor)
 
     def set_positions(self, new, **kwargs):
-        natoms = len(self.atoms)
-        new2 = new.copy()
-        new2[natoms:] = self.expm(new[natoms:] / self.exp_cell_factor)
-        UnitCellFilter.set_positions(self, new2, **kwargs)
+        self._utility.set_positions_frechet(
+            new, self.atoms, cell_factor=self.cell_factor,
+            exp_cell_factor=self.exp_cell_factor, **kwargs)
 
     def get_forces(self, **kwargs):
         # forces on atoms are same as UnitCellFilter, we just

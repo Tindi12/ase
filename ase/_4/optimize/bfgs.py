@@ -136,6 +136,16 @@ class CellUtility:
         pos[natoms:] = self.logm(pos[natoms:]) * exp_cell_factor
         return pos
 
+    def set_positions_frechet(
+        self, new, atoms, cell_factor, exp_cell_factor, **setpos_kwargs
+    ):
+        natoms = len(atoms)
+        new2 = new.copy()
+        new2[natoms:] = self.expm(new[natoms:] / exp_cell_factor)
+        self.set_positions_unitcellfilter(
+            new2, atoms, cell_factor=cell_factor, **setpos_kwargs
+        )
+
 
 class FrechetTarget:
     def __init__(self, atoms, mask):
