@@ -90,12 +90,13 @@ class BFGS(Optimizer):
         self.forces0 = None
 
     def read(self):
-        file = self.load()
-        if len(file) == 5:
-            (self.state.H, self.pos0, self.forces0, self.maxstep,
-             self.atoms.orig_cell) = file
+        data = self.load()
+        H, self.pos0, self.forces0, self.maxstep = data[:4]
+        if len(data) == 5:
+            self.atoms.orig_cell = data[4]
         else:
-            self.state.H, self.pos0, self.forces0, self.maxstep = file
+            assert len(data) == 4
+        self.state = BFGSState(H)
 
     def step(self, gradient=None):
         gradient = self._get_gradient(gradient)
