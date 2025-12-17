@@ -385,8 +385,11 @@ class UnitCellFilter(Filter):
         self.copy = self.atoms.copy
         self.arrays = self.atoms.arrays
 
+        from ase._4.optimize.bfgs import CellUtility
+        self._utility = CellUtility(self.orig_cell.copy())
+
     def deform_grad(self):
-        return np.linalg.solve(self.orig_cell, self.atoms.cell).T
+        return self._utility.deform_grad(self.atoms.cell)
 
     def get_positions(self):
         """

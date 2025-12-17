@@ -1,6 +1,8 @@
 import numpy as np
 import pytest
 
+from ase.units import GPa
+
 
 class BFGSState:
     def __init__(self, hessian):
@@ -64,15 +66,98 @@ class Target:
         return self.optimizable.gradient_norm(gradient)
 
 
-def new_bfgs(tolerance=0.01):
-    atoms = setup_surface()
+class CellUtility:
+    def __init__(self, orig_cell):
+        from scipy.linalg import expm, expm_frechet, logm
 
-    target = Target(atoms)
+        self.orig_cell = orig_cell
+        self.expm = expm
+        self.expm_frechet = expm_frechet
+        self.logm = logm
+
+    def deform_grad(self, cell):
+        return np.linalg.solve(self.orig_cell, cell).T
+
+
+class FrechetTarget:
+    def __init__(self, atoms, mask):
+        self.atoms = atoms
+        self.optimizable = atoms.__ase_optimizable__()
+        self.utility = CellUtility(atoms.cell.copy())
+
+    def get_value(self):
+        return self.optimizable.get_value()
+
+    def get_gradient(self):
+        natomdofs = len(self.atoms) * 3
+        ncelldofs = 9
+        ndofs = len(self.atoms) * 3 + 9
+        gradient = np.empty(natomdofs + ncelldofs)
+        gradient[:natomdofs] = self.atoms.get_forces().ravel()
+        # Instead of multiplying mask, we should simply not expose those DOFs.
+        # Also if there are only 6 stresses should we really be optimizing 3x3?
+        stress = self.atoms.get_stress(voigt=False) * self.utility.mask_3x3
+        gradient[natomdofs:] = stress.ravel()
+        return gradient
+
+    def get_x(self):
+        # from scipy.linalg import expm, expm_frechet, logm
+
+        exp_cell_factor = 1.0  # always 1.0 with 'cellaware'
+        ...
+        # pos = UnitCellFilter.get_positions(self)
+        # natoms = len(self.atoms)
+        # pos[natoms:] = self.utility.logm(pos[natoms:]) * exp_cell_factor
+        # return pos.ravel()
+
+    def set_x(self, x): ...
+
+    def gradient_norm(self, gradient): ...
+
+
+def initial_position_hessian(ndofs, alpha=70.0):
+    return np.diag(np.full(ndofs, 70.0))
+
+
+def initial_frechet_hessian(
+    position_dofs: int,
+    volume: float,
+    mask_3x3: np.ndarray,
+    bulk_modulus: float = 145 * GPa,
+    poisson_ratio: float = 0.3,
+    alpha: float = 70.0,
+):
+    from ase.optimize.cellawarebfgs import calculate_isotropic_elasticity_tensor
+
+    C_ijkl = calculate_isotropic_elasticity_tensor(
+        bulk_modulus, poisson_ratio, suppress_rotation=alpha
+    )
+
+    ndofs = position_dofs + 9
+    hessian = np.zeros((ndofs, ndofs))
+    hessian[:-9, :-9] = initial_position_hessian(position_dofs)
+
+    mask_ind = np.where(mask_3x3.ravel() != 0)[0]
+    indices = np.ix_(mask_ind, mask_ind)
+    # Instead of zeroing, can we make the Hessian smaller when we are not
+    # optimizing all cell DOFs?
+    # Also, instead of not assigning masked cell DOFs, can't we just assign
+    # them unconditionally and rely on the algorithm to do what it likes?
+    cell_hessian = hessian[-9:, -9:]
+    cell_hessian[indices] = C_ijkl.reshape((9, 9))[indices] * volume
+    hessian[position_dofs:, position_dofs:] = cell_hessian
+    return hessian
+
+
+def new_bfgs(target, hessian, fmax=0.01):
+    # atoms = setup_surface()
+
+    # target = Target(atoms)
 
     x = target.get_x()
     ndofs = len(x)
 
-    state = BFGSState(hessian=np.diag(np.full(ndofs, 70.0)))
+    state = BFGSState(hessian=hessian)
 
     gradient = target.get_gradient()
     value = target.get_value()
@@ -81,7 +166,7 @@ def new_bfgs(tolerance=0.01):
     i = 0
     while True:
         print(f'BFGS i={i:4d} e={value:f} fmax={gradient_norm:f}')
-        if gradient_norm < tolerance:
+        if gradient_norm < fmax:
             return
 
         i += 1
@@ -101,9 +186,7 @@ def new_bfgs(tolerance=0.01):
         gradient = newgradient
 
 
-
-
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_surface():
     from ase.filters import FrechetCellFilter
     from ase.optimize.bfgs import BFGS as OldBFGS
@@ -117,7 +200,7 @@ def test_surface():
     # bfgs.run(fmax=0.01)
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_surface_cellawarebfgs():
     from ase.filters import FrechetCellFilter
     from ase.optimize.cellawarebfgs import CellAwareBFGS
@@ -130,4 +213,22 @@ def test_surface_cellawarebfgs():
 
 
 def test_new_bfgs():
-    new_bfgs()
+    atoms = setup_surface()
+    new_bfgs(Target(atoms), initial_position_hessian(3 * len(atoms)))
+
+
+def test_new_bfgs_frechet():
+    from ase.stress import voigt_6_to_full_3x3_stress
+
+    atoms = setup_surface()
+    pos_ndofs = 3 * len(atoms)
+
+    mask = [1, 1, 0, 0, 0, 1]
+    mask_3x3 = voigt_6_to_full_3x3_stress(mask)
+
+    new_bfgs(
+        FrechetTarget(atoms, mask),
+        hessian=initial_frechet_hessian(
+            pos_ndofs, volume=atoms.cell.volume, mask_3x3=mask_3x3
+        ),
+    )
