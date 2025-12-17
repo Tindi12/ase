@@ -452,9 +452,7 @@ class UnitCellFilter(Filter):
         """
         returns potential energy including enthalpy PV term.
         """
-        atoms_energy = self.atoms.get_potential_energy(
-            force_consistent=force_consistent)
-        return atoms_energy + self.scalar_pressure * self.atoms.get_volume()
+        return self._utility.get_energy(self.atoms, force_consistent)
 
     def get_forces(self, **kwargs):
         """

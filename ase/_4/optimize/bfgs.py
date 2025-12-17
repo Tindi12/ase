@@ -104,6 +104,11 @@ class CellUtility:
     def deform_grad(self, cell):
         return np.linalg.solve(self.orig_cell, cell).T
 
+    def get_energy(self, atoms, force_consistent):
+        atoms_energy = atoms.get_potential_energy(
+            force_consistent=force_consistent)
+        return atoms_energy + self.scalar_pressure * atoms.cell.volume
+
     def get_positions_unitcellfilter(self, positions, cell, cell_factor):
         cur_deform_grad = self.deform_grad(cell)
         natoms = len(positions)
