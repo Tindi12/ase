@@ -68,7 +68,14 @@ class Target:
 
 
 class CellUtility:
-    def __init__(self, orig_cell, mask):
+    def __init__(
+        self,
+        orig_cell,
+        mask,
+        scalar_pressure=0.0,
+        constant_volume=False,
+        hydrostatic_strain=False,
+    ):
         from scipy.linalg import expm, expm_frechet, logm
 
         self.orig_cell = orig_cell
@@ -88,6 +95,11 @@ class CellUtility:
 
         self.mask6 = full_3x3_to_voigt_6_stress(mask)
         self.mask3x3 = mask
+
+        # Somewhat uncertain how well these are tested in combinations
+        self.scalar_pressure = scalar_pressure
+        self.hydrostatic_strain = hydrostatic_strain
+        self.constant_volume = constant_volume
 
     def deform_grad(self, cell):
         return np.linalg.solve(self.orig_cell, cell).T
@@ -145,6 +157,38 @@ class CellUtility:
         self.set_positions_unitcellfilter(
             new2, atoms, cell_factor=cell_factor, **setpos_kwargs
         )
+
+    def get_forces_unitcellfilter(
+        self, atoms_forces, stress, cell, cell_factor
+    ):
+        volume = cell.volume
+        virial = -volume * (
+            voigt_6_to_full_3x3_stress(stress)
+            + np.diag([self.scalar_pressure] * 3)
+        )
+        cur_deform_grad = self.deform_grad(cell)
+        atoms_forces = atoms_forces @ cur_deform_grad
+        virial = np.linalg.solve(cur_deform_grad, virial.T).T
+
+        if self.hydrostatic_strain:
+            vtr = virial.trace()
+            virial = np.diag([vtr / 3.0, vtr / 3.0, vtr / 3.0])
+
+        # Zero out components corresponding to fixed lattice elements
+        if (self.mask3x3 != 1.0).any():
+            virial *= self.mask3x3
+
+        if self.constant_volume:
+            vtr = virial.trace()
+            np.fill_diagonal(virial, np.diag(virial) - vtr / 3.0)
+
+        natoms = len(atoms_forces)
+        forces = np.zeros((natoms + 3, 3))
+        forces[:natoms] = atoms_forces
+        forces[natoms:] = virial / cell_factor
+
+        modified_stress = -full_3x3_to_voigt_6_stress(virial) / volume
+        return forces, modified_stress
 
 
 class FrechetTarget:

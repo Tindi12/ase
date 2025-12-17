@@ -368,18 +368,45 @@ class UnitCellFilter(Filter):
         else:
             orig_cell = orig_cell
 
-        self._utility = CellUtility(orig_cell.copy(), mask=mask)
+        self._utility = CellUtility(
+            orig_cell.copy(), mask=mask,
+            scalar_pressure=scalar_pressure,
+            constant_volume=constant_volume,
+            hydrostatic_strain=hydrostatic_strain)
 
         self.stress = None
 
         if cell_factor is None:
             cell_factor = float(len(atoms))
-        self.hydrostatic_strain = hydrostatic_strain
-        self.constant_volume = constant_volume
-        self.scalar_pressure = scalar_pressure
         self.cell_factor = cell_factor
         self.copy = self.atoms.copy
         self.arrays = self.atoms.arrays
+
+    @property
+    def hydrostatic_strain(self):
+        return self._utility.hydrostatic_strain
+
+    @hydrostatic_strain.setter
+    def hydrostatic_strain(self, value):
+        # Probably we do not need these setters but at least one precon
+        # test unwisely does hasattr() magic with these.
+        self._utility.hydrostatic_strain = value
+
+    @property
+    def constant_volume(self):
+        return self._utility.constant_volume
+
+    @constant_volume.setter
+    def constant_volume(self, value):
+        self._utility.constant_volume = value
+
+    @property
+    def scalar_pressure(self):
+        return self._utility.scalar_pressure
+
+    @scalar_pressure.setter
+    def scalar_pressure(self, value):
+        self._utility.scalar_pressure = value
 
     @property
     def mask(self):
@@ -438,35 +465,14 @@ class UnitCellFilter(Filter):
         three rows are the forces on the unit cell, which are
         computed from the stress tensor.
         """
-
         stress = self.atoms.get_stress(**kwargs)
         atoms_forces = self.atoms.get_forces(**kwargs)
 
-        volume = self.atoms.get_volume()
-        virial = -volume * (voigt_6_to_full_3x3_stress(stress) +
-                            np.diag([self.scalar_pressure] * 3))
-        cur_deform_grad = self.deform_grad()
-        atoms_forces = atoms_forces @ cur_deform_grad
-        virial = np.linalg.solve(cur_deform_grad, virial.T).T
-
-        if self.hydrostatic_strain:
-            vtr = virial.trace()
-            virial = np.diag([vtr / 3.0, vtr / 3.0, vtr / 3.0])
-
-        # Zero out components corresponding to fixed lattice elements
-        if (self.mask != 1.0).any():
-            virial *= self.mask
-
-        if self.constant_volume:
-            vtr = virial.trace()
-            np.fill_diagonal(virial, np.diag(virial) - vtr / 3.0)
-
-        natoms = len(self.atoms)
-        forces = np.zeros((natoms + 3, 3))
-        forces[:natoms] = atoms_forces
-        forces[natoms:] = virial / self.cell_factor
-
-        self.stress = -full_3x3_to_voigt_6_stress(virial) / volume
+        forces, modified_stress = self._utility.get_forces_unitcellfilter(
+            atoms_forces, stress,
+            cell=self.atoms.cell,
+            cell_factor=self.cell_factor)
+        self.stress = modified_stress  # XXX what's this doing here?
         return forces
 
     def get_stress(self):
