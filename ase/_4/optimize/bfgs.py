@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from ase.stress import voigt_6_to_full_3x3_stress
 from ase.units import GPa
 
 
@@ -78,12 +79,27 @@ class CellUtility:
     def deform_grad(self, cell):
         return np.linalg.solve(self.orig_cell, cell).T
 
+    def unitcellfilter_positions(self, positions, cell, cell_factor):
+        cur_deform_grad = self.deform_grad(cell)
+        natoms = len(positions)
+        pos = np.zeros((natoms + 3, 3))
+        # UnitCellFilter's positions are the self.atoms.positions but without
+        # the applied deformation gradient
+        pos[:natoms] = np.linalg.solve(cur_deform_grad, positions.T).T
+        # UnitCellFilter's cell DOFs are the deformation gradient times a
+        # scaling factor
+        pos[natoms:] = cell_factor * cur_deform_grad
+        return pos
+
 
 class FrechetTarget:
     def __init__(self, atoms, mask):
         self.atoms = atoms
         self.optimizable = atoms.__ase_optimizable__()
-        self.utility = CellUtility(atoms.cell.copy())
+        self._utility = CellUtility(atoms.cell.copy())
+
+        self.mask = mask
+        self.mask_3x3 = voigt_6_to_full_3x3_stress(mask)
 
     def get_value(self):
         return self.optimizable.get_value()
@@ -96,7 +112,7 @@ class FrechetTarget:
         gradient[:natomdofs] = self.atoms.get_forces().ravel()
         # Instead of multiplying mask, we should simply not expose those DOFs.
         # Also if there are only 6 stresses should we really be optimizing 3x3?
-        stress = self.atoms.get_stress(voigt=False) * self.utility.mask_3x3
+        stress = self.atoms.get_stress(voigt=False) * self.mask_3x3
         gradient[natomdofs:] = stress.ravel()
         return gradient
 
@@ -105,6 +121,13 @@ class FrechetTarget:
 
         exp_cell_factor = 1.0  # always 1.0 with 'cellaware'
         ...
+        pos_ac = self._utility.unitcellfilter_positions(
+            self.atoms.get_positions(),
+            self.atoms.get_cell(),
+            exp_cell_factor=1.0,
+        )
+        natoms = len(self.atoms)
+        pos_ac[natoms:] = self.utility.logm(pos_ac) * exp_cell_factor
         # pos = UnitCellFilter.get_positions(self)
         # natoms = len(self.atoms)
         # pos[natoms:] = self.utility.logm(pos[natoms:]) * exp_cell_factor
@@ -186,7 +209,7 @@ def new_bfgs(target, hessian, fmax=0.01):
         gradient = newgradient
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 def test_surface():
     from ase.filters import FrechetCellFilter
     from ase.optimize.bfgs import BFGS as OldBFGS

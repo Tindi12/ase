@@ -410,18 +410,8 @@ class UnitCellFilter(Filter):
         three rows are the deformation tensor associated with the unit cell,
         scaled by self.cell_factor.
         """
-
-        cur_deform_grad = self.deform_grad()
-        natoms = len(self.atoms)
-        pos = np.zeros((natoms + 3, 3))
-        # UnitCellFilter's positions are the self.atoms.positions but without
-        # the applied deformation gradient
-        pos[:natoms] = np.linalg.solve(cur_deform_grad,
-                                       self.atoms.positions.T).T
-        # UnitCellFilter's cell DOFs are the deformation gradient times a
-        # scaling factor
-        pos[natoms:] = self.cell_factor * cur_deform_grad
-        return pos
+        return self._utility.unitcellfilter_positions(
+            self.atoms.positions, self.atoms.cell, self.cell_factor)
 
     def set_positions(self, new, **kwargs):
         """
