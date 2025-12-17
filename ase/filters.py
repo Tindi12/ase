@@ -2,7 +2,6 @@
 
 """Filters"""
 from functools import cached_property
-from itertools import product
 from warnings import warn
 
 import numpy as np
@@ -601,57 +600,13 @@ class FrechetCellFilter(UnitCellFilter):
         # forces on atoms are same as UnitCellFilter, we just
         # need to modify the stress contribution
         stress = self.atoms.get_stress(**kwargs)
-        volume = self.atoms.get_volume()
-        virial = -volume * (voigt_6_to_full_3x3_stress(stress) +
-                            np.diag([self.scalar_pressure] * 3))
-
-        cur_deform_grad = self.deform_grad()
-        cur_deform_grad_log = self.logm(cur_deform_grad)
-
-        if self.hydrostatic_strain:
-            vtr = virial.trace()
-            virial = np.diag([vtr / 3.0, vtr / 3.0, vtr / 3.0])
-
-        # Zero out components corresponding to fixed lattice elements
-        if (self.mask != 1.0).any():
-            virial *= self.mask
-
-        # Cell gradient for UnitCellFilter
-        ucf_cell_grad = virial @ np.linalg.inv(cur_deform_grad.T)
-
-        # Cell gradient for FrechetCellFilter
-        deform_grad_log_force = np.zeros((3, 3))
-        for mu, nu in product(range(3), repeat=2):
-            dir = np.zeros((3, 3))
-            dir[mu, nu] = 1.0
-            # Directional derivative of deformation to (mu, nu) strain direction
-            expm_der = self.expm_frechet(
-                cur_deform_grad_log,
-                dir,
-                compute_expm=False
-            )
-            deform_grad_log_force[mu, nu] = np.sum(expm_der * ucf_cell_grad)
-
-        # Cauchy stress used for convergence testing
-        convergence_crit_stress = -(virial / volume)
-        if self.constant_volume:
-            # apply constraint to force
-            dglf_trace = deform_grad_log_force.trace()
-            np.fill_diagonal(deform_grad_log_force,
-                             np.diag(deform_grad_log_force) - dglf_trace / 3.0)
-            # apply constraint to Cauchy stress used for convergence testing
-            ccs_trace = convergence_crit_stress.trace()
-            np.fill_diagonal(convergence_crit_stress,
-                             np.diag(convergence_crit_stress) - ccs_trace / 3.0)
-
         atoms_forces = self.atoms.get_forces(**kwargs)
-        atoms_forces = atoms_forces @ cur_deform_grad
 
-        # pack gradients into vector
-        natoms = len(self.atoms)
-        forces = np.zeros((natoms + 3, 3))
-        forces[:natoms] = atoms_forces
-        forces[natoms:] = deform_grad_log_force / self.exp_cell_factor
+        forces, convergence_crit_stress = self._utility.get_forces_frechet(
+            atoms_forces=atoms_forces, stress=stress,
+            cell=self.atoms.get_cell(),
+            exp_cell_factor=self.exp_cell_factor)
+
         self.stress = full_3x3_to_voigt_6_stress(convergence_crit_stress)
         return forces
 
