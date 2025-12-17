@@ -410,7 +410,7 @@ class UnitCellFilter(Filter):
         three rows are the deformation tensor associated with the unit cell,
         scaled by self.cell_factor.
         """
-        return self._utility.unitcellfilter_positions(
+        return self._utility.get_positions_unitcellfilter(
             self.atoms.positions, self.atoms.cell, self.cell_factor)
 
     def set_positions(self, new, **kwargs):
@@ -424,25 +424,8 @@ class UnitCellFilter(Filter):
         deformation gradient, then the positions are set with respect to the
         current cell by transforming them with the same deformation gradient
         """
-
-        natoms = len(self.atoms)
-        new_atom_positions = new[:natoms]
-        new_deform_grad = new[natoms:] / self.cell_factor
-        deform = (new_deform_grad - np.eye(3)).T * self.mask
-        # Set the new cell from the original cell and the new
-        # deformation gradient.  Both current and final structures should
-        # preserve symmetry, so if set_cell() calls FixSymmetry.adjust_cell(),
-        # it should be OK
-        newcell = self.orig_cell @ (np.eye(3) + deform)
-
-        self.atoms.set_cell(newcell,
-                            scale_atoms=True)
-        # Set the positions from the ones passed in (which are without the
-        # deformation gradient applied) and the new deformation gradient.
-        # This should also preserve symmetry, so if set_positions() calls
-        # FixSymmetyr.adjust_positions(), it should be OK
-        self.atoms.set_positions(new_atom_positions @ (np.eye(3) + deform),
-                                 **kwargs)
+        self._utility.set_positions_unitcellfilter(
+            new, self.atoms, self.cell_factor, self.mask, **kwargs)
 
     def get_potential_energy(self, force_consistent=True):
         """
@@ -605,10 +588,11 @@ class FrechetCellFilter(UnitCellFilter):
         self.exp_cell_factor = exp_cell_factor
 
     def get_positions(self):
-        pos = UnitCellFilter.get_positions(self)
-        natoms = len(self.atoms)
-        pos[natoms:] = self.logm(pos[natoms:]) * self.exp_cell_factor
-        return pos
+        return self._utility.get_positions_frechet(
+            self.atoms.get_positions(),
+            self.atoms.get_cell(),
+            cell_factor=self.cell_factor,
+            exp_cell_factor=self.exp_cell_factor)
 
     def set_positions(self, new, **kwargs):
         natoms = len(self.atoms)

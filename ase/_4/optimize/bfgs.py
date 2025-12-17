@@ -76,10 +76,12 @@ class CellUtility:
         self.expm_frechet = expm_frechet
         self.logm = logm
 
+        # Maybe adding mask will simplify?
+
     def deform_grad(self, cell):
         return np.linalg.solve(self.orig_cell, cell).T
 
-    def unitcellfilter_positions(self, positions, cell, cell_factor):
+    def get_positions_unitcellfilter(self, positions, cell, cell_factor):
         cur_deform_grad = self.deform_grad(cell)
         natoms = len(positions)
         pos = np.zeros((natoms + 3, 3))
@@ -89,6 +91,38 @@ class CellUtility:
         # UnitCellFilter's cell DOFs are the deformation gradient times a
         # scaling factor
         pos[natoms:] = cell_factor * cur_deform_grad
+        return pos
+
+    def set_positions_unitcellfilter(
+        self, new, atoms, cell_factor, mask_3x3, **setpos_kwargs
+    ):
+        # We do a few non-trivial call with Atoms so this is not decoupled
+        # from atoms (yet?).
+        natoms = len(atoms)
+        new_atom_positions = new[:natoms]
+        new_deform_grad = new[natoms:] / cell_factor
+        deform = (new_deform_grad - np.eye(3)).T * mask_3x3
+        # Set the new cell from the original cell and the new
+        # deformation gradient.  Both current and final structures should
+        # preserve symmetry, so if set_cell() calls FixSymmetry.adjust_cell(),
+        # it should be OK
+        newcell = self.orig_cell @ (np.eye(3) + deform)
+
+        atoms.set_cell(newcell, scale_atoms=True)
+        # Set the positions from the ones passed in (which are without the
+        # deformation gradient applied) and the new deformation gradient.
+        # This should also preserve symmetry, so if set_positions() calls
+        # FixSymmetyr.adjust_positions(), it should be OK
+        atoms.set_positions(
+            new_atom_positions @ (np.eye(3) + deform), **setpos_kwargs
+        )
+
+    def get_positions_frechet(
+        self, positions, cell, cell_factor, exp_cell_factor
+    ):
+        pos = self.get_positions_unitcellfilter(positions, cell, cell_factor)
+        natoms = len(positions)
+        pos[natoms:] = self.logm(pos[natoms:]) * exp_cell_factor
         return pos
 
 
