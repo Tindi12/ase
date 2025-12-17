@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from ase.stress import voigt_6_to_full_3x3_stress
+from ase.stress import voigt_6_to_full_3x3_stress, full_3x3_to_voigt_6_stress
 from ase.units import GPa
 
 
@@ -68,7 +68,7 @@ class Target:
 
 
 class CellUtility:
-    def __init__(self, orig_cell):
+    def __init__(self, orig_cell, mask):
         from scipy.linalg import expm, expm_frechet, logm
 
         self.orig_cell = orig_cell
@@ -76,7 +76,18 @@ class CellUtility:
         self.expm_frechet = expm_frechet
         self.logm = logm
 
-        # Maybe adding mask will simplify?
+        if mask is None:
+            mask = np.ones(6, bool)
+        mask = np.asarray(mask)
+        if mask.shape == (6,):
+            mask = voigt_6_to_full_3x3_stress(mask)
+        elif mask.shape == (3, 3):
+            mask = mask
+        else:
+            raise ValueError('shape of mask should be (3,3) or (6,)')
+
+        self.mask6 = full_3x3_to_voigt_6_stress(mask)
+        self.mask3x3 = mask
 
     def deform_grad(self, cell):
         return np.linalg.solve(self.orig_cell, cell).T
@@ -94,14 +105,14 @@ class CellUtility:
         return pos
 
     def set_positions_unitcellfilter(
-        self, new, atoms, cell_factor, mask_3x3, **setpos_kwargs
+        self, new, atoms, cell_factor, **setpos_kwargs
     ):
         # We do a few non-trivial call with Atoms so this is not decoupled
         # from atoms (yet?).
         natoms = len(atoms)
         new_atom_positions = new[:natoms]
         new_deform_grad = new[natoms:] / cell_factor
-        deform = (new_deform_grad - np.eye(3)).T * mask_3x3
+        deform = (new_deform_grad - np.eye(3)).T * self.mask3x3
         # Set the new cell from the original cell and the new
         # deformation gradient.  Both current and final structures should
         # preserve symmetry, so if set_cell() calls FixSymmetry.adjust_cell(),
@@ -130,10 +141,7 @@ class FrechetTarget:
     def __init__(self, atoms, mask):
         self.atoms = atoms
         self.optimizable = atoms.__ase_optimizable__()
-        self._utility = CellUtility(atoms.cell.copy())
-
-        self.mask = mask
-        self.mask_3x3 = voigt_6_to_full_3x3_stress(mask)
+        self._utility = CellUtility(atoms.cell.copy(), mask)
 
     def get_value(self):
         return self.optimizable.get_value()
@@ -146,7 +154,7 @@ class FrechetTarget:
         gradient[:natomdofs] = self.atoms.get_forces().ravel()
         # Instead of multiplying mask, we should simply not expose those DOFs.
         # Also if there are only 6 stresses should we really be optimizing 3x3?
-        stress = self.atoms.get_stress(voigt=False) * self.mask_3x3
+        stress = self.atoms.get_stress(voigt=False) * self._utility.mask3x3
         gradient[natomdofs:] = stress.ravel()
         return gradient
 
@@ -179,7 +187,7 @@ def initial_position_hessian(ndofs, alpha=70.0):
 def initial_frechet_hessian(
     position_dofs: int,
     volume: float,
-    mask_3x3: np.ndarray,
+    mask3x3: np.ndarray,
     bulk_modulus: float = 145 * GPa,
     poisson_ratio: float = 0.3,
     alpha: float = 70.0,
@@ -194,7 +202,7 @@ def initial_frechet_hessian(
     hessian = np.zeros((ndofs, ndofs))
     hessian[:-9, :-9] = initial_position_hessian(position_dofs)
 
-    mask_ind = np.where(mask_3x3.ravel() != 0)[0]
+    mask_ind = np.where(mask3x3.ravel() != 0)[0]
     indices = np.ix_(mask_ind, mask_ind)
     # Instead of zeroing, can we make the Hessian smaller when we are not
     # optimizing all cell DOFs?
@@ -280,12 +288,12 @@ def test_new_bfgs_frechet():
     atoms = setup_surface()
     pos_ndofs = 3 * len(atoms)
 
-    mask = [1, 1, 0, 0, 0, 1]
-    mask_3x3 = voigt_6_to_full_3x3_stress(mask)
+    mask6 = [1, 1, 0, 0, 0, 1]
+    mask3x3 = voigt_6_to_full_3x3_stress(mask6)
 
     new_bfgs(
         FrechetTarget(atoms, mask),
         hessian=initial_frechet_hessian(
-            pos_ndofs, volume=atoms.cell.volume, mask_3x3=mask_3x3
+            pos_ndofs, volume=atoms.cell.volume, mask3x3=mask3x3
         ),
     )

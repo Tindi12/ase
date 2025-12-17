@@ -368,19 +368,9 @@ class UnitCellFilter(Filter):
         else:
             orig_cell = orig_cell
 
-        self._utility = CellUtility(orig_cell.copy())
+        self._utility = CellUtility(orig_cell.copy(), mask=mask)
 
         self.stress = None
-
-        if mask is None:
-            mask = np.ones(6)
-        mask = np.asarray(mask)
-        if mask.shape == (6,):
-            self.mask = voigt_6_to_full_3x3_stress(mask)
-        elif mask.shape == (3, 3):
-            self.mask = mask
-        else:
-            raise ValueError('shape of mask should be (3,3) or (6,)')
 
         if cell_factor is None:
             cell_factor = float(len(atoms))
@@ -390,6 +380,10 @@ class UnitCellFilter(Filter):
         self.cell_factor = cell_factor
         self.copy = self.atoms.copy
         self.arrays = self.atoms.arrays
+
+    @property
+    def mask(self):
+        return self._utility.mask3x3
 
     @property
     def orig_cell(self):
@@ -425,7 +419,7 @@ class UnitCellFilter(Filter):
         current cell by transforming them with the same deformation gradient
         """
         self._utility.set_positions_unitcellfilter(
-            new, self.atoms, self.cell_factor, self.mask, **kwargs)
+            new, self.atoms, self.cell_factor, **kwargs)
 
     def get_potential_energy(self, force_consistent=True):
         """
