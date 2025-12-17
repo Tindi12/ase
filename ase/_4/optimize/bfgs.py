@@ -1,9 +1,8 @@
 from itertools import product
 
 import numpy as np
-import pytest
 
-from ase.stress import voigt_6_to_full_3x3_stress, full_3x3_to_voigt_6_stress
+from ase.stress import full_3x3_to_voigt_6_stress, voigt_6_to_full_3x3_stress
 from ase.units import GPa
 
 
@@ -264,10 +263,15 @@ class CellUtility:
 
 
 class FrechetTarget:
-    def __init__(self, atoms, mask):
+    def __init__(self, atoms, mask, fmax, smax):
         self.atoms = atoms
         self.optimizable = atoms.__ase_optimizable__()
         self._utility = CellUtility(atoms.cell.copy(), mask)
+
+        # XXX Should Target have the max values?  Maybe, because
+        # it knows what they mean.
+        self.fmax = fmax
+        self.smax = smax
 
     def get_value(self):
         return (
@@ -278,7 +282,6 @@ class FrechetTarget:
     def get_gradient(self):
         natomdofs = len(self.atoms) * 3
         ncelldofs = 9
-        ndofs = len(self.atoms) * 3 + 9
         gradient = np.empty(natomdofs + ncelldofs)
         gradient[:natomdofs] = self.atoms.get_forces().ravel()
         # Instead of multiplying mask, we should simply not expose those DOFs.
@@ -301,7 +304,24 @@ class FrechetTarget:
 
     def set_x(self, x): ...
 
-    def gradient_norm(self, gradient): ...
+    def gradient_norm(self, gradient):
+        ...
+        # return np.max(np.sum(forces**2, axis=1))**0.5 < self.fmax and \
+        #     np.max(np.abs(stress)) < self.smax
+
+    def converged(self, gradient):
+        gradient_ac = gradient.reshape(-1, 3)
+        forces = -gradient_ac[:-3]
+        # Again here we could mask away the unused cell dofs instead of
+        # zeroing array elements.
+        stress = -gradient_ac[-3:] * self._utility.mask3x3
+        assert forces.shape == (len(self.atoms), 3)
+        assert stress.shape == (3, 3)
+
+        return (
+            np.linalg.norm(forces, axis=1) ** 0.5 < self.fmax
+            and np.abs(stress).max() < self.smax
+        )
 
 
 def initial_position_hessian(ndofs, alpha=70.0):
@@ -344,7 +364,6 @@ def new_bfgs(target, hessian, fmax=0.01):
     # target = Target(atoms)
 
     x = target.get_x()
-    ndofs = len(x)
 
     state = BFGSState(hessian=hessian)
 
@@ -377,13 +396,11 @@ def new_bfgs(target, hessian, fmax=0.01):
 
 # @pytest.mark.skip
 def test_surface():
-    from ase.filters import FrechetCellFilter
     from ase.optimize.bfgs import BFGS as OldBFGS
 
     atoms = setup_surface()
-    f = atoms.get_forces()
 
-    bfgs = OldBFGS(atoms)  # FrechetCellFilter(atoms))
+    bfgs = OldBFGS(atoms)
     for _ in bfgs.irun(fmax=0.01):
         pass
     # bfgs.run(fmax=0.01)
