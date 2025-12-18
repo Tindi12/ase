@@ -49,14 +49,24 @@ def setup_surface():
 
 
 class Target:
-    def __init__(self, atoms):
+    def __init__(self, atoms, fmax):
         self.optimizable = atoms.__ase_optimizable__()
+        self.fmax = fmax
 
     def get_value(self):
         return self.optimizable.get_value()
 
     def get_gradient(self):
-        return self.optimizable.get_gradient()
+        forces = self.optimizable.atoms.get_forces()
+        gradient = -forces.ravel()
+        fnorm = get_maxforce(forces)
+        converged = fnorm < self.fmax
+        return ForceGradient(
+            gradient=-forces.ravel(),
+            forces=forces,
+            fnorm=fnorm,
+            converged=converged
+        )
 
     def get_x(self):
         return self.optimizable.get_x()
@@ -66,6 +76,9 @@ class Target:
 
     def gradient_norm(self, gradient):
         return self.optimizable.gradient_norm(gradient)
+
+    def converged(self, gradient):
+        return self.gradient_norm(gradient) < self.fmax
 
 
 class CellUtility:
@@ -145,7 +158,7 @@ class CellUtility:
         # Set the positions from the ones passed in (which are without the
         # deformation gradient applied) and the new deformation gradient.
         # This should also preserve symmetry, so if set_positions() calls
-        # FixSymmetyr.adjust_positions(), it should be OK
+        # FixSymmetry.adjust_positions(), it should be OK
         atoms.set_positions(
             new_atom_positions @ (np.eye(3) + deform), **setpos_kwargs
         )
@@ -262,6 +275,24 @@ class CellUtility:
         return forces, convergence_crit_stress
 
 
+from dataclasses import dataclass
+
+
+@dataclass
+class FrechetGradient:
+    gradient: np.ndarray
+    forces: np.ndarray
+    stress: np.ndarray
+    conv_crit_stress: np.ndarray
+    fnorm: float
+    snorm: float
+    converged: bool
+    volume: float
+
+    def loginfo(self):
+        return {'fmax': self.fnorm, 'smax': self.snorm, 'vol': self.volume}
+
+
 class FrechetTarget:
     def __init__(self, atoms, mask, fmax, smax):
         self.atoms = atoms
@@ -280,48 +311,74 @@ class FrechetTarget:
         )
 
     def get_gradient(self):
-        natomdofs = len(self.atoms) * 3
-        ncelldofs = 9
-        gradient = np.empty(natomdofs + ncelldofs)
-        gradient[:natomdofs] = self.atoms.get_forces().ravel()
-        # Instead of multiplying mask, we should simply not expose those DOFs.
-        # Also if there are only 6 stresses should we really be optimizing 3x3?
-        stress = self.atoms.get_stress(voigt=False) * self._utility.mask3x3
-        gradient[natomdofs:] = stress.ravel()
-        return gradient
+        atoms_forces = self.atoms.get_forces()
+        stress = self.atoms.get_stress()
+        forces, conv_crit_stress = self._utility.get_forces_frechet(
+            atoms_forces=atoms_forces,
+            stress=stress,
+            cell=self.atoms.get_cell(),
+            exp_cell_factor=self._exp_cell_factor,
+        )
+
+        # (Convergence criterion and maybe metric should be more pluggable)
+        fnorm = get_maxforce(atoms_forces)
+        snorm = get_maxstress(conv_crit_stress)
+        converged = fnorm < self.fmax and snorm < self.smax
+
+        return FrechetGradient(
+            gradient=-forces.ravel(),
+            forces=atoms_forces,
+            stress=stress,
+            conv_crit_stress=conv_crit_stress,
+            fnorm=fnorm,
+            snorm=snorm,
+            converged=converged,
+            volume=self.atoms.cell.volume,
+        )
+
+    @property
+    def _cell_factor(self):
+        # XXX Default behaviour taken from unitcellfilter:
+        return float(len(self.atoms))
+
+    @property
+    def _exp_cell_factor(self):
+        return 1.0  # always 1.0 with 'cellaware'
 
     def get_x(self):
-        # XXX Default behaviour taken from unitcellfilter:
-        cell_factor = float(len(self.atoms))
-        exp_cell_factor = 1.0  # always 1.0 with 'cellaware'
-
         return self._utility.get_positions_frechet(
             self.atoms.get_positions(),
             self.atoms.get_cell(),
-            cell_factor,
-            exp_cell_factor=exp_cell_factor,
+            cell_factor=self._cell_factor,
+            exp_cell_factor=self._exp_cell_factor,
+        ).ravel()
+
+    def set_x(self, x):
+        self._utility.set_positions_frechet(
+            x.reshape(-1, 3),
+            self.atoms,
+            self._cell_factor,
+            self._exp_cell_factor,
         )
 
-    def set_x(self, x): ...
 
-    def gradient_norm(self, gradient):
-        ...
-        # return np.max(np.sum(forces**2, axis=1))**0.5 < self.fmax and \
-        #     np.max(np.abs(stress)) < self.smax
+def get_maxforce(forces) -> float:
+    return np.linalg.norm(forces, axis=1).max()
 
-    def converged(self, gradient):
-        gradient_ac = gradient.reshape(-1, 3)
-        forces = -gradient_ac[:-3]
-        # Again here we could mask away the unused cell dofs instead of
-        # zeroing array elements.
-        stress = -gradient_ac[-3:] * self._utility.mask3x3
-        assert forces.shape == (len(self.atoms), 3)
-        assert stress.shape == (3, 3)
 
-        return (
-            np.linalg.norm(forces, axis=1) ** 0.5 < self.fmax
-            and np.abs(stress).max() < self.smax
-        )
+def get_maxstress(stress) -> float:
+    return np.abs(stress).max()
+
+
+@dataclass
+class ForceGradient:
+    gradient: np.ndarray
+    forces: np.ndarray
+    fnorm: float
+    converged: bool
+
+    def loginfo(self):
+        return {'fmax': self.fnorm}
 
 
 def initial_position_hessian(ndofs, alpha=70.0):
@@ -343,7 +400,7 @@ def initial_frechet_hessian(
     )
 
     ndofs = position_dofs + 9
-    hessian = np.zeros((ndofs, ndofs))
+    hessian = initial_position_hessian(ndofs, alpha)
     hessian[:-9, :-9] = initial_position_hessian(position_dofs)
 
     mask_ind = np.where(mask3x3.ravel() != 0)[0]
@@ -358,7 +415,7 @@ def initial_frechet_hessian(
     return hessian
 
 
-def new_bfgs(target, hessian, fmax=0.01):
+def new_bfgs(target, hessian):
     # atoms = setup_surface()
 
     # target = Target(atoms)
@@ -367,14 +424,20 @@ def new_bfgs(target, hessian, fmax=0.01):
 
     state = BFGSState(hessian=hessian)
 
-    gradient = target.get_gradient()
+    gradient_obj = target.get_gradient()
+    gradient = gradient_obj.gradient
+
+    assert gradient.shape == (len(x),)
     value = target.get_value()
-    gradient_norm = target.gradient_norm(gradient)
+    # grad_info = target.gradient_info(gradient)
+    # gradient_norm = target.gradient_norm(gradient)
 
     i = 0
     while True:
-        print(f'BFGS i={i:4d} e={value:f} fmax={gradient_norm:f}')
-        if gradient_norm < fmax:
+        loginfo = gradient_obj.loginfo()
+        txt = ' '.join(f'{key}={value:f}' for key, value in loginfo.items())
+        print(f'BFGS i={i:4d} e={value:f} {txt}')
+        if gradient_obj.converged:
             return
 
         i += 1
@@ -384,13 +447,15 @@ def new_bfgs(target, hessian, fmax=0.01):
         # Target may apply constraints or other magic
         newx = target.get_x()
 
-        newgradient = target.get_gradient()
+        newgradient_obj = target.get_gradient()
+        newgradient = newgradient_obj.gradient
         value = target.get_value()
-        gradient_norm = target.gradient_norm(newgradient)
+        # gradient_norm = target.gradient_norm(newgradient)
 
         state.update(newx, newgradient, x, gradient)
 
         x = newx
+        gradient_obj = newgradient_obj
         gradient = newgradient
 
 
@@ -406,8 +471,13 @@ def test_surface():
     # bfgs.run(fmax=0.01)
 
 
-# @pytest.mark.skip
-def test_surface_cellawarebfgs():
+def test_new_bfgs():
+    atoms = setup_surface()
+    new_bfgs(Target(atoms, fmax=0.01), initial_position_hessian(3 * len(atoms)))
+
+
+def test_old_frechet():
+    print('OLD FRECHET')
     from ase.filters import FrechetCellFilter
     from ase.optimize.cellawarebfgs import CellAwareBFGS
 
@@ -416,11 +486,6 @@ def test_surface_cellawarebfgs():
         FrechetCellFilter(atoms, exp_cell_factor=1.0, mask=[1, 1, 0, 0, 0, 1])
     )
     bfgs.run(fmax=0.01, smax=0.001)
-
-
-def test_new_bfgs():
-    atoms = setup_surface()
-    new_bfgs(Target(atoms), initial_position_hessian(3 * len(atoms)))
 
 
 def test_new_bfgs_frechet():
@@ -433,7 +498,7 @@ def test_new_bfgs_frechet():
     mask3x3 = voigt_6_to_full_3x3_stress(mask6)
 
     new_bfgs(
-        FrechetTarget(atoms, mask6),
+        FrechetTarget(atoms, mask6, fmax=0.01, smax=0.001),
         hessian=initial_frechet_hessian(
             pos_ndofs, volume=atoms.cell.volume, mask3x3=mask3x3
         ),
