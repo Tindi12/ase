@@ -13,3 +13,4 @@ __all__ = ['Atoms', 'Atom']
 __version__ = '3.27.0b1'
 
 ase.parallel  # silence pyflakes
+bar = "https://meet.jit.si/from-ase-import-bar"
