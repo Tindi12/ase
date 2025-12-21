@@ -65,7 +65,7 @@ class Target:
             gradient=-forces.ravel(),
             forces=forces,
             fnorm=fnorm,
-            converged=converged
+            converged=converged,
         )
 
     def get_x(self):
@@ -293,9 +293,21 @@ class FrechetGradient:
         return {'fmax': self.fnorm, 'smax': self.snorm, 'vol': self.volume}
 
 
+def default_mask(pbc):
+    mask = np.ones(6, bool)
+    mask[:3] = pbc
+    for i in range(3):
+        if not mask[i]:
+            mask[3 + (i + 1) % 3] = 0
+            mask[3 + (i - 1) % 3] = 0
+    return mask
+
+
 class FrechetTarget:
-    def __init__(self, atoms, mask, fmax, smax):
+    def __init__(self, atoms, mask=None, *, fmax, smax):
         self.atoms = atoms
+        if mask is None:
+            mask = default_mask(atoms.pbc)
         self.optimizable = atoms.__ase_optimizable__()
         self._utility = CellUtility(atoms.cell.copy(), mask)
 
@@ -418,11 +430,15 @@ def initial_frechet_hessian(
 def new_bfgs(target, hessian):
     # atoms = setup_surface()
 
+    state = BFGSState(hessian=hessian)
+    for step in _new_bfgs(target, state):
+        pass
+
     # target = Target(atoms)
 
-    x = target.get_x()
 
-    state = BFGSState(hessian=hessian)
+def _new_bfgs(target, state):
+    x = target.get_x()
 
     gradient_obj = target.get_gradient()
     gradient = gradient_obj.gradient
@@ -435,7 +451,7 @@ def new_bfgs(target, hessian):
     i = 0
     while True:
         loginfo = gradient_obj.loginfo()
-        txt = ' '.join(f'{key}={value:f}' for key, value in loginfo.items())
+        txt = ' '.join(f'{key}={value:e}' for key, value in loginfo.items())
         print(f'BFGS i={i:4d} e={value:f} {txt}')
         if gradient_obj.converged:
             return
@@ -457,6 +473,7 @@ def new_bfgs(target, hessian):
         x = newx
         gradient_obj = newgradient_obj
         gradient = newgradient
+        yield
 
 
 # @pytest.mark.skip

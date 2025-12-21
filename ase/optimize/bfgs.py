@@ -7,8 +7,8 @@ from typing import IO, Optional, Union
 import numpy as np
 
 from ase import Atoms
-from ase.optimize.optimize import Optimizer, UnitCellFilter
 from ase._4.optimize.bfgs import BFGSState
+from ase.optimize.optimize import Optimizer, UnitCellFilter
 
 
 class BFGS(Optimizer):
