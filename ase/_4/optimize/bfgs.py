@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from itertools import product
 
 import numpy as np
@@ -7,6 +8,8 @@ from ase.units import GPa
 
 
 class BFGSState:
+    methodname = 'BFGS'
+
     def __init__(self, hessian):
         self.hessian = hessian
 
@@ -32,6 +35,19 @@ class BFGSState:
         self.hessian -= (
             -np.outer(dgradient, dgradient) / a + np.outer(dg, dg) / b
         )
+
+    def datafy(self):
+        return {
+            'name': self.methodname,
+            'hessian': self.hessian.ravel().tolist(),
+        }
+
+    @classmethod
+    def undatafy(cls, dct):
+        hessian = dct['hessian']
+        n = int(np.round(len(hessian) ** 0.5))
+        hessian = np.array(hessian).reshape(n, n)
+        return cls(hessian)
 
 
 def setup_surface():
@@ -62,7 +78,7 @@ class Target:
         fnorm = get_maxforce(forces)
         converged = fnorm < self.fmax
         return ForceGradient(
-            gradient=-forces.ravel(),
+            gradient=gradient,
             forces=forces,
             fnorm=fnorm,
             converged=converged,
@@ -275,9 +291,6 @@ class CellUtility:
         return forces, convergence_crit_stress
 
 
-from dataclasses import dataclass
-
-
 @dataclass
 class FrechetGradient:
     gradient: np.ndarray
@@ -437,6 +450,13 @@ def new_bfgs(target, hessian):
     # target = Target(atoms)
 
 
+@dataclass
+class Step:
+    i: int
+    gradient_obj: object
+    value: float
+
+
 def _new_bfgs(target, state):
     x = target.get_x()
 
@@ -450,9 +470,10 @@ def _new_bfgs(target, state):
 
     i = 0
     while True:
-        loginfo = gradient_obj.loginfo()
-        txt = ' '.join(f'{key}={value:e}' for key, value in loginfo.items())
-        print(f'BFGS i={i:4d} e={value:f} {txt}')
+        # loginfo = gradient_obj.loginfo()
+        # txt = ' '.join(f'{key}={value:e}' for key, value in loginfo.items())
+        # print(f'BFGS i={i:4d} e={value:f} {txt}')
+        yield Step(i, gradient_obj, value)
         if gradient_obj.converged:
             return
 
@@ -473,7 +494,6 @@ def _new_bfgs(target, state):
         x = newx
         gradient_obj = newgradient_obj
         gradient = newgradient
-        yield
 
 
 # @pytest.mark.skip
