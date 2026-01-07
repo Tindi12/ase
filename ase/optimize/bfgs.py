@@ -7,7 +7,7 @@ from typing import IO, Optional, Union
 import numpy as np
 
 from ase import Atoms
-from ase._4.optimize.bfgs import BFGSState
+from ase._4.optimize.bfgs import BFGSMethod
 from ase.optimize.optimize import Optimizer, UnitCellFilter
 
 
@@ -84,7 +84,7 @@ class BFGS(Optimizer):
     def initialize(self):
         # initial hessian
         self.H0 = np.eye(self.optimizable.ndofs()) * self.alpha
-        self.state = None  # BFGSState(self.H0)
+        self.state = None
 
         self.pos0 = None
         self.forces0 = None
@@ -96,7 +96,7 @@ class BFGS(Optimizer):
             self.atoms.orig_cell = data[4]
         else:
             assert len(data) == 4
-        self.state = BFGSState(H)
+        self.state = BFGSMethod(H)
 
     def step(self, gradient=None):
         gradient = self._get_gradient(gradient)
@@ -145,7 +145,7 @@ class BFGS(Optimizer):
 
     def update(self, pos, forces, pos0, forces0):
         if self.state is None:
-            self.state = BFGSState(self.H0)
+            self.state = BFGSMethod(self.H0)
             return
 
         # We'll want to work with gradients in the future,

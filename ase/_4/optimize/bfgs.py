@@ -8,7 +8,7 @@ from ase.stress import full_3x3_to_voigt_6_stress, voigt_6_to_full_3x3_stress
 from ase.units import GPa
 
 
-class BFGSState:
+class BFGSMethod:
     methodname = 'BFGS'
 
     def __init__(self, hessian):
@@ -466,8 +466,8 @@ def initial_frechet_hessian(
 
 
 def new_bfgs(target, hessian):
-    state = BFGSState(hessian=hessian)
-    for step in _new_bfgs(target, state):
+    method = BFGSMethod(hessian=hessian)
+    for step in _new_bfgs(target, method):
         pass
 
 
@@ -491,14 +491,14 @@ def _new_bfgs(target, method):
     yield from run_from(target, method, step)
 
 
-def run_from(target, state, step):
+def run_from(target, method, step):
     while True:
         yield step
 
         if step.gradient_obj.converged:
             return
 
-        dx = state.compute_step(step.gradient_obj.gradient)
+        dx = method.compute_step(step.gradient_obj.gradient)
 
         # Target may apply constraints or other magic, so we may not
         # get the same x back as the one we set.
@@ -511,7 +511,7 @@ def run_from(target, state, step):
             value=target.get_value(),
         )
 
-        state.update(
+        method.update(
             newstep.x,
             newstep.gradient_obj.gradient,
             step.x,
@@ -585,7 +585,7 @@ def test_new_bfgs_frechet_files(tmp_path):
     smax = 0.0001
     target = FrechetTarget(atoms, fmax=fmax, smax=smax)
     hessian = target.initial_hessian()
-    method = BFGSState(hessian)
+    method = BFGSMethod(hessian)
 
     log = Log('-', comm)
     restartpath = tmp_path / 'restart.traj'
