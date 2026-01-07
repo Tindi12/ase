@@ -480,49 +480,44 @@ class Step:
 
 
 def _new_bfgs(target, method):
-    x = target.get_x()
+    step = Step(
+        0,
+        target.get_x(),
+        target.get_gradient(),
+        target.get_value(),
+    )
 
-    gradient_obj = target.get_gradient()
-    gradient = gradient_obj.gradient
-
-    assert gradient.shape == (len(x),)
-    value = target.get_value()
-    # grad_info = target.gradient_info(gradient)
-    # gradient_norm = target.gradient_norm(gradient)
-
-    step = Step(0, x, gradient_obj, value)
+    assert step.gradient_obj.gradient.shape == (len(step.x),)
     yield from run_from(target, method, step)
 
-def run_from(target, state, step):
-    x = step.x
-    gradient = step.gradient_obj.gradient
-    value = step.value
 
+def run_from(target, state, step):
     while True:
-        gradient_obj = step.gradient_obj
         yield step
 
-        if gradient_obj.converged:
+        if step.gradient_obj.converged:
             return
 
-        # i += 1
-        dx = state.compute_step(gradient)
+        dx = state.compute_step(step.gradient_obj.gradient)
 
-        target.set_x(x + dx)
-        # Target may apply constraints or other magic
-        newx = target.get_x()
+        # Target may apply constraints or other magic, so we may not
+        # get the same x back as the one we set.
+        target.set_x(step.x + dx)
 
-        newgradient_obj = target.get_gradient()
-        newgradient = newgradient_obj.gradient
-        value = target.get_value()
-        # gradient_norm = target.gradient_norm(newgradient)
+        newstep = Step(
+            i=step.i + 1,
+            x=target.get_x(),
+            gradient_obj=target.get_gradient(),
+            value=target.get_value(),
+        )
 
-        state.update(newx, newgradient, x, gradient)
-
-        x = newx
-        gradient_obj = newgradient_obj
-        gradient = newgradient
-        step = Step(step.i + 1, x, newgradient_obj, value)
+        state.update(
+            newstep.x,
+            newstep.gradient_obj.gradient,
+            step.x,
+            step.gradient_obj.gradient,
+        )
+        step = newstep
 
 
 @pytest.mark.skip
@@ -607,11 +602,13 @@ def test_new_bfgs_frechet_files(tmp_path):
     assert target.get_value() == pytest.approx(0.837190)
     assert gradient_obj.fnorm < fmax
     assert gradient_obj.snorm < smax
+    assert step.i == 17
     print(tmp_path)
 
 
 def write_restartfile(restartpath, method, target, step):
     import json
+
     return
     # Unsafe if we just overwrite, we should backup/delete to prevent
     # accidental partial save
