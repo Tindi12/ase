@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from itertools import product
 
 import numpy as np
+import pytest
 
 from ase.stress import full_3x3_to_voigt_6_stress, voigt_6_to_full_3x3_stress
 from ase.units import GPa
@@ -93,8 +94,11 @@ class Target:
     def gradient_norm(self, gradient):
         return self.optimizable.gradient_norm(gradient)
 
-    def converged(self, gradient):
+    def converged(self, gradient) -> bool:
         return self.gradient_norm(gradient) < self.fmax
+
+    def initial_hessian(self, alpha=70.0) -> np.ndarray:
+        return initial_position_hessian(self.optimizable.ndofs(), alpha)
 
 
 class CellUtility:
@@ -386,6 +390,27 @@ class FrechetTarget:
             self._exp_cell_factor,
         )
 
+    def initial_hessian(
+        self,
+        bulk_modulus: float = 145 * GPa,
+        poisson_ratio: float = 0.3,
+        alpha: float = 70.0,
+    ) -> np.ndarray:
+        return initial_frechet_hessian(
+            len(self.atoms) * 3,
+            # XXX volume should be set intelligently in lowdim cases.
+            # What happens currently in 1d/2d?
+            # We need a test of that.
+            self.atoms.cell.volume,
+            self._utility.mask3x3,
+            bulk_modulus,
+            poisson_ratio,
+            alpha,
+        )
+
+    def iterimages(self):
+        yield self.atoms
+
 
 def get_maxforce(forces) -> float:
     return np.linalg.norm(forces, axis=1).max()
@@ -441,23 +466,20 @@ def initial_frechet_hessian(
 
 
 def new_bfgs(target, hessian):
-    # atoms = setup_surface()
-
     state = BFGSState(hessian=hessian)
     for step in _new_bfgs(target, state):
         pass
-
-    # target = Target(atoms)
 
 
 @dataclass
 class Step:
     i: int
+    x: np.ndarray
     gradient_obj: object
     value: float
 
 
-def _new_bfgs(target, state):
+def _new_bfgs(target, method):
     x = target.get_x()
 
     gradient_obj = target.get_gradient()
@@ -468,16 +490,22 @@ def _new_bfgs(target, state):
     # grad_info = target.gradient_info(gradient)
     # gradient_norm = target.gradient_norm(gradient)
 
-    i = 0
+    step = Step(0, x, gradient_obj, value)
+    yield from run_from(target, method, step)
+
+def run_from(target, state, step):
+    x = step.x
+    gradient = step.gradient_obj.gradient
+    value = step.value
+
     while True:
-        # loginfo = gradient_obj.loginfo()
-        # txt = ' '.join(f'{key}={value:e}' for key, value in loginfo.items())
-        # print(f'BFGS i={i:4d} e={value:f} {txt}')
-        yield Step(i, gradient_obj, value)
+        gradient_obj = step.gradient_obj
+        yield step
+
         if gradient_obj.converged:
             return
 
-        i += 1
+        # i += 1
         dx = state.compute_step(gradient)
 
         target.set_x(x + dx)
@@ -494,9 +522,10 @@ def _new_bfgs(target, state):
         x = newx
         gradient_obj = newgradient_obj
         gradient = newgradient
+        step = Step(step.i + 1, x, newgradient_obj, value)
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_surface():
     from ase.optimize.bfgs import BFGS as OldBFGS
 
@@ -508,6 +537,7 @@ def test_surface():
     # bfgs.run(fmax=0.01)
 
 
+@pytest.mark.skip
 def test_new_bfgs():
     atoms = setup_surface()
     new_bfgs(Target(atoms, fmax=0.01), initial_position_hessian(3 * len(atoms)))
@@ -522,21 +552,73 @@ def test_old_frechet():
     bfgs = CellAwareBFGS(
         FrechetCellFilter(atoms, exp_cell_factor=1.0, mask=[1, 1, 0, 0, 0, 1])
     )
-    bfgs.run(fmax=0.01, smax=0.001)
+    bfgs.run(fmax=0.001, smax=0.0001)
 
 
+@pytest.mark.skip
 def test_new_bfgs_frechet():
-    from ase.stress import voigt_6_to_full_3x3_stress
+    atoms = setup_surface()
+    target = FrechetTarget(atoms, fmax=0.01, smax=0.001)
+    hessian = target.initial_hessian()
+    new_bfgs(target=target, hessian=hessian)
+
+
+def write_to_log(method, log, step):
+    loginfo = step.gradient_obj.loginfo()
+    name = method.methodname
+    txt = ' '.join(f'{key}={value:e}' for key, value in loginfo.items())
+    msg = f'{name} i={step.i:4d} e={step.value:f} {txt}\n'
+    log.write(msg)
+
+
+def write_to_traj(target, trajpath, comm):
+    from ase.io.trajectory import Trajectory
+
+    with Trajectory(trajpath, comm=comm, mode='a') as traj:
+        # XXX we are not setting metadata (like old optimizers)
+        traj.write(target)
+
+
+def test_new_bfgs_frechet_files(tmp_path):
+    from ase.optimize.optimize import Log
+    from ase.parallel import world
+
+    comm = world
 
     atoms = setup_surface()
-    pos_ndofs = 3 * len(atoms)
+    fmax = 0.001
+    smax = 0.0001
+    target = FrechetTarget(atoms, fmax=fmax, smax=smax)
+    hessian = target.initial_hessian()
+    method = BFGSState(hessian)
 
-    mask6 = [1, 1, 0, 0, 0, 1]
-    mask3x3 = voigt_6_to_full_3x3_stress(mask6)
+    log = Log('-', comm)
+    restartpath = tmp_path / 'restart.traj'
+    trajpath = tmp_path / 'opt.traj'
+    trajpath.unlink(missing_ok=True)
 
-    new_bfgs(
-        FrechetTarget(atoms, mask6, fmax=0.01, smax=0.001),
-        hessian=initial_frechet_hessian(
-            pos_ndofs, volume=atoms.cell.volume, mask3x3=mask3x3
-        ),
-    )
+    for step in _new_bfgs(target=target, method=method):
+        write_to_log(method, log, step)
+        write_to_traj(target, trajpath, comm)
+        write_restartfile(restartpath, method, target, step)
+
+    gradient_obj = step.gradient_obj
+
+    assert target.get_value() == pytest.approx(0.837190)
+    assert gradient_obj.fnorm < fmax
+    assert gradient_obj.snorm < smax
+    print(tmp_path)
+
+
+def write_restartfile(restartpath, method, target, step):
+    import json
+    return
+    # Unsafe if we just overwrite, we should backup/delete to prevent
+    # accidental partial save
+    savedata = {
+        # 'method': method,
+        # 'target': target,
+        # 'optsettings': optsettings,
+    }
+    json_text = json.dumps(...)
+    restartpath.write_text(json_text)
