@@ -357,7 +357,7 @@ class UnitCellFilter(Filter):
             breaks energy/force consistency.
         """
 
-        from ase._4.optimize.bfgs import CellUtility
+        from ase._4.optimize.cellutil import CellUtility
 
         Filter.__init__(self, atoms=atoms, indices=range(len(atoms)))
         self.atoms = atoms
