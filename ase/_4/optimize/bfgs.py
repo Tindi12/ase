@@ -1,9 +1,12 @@
-from dataclasses import dataclass
+import json
+from dataclasses import asdict, dataclass
 from itertools import product
 
 import numpy as np
 import pytest
 
+from ase.io.jsonio import decode as ase_decode, encode as ase_encode
+from ase.io.trajectory import Trajectory
 from ase.stress import full_3x3_to_voigt_6_stress, voigt_6_to_full_3x3_stress
 from ase.units import GPa
 
@@ -38,14 +41,10 @@ class BFGSMethod:
         )
 
     def datafy(self):
-        return {
-            'name': self.methodname,
-            'hessian': self.hessian.ravel().tolist(),
-        }
+        return self.hessian.ravel().tolist()
 
     @classmethod
-    def undatafy(cls, dct):
-        hessian = dct['hessian']
+    def undatafy(cls, hessian):
         n = int(np.round(len(hessian) ** 0.5))
         hessian = np.array(hessian).reshape(n, n)
         return cls(hessian)
@@ -309,6 +308,12 @@ class FrechetGradient:
     def loginfo(self):
         return {'fmax': self.fnorm, 'smax': self.snorm, 'vol': self.volume}
 
+    def datafy(self):
+        return asdict(self)
+
+    @classmethod
+    def fromdata(cls, dct):
+        return cls(**dct)
 
 def default_mask(pbc):
     mask = np.ones(6, bool)
@@ -333,6 +338,22 @@ class FrechetTarget:
         self.fmax = fmax
         self.smax = smax
 
+    def datafy(self):
+        return {
+            'fmax': self.fmax,
+            'smax': self.smax,
+            # 'atoms': self.atoms,
+            # do we need atoms?  Requires ASE encoder.
+            # If we do not save Atoms, we need to get at least
+            # the species etc. back.  That's tricky, I suppose we should
+            # save the atoms them.
+            'atoms': self.atoms,
+            # Also atoms include constraints, which nobody else will save
+            # for us.
+            'mask': self._utility.mask6.tolist(),
+            # XXX We may need to save multiple things from the Utility.
+        }
+
     def get_value(self):
         return (
             self.optimizable.get_value()
@@ -342,7 +363,7 @@ class FrechetTarget:
     def get_gradient(self):
         atoms_forces = self.atoms.get_forces()
         stress = self.atoms.get_stress()
-        forces, conv_crit_stress = self._utility.get_forces_frechet(
+        frechet_forces, conv_crit_stress = self._utility.get_forces_frechet(
             atoms_forces=atoms_forces,
             stress=stress,
             cell=self.atoms.get_cell(),
@@ -355,7 +376,7 @@ class FrechetTarget:
         converged = fnorm < self.fmax and snorm < self.smax
 
         return FrechetGradient(
-            gradient=-forces.ravel(),
+            gradient=-frechet_forces.ravel(),
             forces=atoms_forces,
             stress=stress,
             conv_crit_stress=conv_crit_stress,
@@ -478,46 +499,51 @@ class Step:
     gradient_obj: object
     value: float
 
+    @classmethod
+    def start(cls, target):
+        return cls(0, target.get_x(), target.get_gradient(), target.get_value())
+
+    def datafy(self):
+        return {'i': self.i, 'x': self.x.tolist(),
+                'gradient_obj': self.gradient_obj.datafy(),
+                'value': self.value}
 
 def _new_bfgs(target, method):
-    step = Step(
-        0,
-        target.get_x(),
-        target.get_gradient(),
-        target.get_value(),
-    )
-
+    step = Step.start(target)
     assert step.gradient_obj.gradient.shape == (len(step.x),)
-    yield from run_from(target, method, step)
+
+    yield step
+    yield from irun(target, method, step)
 
 
-def run_from(target, method, step):
-    while True:
+def irun(target, method, step):
+    while not step.gradient_obj.converged:
+        # (Both method and target change in this update)
+        step = next_step(target, method, step)
         yield step
 
-        if step.gradient_obj.converged:
-            return
 
-        dx = method.compute_step(step.gradient_obj.gradient)
+def next_step(target, method, step) -> Step:
+    dx = method.compute_step(step.gradient_obj.gradient)
 
-        # Target may apply constraints or other magic, so we may not
-        # get the same x back as the one we set.
-        target.set_x(step.x + dx)
+    # Target may apply constraints or other magic, so we may not
+    # get the same x back as the one we set.
+    target.set_x(step.x + dx)
 
-        newstep = Step(
-            i=step.i + 1,
-            x=target.get_x(),
-            gradient_obj=target.get_gradient(),
-            value=target.get_value(),
-        )
+    newstep = Step(
+        i=step.i + 1,
+        x=target.get_x(),
+        gradient_obj=target.get_gradient(),
+        value=target.get_value(),
+    )
 
-        method.update(
-            newstep.x,
-            newstep.gradient_obj.gradient,
-            step.x,
-            step.gradient_obj.gradient,
-        )
-        step = newstep
+    method.update(
+        newstep.x,
+        newstep.gradient_obj.gradient,
+        step.x,
+        step.gradient_obj.gradient,
+    )
+    return newstep
 
 
 @pytest.mark.skip
@@ -567,8 +593,6 @@ def write_to_log(method, log, step):
 
 
 def write_to_traj(target, trajpath, comm):
-    from ase.io.trajectory import Trajectory
-
     with Trajectory(trajpath, comm=comm, mode='a') as traj:
         # XXX we are not setting metadata (like old optimizers)
         traj.write(target)
@@ -588,34 +612,88 @@ def test_new_bfgs_frechet_files(tmp_path):
     method = BFGSMethod(hessian)
 
     log = Log('-', comm)
-    restartpath = tmp_path / 'restart.traj'
+    restartpath = tmp_path / 'restart.json'
     trajpath = tmp_path / 'opt.traj'
     trajpath.unlink(missing_ok=True)
 
-    for step in _new_bfgs(target=target, method=method):
+    def writefiles():
         write_to_log(method, log, step)
         write_to_traj(target, trajpath, comm)
         write_restartfile(restartpath, method, target, step)
 
+    step = Step.start(target)
+    writefiles()
+
+    for step in irun(target, method, step):
+        writefiles()
+        if step.i == 5:
+            break
+
+    with Trajectory(trajpath) as traj:
+        firstpart_images = [*traj]
+
+    assert len(firstpart_images) == 6
+
+    halfway = restartpath.with_name('halfway.json')
+    write_restartfile(halfway, method, target, step)
+
+    for step in irun(target, method, step):
+        writefiles()
+
     gradient_obj = step.gradient_obj
 
-    assert target.get_value() == pytest.approx(0.837190)
+    ref = pytest.approx(0.837190)
+
+    assert target.get_value() == ref
     assert gradient_obj.fnorm < fmax
     assert gradient_obj.snorm < smax
     assert step.i == 17
     print(tmp_path)
 
+    with Trajectory(trajpath) as traj:
+        images = [*traj]
+
+    assert len(images) == 18
+    assert images[-1].get_potential_energy() == ref
+
+    target, method, step = read_restartfile(halfway)
+
+    # The target would require e.g. Calculator
+
+    trajpath = 'lastpath.traj'
+
+    # lastpart_images = read_images(trajpath)
+    xxx
+
+
+def read_images(trajpath):
+    with Trajectory(trajpath) as traj:
+        return [*traj]
+
 
 def write_restartfile(restartpath, method, target, step):
-    import json
-
-    return
     # Unsafe if we just overwrite, we should backup/delete to prevent
     # accidental partial save
     savedata = {
-        # 'method': method,
-        # 'target': target,
+        'method': [method.methodname, method.datafy()],
+        'target': target.datafy(),
+        'step': step.datafy(),
         # 'optsettings': optsettings,
     }
-    json_text = json.dumps(...)
+    json_text = json.dumps(savedata, default=ase_encode)
     restartpath.write_text(json_text)
+
+
+def read_restartfile(restartpath):
+    json_text = restartpath.read_text()
+    dct = json.loads(json_text, object_hook=ase_decode)
+    methodname, data = dct['method']
+    if methodname == 'BFGS':
+        method = BFGSMethod.undatafy(data)
+    else:
+        raise ValueError(f'No such method: {methodname}')
+
+    step = x
+    target = x
+
+    return target, method, step
