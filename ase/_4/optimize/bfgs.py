@@ -8,6 +8,7 @@ from ase.io.trajectory import Trajectory
 
 
 class BFGSMethod:
+    iotype = 'bfgs'
     methodname = 'BFGS'
 
     def __init__(self, hessian):
@@ -201,8 +202,8 @@ def write_restartfile(restartpath, method, target, step):
     # How about trajectory writing, logfile settings, etc.?
     # General observers obviously cannot be saved.
     savedata = {
-        'method': [method.methodname, method.datafy()],
-        'target': target.datafy(),
+        'method': [method.iotype, method.datafy()],
+        'target': [target.iotype, target.datafy()],
         'step': step.datafy(),
     }
     json_text = json.dumps(savedata, default=default)
@@ -212,16 +213,24 @@ def write_restartfile(restartpath, method, target, step):
 def read_restartfile(restartpath, calc):
     json_text = restartpath.read_text()
     dct = json.loads(json_text, object_hook=object_hook)
-    methodname, data = dct['method']
-    if methodname == 'BFGS':
-        method = BFGSMethod.undatafy(data)
+
+    assert {*dct} == {'method', 'target', 'step'}
+    method_iotype, method_data = dct['method']
+    print('grrr', dct['target'])
+    target_iotype, target_dct = dct['target']
+    print(target_dct)
+
+    if method_iotype == 'bfgs':
+        method = BFGSMethod.undatafy(method_data)
     else:
-        raise ValueError(f'No such method: {methodname}')
+        raise ValueError(f'No such method: {method_iotype}')
 
-    # XXX Identity of target must be coded in restartfile as well.
-    from ase._4.optimize.frechet import FrechetTarget
+    if target_iotype == 'frechet':
+        from ase._4.optimize.frechet import FrechetTarget
+        target = FrechetTarget.undatafy(target_dct, calc)
+    else:
+        raise ValueError(f'No such target: {target_iotype}')
 
-    target = FrechetTarget.undatafy(dct['target'], calc)
     gradient_obj = target.undatafy_gradient(dct['step']['gradient_obj'])
     step = Step.undatafy(dct['step'], gradient_obj)
 

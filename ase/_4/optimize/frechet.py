@@ -76,6 +76,8 @@ def default_mask(pbc):
 
 
 class FrechetTarget:
+    iotype = 'frechet'
+
     def __init__(self, atoms, mask=None, *, fmax, smax, orig_cell=None):
         self.atoms = atoms
         if mask is None:
@@ -94,14 +96,7 @@ class FrechetTarget:
         return {
             'fmax': self.fmax,
             'smax': self.smax,
-            # 'atoms': self.atoms,
-            # do we need atoms?  Requires ASE encoder.
-            # If we do not save Atoms, we need to get at least
-            # the species etc. back.  That's tricky, I suppose we should
-            # save the atoms them.
             'atoms': self.atoms,
-            # Also atoms include constraints, which nobody else will save
-            # for us.
             'mask': self._utility.mask6.tolist(),
             'orig_cell': self._utility.orig_cell.ravel().tolist(),
             # XXX We may need to save multiple things from the Utility.
