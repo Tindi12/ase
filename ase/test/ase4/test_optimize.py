@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
 
-from ase._4.optimize.bfgs import (
-    BFGSMethod,
+from ase._4.optimize.bfgs import BFGSMethod
+from ase._4.optimize.frechet import FrechetTarget
+from ase._4.optimize.run import (
     Step,
     Target,
     irun,
@@ -13,7 +14,6 @@ from ase._4.optimize.bfgs import (
     write_to_log,
     write_to_traj,
 )
-from ase._4.optimize.frechet import FrechetTarget
 from ase.filters import FrechetCellFilter
 from ase.optimize.bfgs import BFGS as OldBFGS
 from ase.optimize.cellawarebfgs import CellAwareBFGS

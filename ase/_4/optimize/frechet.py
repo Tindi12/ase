@@ -18,7 +18,7 @@ def initial_frechet_hessian(
     poisson_ratio: float = 0.3,
     alpha: float = 70.0,
 ):
-    from ase._4.optimize.bfgs import initial_position_hessian
+    from ase._4.optimize.run import initial_position_hessian
     from ase.optimize.cellawarebfgs import calculate_isotropic_elasticity_tensor
 
     C_ijkl = calculate_isotropic_elasticity_tensor(
@@ -129,7 +129,7 @@ class FrechetTarget:
         )
 
     def get_gradient(self):
-        from ase._4.optimize.bfgs import get_maxforce
+        from ase._4.optimize.run import get_maxforce
 
         atoms_forces = self.atoms.get_forces()
         stress = self.atoms.get_stress()

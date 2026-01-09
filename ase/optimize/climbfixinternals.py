@@ -126,7 +126,7 @@ class BFGSClimbFixInternals(BFGS):
         return array.reshape(-1, 3)
 
     def read(self):
-        (self.state.H, self.pos0, self.forces0, self.maxstep,
+        (self.H, self.pos0, self.forces0, self.maxstep,
          self.targetvalue) = self.load()
 
     def step(self):
@@ -135,7 +135,7 @@ class BFGSClimbFixInternals(BFGS):
         pos, dpos = self.pretend2climb()  # with optimizer 'A'
         self.update_positions_and_targetvalue(pos, dpos)  # obey other constr.
 
-        self.dump((self.state.H, self.pos0, self.forces0, self.maxstep,
+        self.dump((self.H, self.pos0, self.forces0, self.maxstep,
                    self.targetvalue))
 
     def pretend2climb(self):

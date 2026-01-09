@@ -89,6 +89,10 @@ class BFGS(Optimizer):
         self.pos0 = None
         self.forces0 = None
 
+    @property
+    def H(self):
+        return self.state.hessian
+
     def read(self):
         data = self.load()
         H, self.pos0, self.forces0, self.maxstep = data[:4]
