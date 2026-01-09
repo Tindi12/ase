@@ -14,10 +14,6 @@ class BFGSMethod:
     def __init__(self, hessian):
         self.hessian = hessian
 
-    @property
-    def H(self):
-        return self.hessian
-
     def compute_step(self, gradient):
         omega, vectors = np.linalg.eigh(self.hessian)
         return -vectors @ (gradient @ vectors / np.fabs(omega))
@@ -33,8 +29,8 @@ class BFGSMethod:
         a = dpos @ dgradient
         dg = self.hessian @ dpos
         b = dpos @ dg
-        self.hessian -= (
-            -np.outer(dgradient, dgradient) / a + np.outer(dg, dg) / b
+        self.hessian += (
+            np.outer(dgradient, dgradient) / a - np.outer(dg, dg) / b
         )
 
     def datafy(self):
@@ -227,6 +223,7 @@ def read_restartfile(restartpath, calc):
 
     if target_iotype == 'frechet':
         from ase._4.optimize.frechet import FrechetTarget
+
         target = FrechetTarget.undatafy(target_dct, calc)
     else:
         raise ValueError(f'No such target: {target_iotype}')

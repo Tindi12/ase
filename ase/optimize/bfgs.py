@@ -107,10 +107,11 @@ class BFGS(Optimizer):
         dpos = self.determine_step(dpos, steplengths)
         optimizable.set_x(pos + dpos)
         if isinstance(self.atoms, UnitCellFilter):
-            self.dump((self.state.H, self.pos0, self.forces0, self.maxstep,
-                       self.atoms.orig_cell))
+            self.dump((self.state.hessian, self.pos0, self.forces0,
+                       self.maxstep, self.atoms.orig_cell))
         else:
-            self.dump((self.state.H, self.pos0, self.forces0, self.maxstep))
+            self.dump((self.state.hessian, self.pos0, self.forces0,
+                       self.maxstep))
 
     def prepare_step(self, pos, gradient):
         pos = pos.ravel()
