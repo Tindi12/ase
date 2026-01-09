@@ -31,7 +31,7 @@ class CellUtility:
         else:
             raise ValueError('shape of mask should be (3,3) or (6,)')
 
-        self.mask6 = full_3x3_to_voigt_6_stress(mask)
+        self.mask6 = full_3x3_to_voigt_6_stress(mask).astype(bool)
         self.mask3x3 = mask
 
         # Somewhat uncertain how well these are tested in combinations
