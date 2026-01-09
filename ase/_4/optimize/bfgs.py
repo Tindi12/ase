@@ -322,8 +322,12 @@ def initial_frechet_hessian(
 
 def new_bfgs(target, hessian):
     method = BFGSMethod(hessian=hessian)
-    for step in _new_bfgs(target, method):
-        pass
+
+    step = Step.start(target)
+    assert step.gradient_obj.gradient.shape == (len(step.x),)
+
+    yield step
+    yield from irun(target, method, step)
 
 
 @dataclass
@@ -353,14 +357,6 @@ class Step:
             gradient_obj=gradient_obj,
             value=dct['value'],
         )
-
-
-def _new_bfgs(target, method):
-    step = Step.start(target)
-    assert step.gradient_obj.gradient.shape == (len(step.x),)
-
-    yield step
-    yield from irun(target, method, step)
 
 
 def irun(target, method, step):
@@ -393,7 +389,6 @@ def next_step(target, method, step) -> Step:
     return newstep
 
 
-@pytest.mark.skip
 def test_surface():
     from ase.optimize.bfgs import BFGS as OldBFGS
 
@@ -405,7 +400,6 @@ def test_surface():
     # bfgs.run(fmax=0.01)
 
 
-@pytest.mark.skip
 def test_new_bfgs():
     atoms = setup_surface()
     new_bfgs(Target(atoms, fmax=0.01), initial_position_hessian(3 * len(atoms)))
@@ -423,7 +417,6 @@ def test_old_frechet():
     bfgs.run(fmax=0.001, smax=0.0001)
 
 
-@pytest.mark.skip
 def test_new_bfgs_frechet():
     atoms = setup_surface()
     target = FrechetTarget(atoms, fmax=0.01, smax=0.001)
