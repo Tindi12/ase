@@ -5,7 +5,10 @@ import numpy as np
 import pytest
 
 from ase._4.optimize.cellutil import CellUtility
-from ase.io.jsonio import decode as ase_decode, encode as ase_encode
+from ase.io.jsonio import (
+    default as jsonio_default,
+    object_hook as jsonio_object_hook,
+)
 from ase.io.trajectory import Trajectory
 from ase.units import GPa
 
@@ -114,11 +117,14 @@ class FrechetGradient:
         return {'fmax': self.fnorm, 'smax': self.snorm, 'vol': self.volume}
 
     def datafy(self):
+        # XXX must be able to handle the type somehow.
+        # The Target type would know what Gradient type to restore.
         return asdict(self)
 
     @classmethod
-    def fromdata(cls, dct):
+    def undatafy(cls, dct):
         return cls(**dct)
+
 
 def default_mask(pbc):
     mask = np.ones(6, bool)
@@ -131,12 +137,14 @@ def default_mask(pbc):
 
 
 class FrechetTarget:
-    def __init__(self, atoms, mask=None, *, fmax, smax):
+    def __init__(self, atoms, mask=None, *, fmax, smax, orig_cell=None):
         self.atoms = atoms
         if mask is None:
             mask = default_mask(atoms.pbc)
         self.optimizable = atoms.__ase_optimizable__()
-        self._utility = CellUtility(atoms.cell.copy(), mask)
+        if orig_cell is None:
+            orig_cell = atoms.cell.copy()
+        self._utility = CellUtility(orig_cell, mask)
 
         # XXX Should Target have the max values?  Maybe, because
         # it knows what they mean.
@@ -156,8 +164,29 @@ class FrechetTarget:
             # Also atoms include constraints, which nobody else will save
             # for us.
             'mask': self._utility.mask6.tolist(),
+            'orig_cell': self._utility.orig_cell.ravel().tolist(),
             # XXX We may need to save multiple things from the Utility.
         }
+
+    @classmethod
+    def undatafy(cls, dct, calc):
+        # XXX Here we depend directly on calculator since it's the only thing
+        # we don't know how to restore.
+        atoms = dct['atoms'].copy()
+        atoms.calc = calc
+        mask = np.array(dct['mask'])
+        orig_cell = np.array(dct['orig_cell']).reshape(3, 3)
+        return cls(
+            atoms,
+            mask,
+            fmax=dct['fmax'],
+            smax=dct['smax'],
+            orig_cell=orig_cell,
+        )
+
+    @classmethod
+    def undatafy_gradient(cls, dct):
+        return FrechetGradient.undatafy(dct)
 
     def get_value(self):
         return (
@@ -309,9 +338,22 @@ class Step:
         return cls(0, target.get_x(), target.get_gradient(), target.get_value())
 
     def datafy(self):
-        return {'i': self.i, 'x': self.x.tolist(),
-                'gradient_obj': self.gradient_obj.datafy(),
-                'value': self.value}
+        return {
+            'i': self.i,
+            'x': self.x.tolist(),
+            'gradient_obj': self.gradient_obj.datafy(),
+            'value': self.value,
+        }
+
+    @classmethod
+    def undatafy(cls, dct, gradient_obj):
+        return cls(
+            i=dct['i'],
+            x=np.array(dct['x']),
+            gradient_obj=gradient_obj,
+            value=dct['value'],
+        )
+
 
 def _new_bfgs(target, method):
     step = Step.start(target)
@@ -434,8 +476,7 @@ def test_new_bfgs_frechet_files(tmp_path):
         if step.i == 5:
             break
 
-    with Trajectory(trajpath) as traj:
-        firstpart_images = [*traj]
+    firstpart_images = read_images(trajpath)
 
     assert len(firstpart_images) == 6
 
@@ -453,22 +494,30 @@ def test_new_bfgs_frechet_files(tmp_path):
     assert gradient_obj.fnorm < fmax
     assert gradient_obj.snorm < smax
     assert step.i == 17
-    print(tmp_path)
 
-    with Trajectory(trajpath) as traj:
-        images = [*traj]
+    images = read_images(trajpath)
+    last_atoms = images[-1]
 
     assert len(images) == 18
-    assert images[-1].get_potential_energy() == ref
+    assert last_atoms.get_potential_energy() == ref
 
-    target, method, step = read_restartfile(halfway)
+    from ase.calculators.emt import EMT
 
-    # The target would require e.g. Calculator
+    print('restart')
+    target, method, step = read_restartfile(halfway, EMT())
 
-    trajpath = 'lastpath.traj'
+    trajpath = tmp_path / 'lastpath.traj'
+    write_to_log(method, log, step)
 
-    # lastpart_images = read_images(trajpath)
-    xxx
+    for step in irun(target, method, step):
+        writefiles()
+
+    lastpart_images = read_images(trajpath)
+    assert len(firstpart_images) + len(lastpart_images) == len(images)
+    last_atoms2 = lastpart_images[-1]
+    assert last_atoms2.get_potential_energy() == pytest.approx(ref)
+    assert last_atoms.positions == pytest.approx(last_atoms2.positions)
+    assert last_atoms.cell == pytest.approx(last_atoms2.cell)
 
 
 def read_images(trajpath):
@@ -479,26 +528,31 @@ def read_images(trajpath):
 def write_restartfile(restartpath, method, target, step):
     # Unsafe if we just overwrite, we should backup/delete to prevent
     # accidental partial save
+
+    # Still need some things, like maximum iterations.
+    # How about trajectory writing, logfile settings, etc.?
+    # General observers obviously cannot be saved.
     savedata = {
         'method': [method.methodname, method.datafy()],
         'target': target.datafy(),
         'step': step.datafy(),
-        # 'optsettings': optsettings,
     }
-    json_text = json.dumps(savedata, default=ase_encode)
+    json_text = json.dumps(savedata, default=jsonio_default)
     restartpath.write_text(json_text)
 
 
-def read_restartfile(restartpath):
+def read_restartfile(restartpath, calc):
     json_text = restartpath.read_text()
-    dct = json.loads(json_text, object_hook=ase_decode)
+    dct = json.loads(json_text, object_hook=jsonio_object_hook)
     methodname, data = dct['method']
     if methodname == 'BFGS':
         method = BFGSMethod.undatafy(data)
     else:
         raise ValueError(f'No such method: {methodname}')
 
-    step = x
-    target = x
+    # XXX Identity of target must be coded in restartfile as well.
+    target = FrechetTarget.undatafy(dct['target'], calc)
+    gradient_obj = target.undatafy_gradient(dct['step']['gradient_obj'])
+    step = Step.undatafy(dct['step'], gradient_obj)
 
     return target, method, step
