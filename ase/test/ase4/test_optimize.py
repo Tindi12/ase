@@ -3,7 +3,6 @@ import pytest
 
 from ase._4.optimize.bfgs import (
     BFGSMethod,
-    FrechetTarget,
     Step,
     Target,
     irun,
@@ -14,6 +13,7 @@ from ase._4.optimize.bfgs import (
     write_to_log,
     write_to_traj,
 )
+from ase._4.optimize.frechet import FrechetTarget
 from ase.filters import FrechetCellFilter
 from ase.optimize.bfgs import BFGS as OldBFGS
 from ase.optimize.cellawarebfgs import CellAwareBFGS
@@ -47,7 +47,7 @@ def test_new_bfgs():
     atoms = setup_surface()
     target = Target(atoms, fmax=0.01)
     hessian = target.initial_hessian()
-    new_bfgs(target, hessian)
+    new_bfgs(target, BFGSMethod(hessian))
 
 
 def test_old_frechet():
@@ -63,8 +63,8 @@ def test_old_frechet():
 def test_new_bfgs_frechet():
     atoms = setup_surface()
     target = FrechetTarget(atoms, fmax=0.01, smax=0.001)
-    hessian = target.initial_hessian()
-    new_bfgs(target=target, hessian=hessian)
+    method = BFGSMethod(target.initial_hessian())
+    new_bfgs(target=target, method=method)
 
 
 def test_new_bfgs_frechet_files(tmp_path):
