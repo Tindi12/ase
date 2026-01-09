@@ -6,9 +6,9 @@ from ase._4.optimize.bfgs import (
     Step,
     Target,
     irun,
-    new_bfgs,
     read_images,
     read_restartfile,
+    run,
     write_restartfile,
     write_to_log,
     write_to_traj,
@@ -47,12 +47,12 @@ def test_new_bfgs():
     atoms = setup_surface()
     target = Target(atoms, fmax=0.01)
     hessian = target.initial_hessian()
-    new_bfgs(target, BFGSMethod(hessian))
+    step = run(target, BFGSMethod(hessian))
+    assert step.i == 10
+    assert step.gradient_obj.converged
 
 
 def test_old_frechet():
-    print('OLD FRECHET')
-
     atoms = setup_surface()
     bfgs = CellAwareBFGS(
         FrechetCellFilter(atoms, exp_cell_factor=1.0, mask=[1, 1, 0, 0, 0, 1])
@@ -62,9 +62,11 @@ def test_old_frechet():
 
 def test_new_bfgs_frechet():
     atoms = setup_surface()
-    target = FrechetTarget(atoms, fmax=0.01, smax=0.001)
+    target = FrechetTarget(atoms, fmax=0.01, smax=0.00001)
     method = BFGSMethod(target.initial_hessian())
-    new_bfgs(target=target, method=method)
+    step = run(target=target, method=method)
+    assert step.gradient_obj.converged
+    assert step.i == 18
 
 
 def test_new_bfgs_frechet_files(tmp_path):

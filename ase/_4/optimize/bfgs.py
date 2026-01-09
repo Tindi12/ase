@@ -101,14 +101,6 @@ def initial_position_hessian(ndofs, alpha=70.0):
     return np.diag(np.full(ndofs, 70.0))
 
 
-def new_bfgs(target, method):
-    step = Step.start(target)
-    assert step.gradient_obj.gradient.shape == (len(step.x),)
-
-    yield step
-    yield from irun(target, method, step)
-
-
 @dataclass
 class Step:
     i: int
@@ -118,7 +110,9 @@ class Step:
 
     @classmethod
     def start(cls, target):
-        return cls(0, target.get_x(), target.get_gradient(), target.get_value())
+        step = cls(0, target.get_x(), target.get_gradient(), target.get_value())
+        assert step.gradient_obj.gradient.shape == (len(step.x),)
+        return step
 
     def datafy(self):
         return {
@@ -136,6 +130,12 @@ class Step:
             gradient_obj=gradient_obj,
             value=dct['value'],
         )
+
+
+def run(target, method, step=None):
+    for step in irun(target, method, step):
+        pass
+    return step
 
 
 def irun(target, method, step=None):
