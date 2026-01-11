@@ -5,6 +5,7 @@ import numpy as np
 
 from ase.io.jsonio import default, object_hook
 from ase.io.trajectory import Trajectory
+from ase.parallel import world
 
 
 class Target:
@@ -45,6 +46,57 @@ class Target:
 
 def get_maxforce(forces) -> float:
     return np.linalg.norm(forces, axis=1).max()
+
+
+class Optimizer:
+    def __init__(
+        self,
+        target,
+        method,
+        trajectory=None,
+        restartfile=None,
+        comm=world,
+        logfile='-',
+        step=None,
+    ):
+        from ase.optimize.optimize import Log
+
+        self.log = Log(logfile, comm)
+        self.comm = comm
+        self.target = target
+        self.method = method
+        self.trajectory = trajectory
+        self.restartfile = restartfile
+        # We need both "restart from" and "save restart to", somehow.
+        # Altough maybe that feature can come via a classmethod
+        self.step = step
+
+    def run(self, steps=None):
+        for step in self.irun(steps):
+            pass
+        return step
+
+    def irun(self, steps=None):
+        for step in irun(self.target, self.method, step=self.step):
+            self.step = step
+            self._writefiles(step)
+            yield step
+            if step.i == steps:
+                # What's best: raise or return?
+                # steps should be additive probably (if we start from step N)?
+                return
+
+    def _writefiles(self, step):
+        write_to_log(self.method, self.log, step)
+        if self.trajectory is not None:
+            write_to_traj(self.target, self.trajectory, self.comm)
+        if self.restartfile is not None and self.comm.rank == 0:
+            write_restartfile(self.restartfile, self.method, self.target, step)
+
+    @classmethod
+    def restart(cls, restartfile, calc, **kwargs):
+        target, method, step = read_restartfile(restartfile, calc)
+        return cls(target=target, method=method, step=step, **kwargs)
 
 
 @dataclass
@@ -154,7 +206,7 @@ def read_images(trajpath):
         return [*traj]
 
 
-def write_restartfile(restartpath, method, target, step):
+def write_restartfile(restartfile, method, target, step):
     # Unsafe if we just overwrite, we should backup/delete to prevent
     # accidental partial save
 
@@ -167,11 +219,11 @@ def write_restartfile(restartpath, method, target, step):
         'step': step.datafy(),
     }
     json_text = json.dumps(savedata, default=default)
-    restartpath.write_text(json_text)
+    restartfile.write_text(json_text)
 
 
-def read_restartfile(restartpath, calc):
-    json_text = restartpath.read_text()
+def read_restartfile(restartfile, calc):
+    json_text = restartfile.read_text()
     dct = json.loads(json_text, object_hook=object_hook)
 
     assert {*dct} == {'method', 'target', 'step'}

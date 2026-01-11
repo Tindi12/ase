@@ -4,20 +4,15 @@ import pytest
 from ase._4.optimize.bfgs import BFGSMethod
 from ase._4.optimize.frechet import FrechetTarget
 from ase._4.optimize.run import (
+    Optimizer,
     Target,
-    irun,
     read_images,
-    read_restartfile,
     run,
     write_restartfile,
-    write_to_log,
-    write_to_traj,
 )
 from ase.filters import FrechetCellFilter
 from ase.optimize.bfgs import BFGS as OldBFGS
 from ase.optimize.cellawarebfgs import CellAwareBFGS
-from ase.optimize.optimize import Log
-from ase.parallel import world
 
 
 def setup_surface():
@@ -66,55 +61,6 @@ def test_new_bfgs_frechet():
     step = run(target=target, method=method)
     assert step.gradient_obj.converged
     assert step.i == 18
-
-
-class Optimizer:
-    def __init__(
-        self,
-        target,
-        method,
-        trajectory=None,
-        restartpath=None,
-        comm=world,
-        logfile='-',
-        step=None,
-    ):
-        self.log = Log(logfile, comm)
-        self.comm = comm
-        self.target = target
-        self.method = method
-        self.trajectory = trajectory
-        self.restartpath = restartpath
-        # We need both "restart from" and "save restart to", somehow.
-        # Altough maybe that feature can come via a classmethod
-        self.step = step
-
-    def run(self, steps=None):
-        for step in self.irun(steps):
-            pass
-        return step
-
-    def irun(self, steps=None):
-        for step in irun(self.target, self.method, step=self.step):
-            self.step = step
-            self._writefiles(step)
-            yield step
-            if step.i == steps:
-                # What's best: raise or return?
-                # steps should be additive probably?
-                return
-
-    def _writefiles(self, step):
-        write_to_log(self.method, self.log, step)
-        if self.trajectory is not None:
-            write_to_traj(self.target, self.trajectory, self.comm)
-        if self.restartpath is not None:
-            write_restartfile(self.restartpath, self.method, self.target, step)
-
-    @classmethod
-    def restart(cls, restartfile, calc, **kwargs):
-        target, method, step = read_restartfile(restartfile, calc)
-        return cls(target=target, method=method, step=step, **kwargs)
 
 
 def test_new_bfgs_frechet_files(tmp_path):
