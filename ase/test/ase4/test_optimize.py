@@ -40,27 +40,34 @@ def test_surface():
 def test_new_bfgs():
     atoms = setup_surface()
     target = Target(atoms, fmax=0.01)
-    hessian = target.initial_hessian()
-    step = run(target, BFGSMethod(hessian))
+    hessian = BFGSMethod(target.initial_hessian())
+    opt = Optimizer(target, hessian)
+    step = opt.run()
     assert step.i == 10
     assert step.gradient_obj.converged
 
 
-def test_old_frechet():
+def old_frechet_energy(atoms, fmax, smax):
     atoms = setup_surface()
     bfgs = CellAwareBFGS(
         FrechetCellFilter(atoms, exp_cell_factor=1.0, mask=[1, 1, 0, 0, 0, 1])
     )
     bfgs.run(fmax=0.001, smax=0.0001)
-
+    return atoms.get_potential_energy()
 
 def test_new_bfgs_frechet():
     atoms = setup_surface()
-    target = FrechetTarget(atoms, fmax=0.01, smax=0.00001)
+    fmax = 0.01
+    smax = 0.00001
+    target = FrechetTarget(atoms, fmax=fmax, smax=smax)
     method = BFGSMethod(target.initial_hessian())
-    step = run(target=target, method=method)
+    opt = Optimizer(target, method)
+    step = opt.run()
     assert step.gradient_obj.converged
     assert step.i == 18
+
+    old_energy = old_frechet_energy(setup_surface(), fmax=fmax, smax=smax)
+    assert target.get_value() == pytest.approx(old_energy)
 
 
 def test_new_bfgs_frechet_files(tmp_path):
