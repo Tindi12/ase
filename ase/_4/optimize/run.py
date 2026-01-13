@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -136,7 +137,7 @@ def initial_position_hessian(ndofs, alpha=70.0):
 class Step:
     i: int
     x: np.ndarray
-    gradient_obj: object
+    gradient_obj: Any
     value: float
 
     @classmethod
