@@ -97,7 +97,7 @@ class FrechetTarget:
             'fmax': self.fmax,
             'smax': self.smax,
             'atoms': self.atoms,
-            'mask': self._utility.mask6.tolist(),
+            'mask': self._utility.mask3x3.tolist(),
             'orig_cell': self._utility.orig_cell.ravel().tolist(),
             # XXX We may need to save multiple things from the Utility.
             # But currently not, because we create the utility, and
@@ -110,7 +110,8 @@ class FrechetTarget:
         # we don't know how to restore.
         atoms = dct['atoms'].copy()
         atoms.calc = calc
-        mask = np.array(dct['mask'])
+        mask = np.array(dct['mask']).reshape(3, 3)
+        assert mask.dtype == bool
         orig_cell = np.array(dct['orig_cell']).reshape(3, 3)
         return cls(
             atoms,
@@ -134,7 +135,11 @@ class FrechetTarget:
         from ase._4.optimize.run import get_maxforce
 
         atoms_forces = self.atoms.get_forces()
-        stress = self.atoms.get_stress()
+        if self._utility.mask3x3.any():
+            stress = self.atoms.get_stress()
+        else:
+            stress = np.zeros(6)
+
         frechet_forces, conv_crit_stress = self._utility.get_forces_frechet(
             atoms_forces=atoms_forces,
             stress=stress,
