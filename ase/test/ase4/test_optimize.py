@@ -7,9 +7,9 @@ from ase._4.optimize.run import (
     Optimizer,
     Target,
     read_images,
-    run,
     write_restartfile,
 )
+from ase.calculators.emt import EMT
 from ase.filters import FrechetCellFilter
 from ase.optimize.bfgs import BFGS as OldBFGS
 from ase.optimize.cellawarebfgs import CellAwareBFGS
@@ -17,7 +17,6 @@ from ase.optimize.cellawarebfgs import CellAwareBFGS
 
 def setup_surface():
     from ase.build import fcc111
-    from ase.calculators.emt import EMT
 
     rng = np.random.RandomState(42)
     atoms = fcc111('Au', size=(1, 2, 2), vacuum=5.0)
@@ -29,22 +28,32 @@ def setup_surface():
     return atoms
 
 
-def test_surface():
-    atoms = setup_surface()
-
+def run_old_bfgs(atoms, fmax):
     bfgs = OldBFGS(atoms)
-    for _ in bfgs.irun(fmax=0.01):
+    for i, _ in enumerate(bfgs.irun(fmax=fmax)):
         pass
+
+    assert i == 10
+    return i, atoms
 
 
 def test_new_bfgs():
     atoms = setup_surface()
-    target = Target(atoms, fmax=0.01)
+    fmax = 0.01
+    target = Target(atoms, fmax=fmax)
     hessian = BFGSMethod(target.initial_hessian())
     opt = Optimizer(target, hessian)
     step = opt.run()
-    assert step.i == 10
+
+    oldsteps, oldatoms = run_old_bfgs(setup_surface(), fmax)
+
     assert step.gradient_obj.converged
+    assert step.i == 10
+    assert oldsteps == 10
+
+    ref_energy = 0.9133826276
+    assert atoms.get_potential_energy() == pytest.approx(ref_energy)
+    assert oldatoms.get_potential_energy() == pytest.approx(ref_energy)
 
 
 def old_frechet_energy(atoms, fmax, smax):
@@ -54,6 +63,7 @@ def old_frechet_energy(atoms, fmax, smax):
     )
     bfgs.run(fmax=0.001, smax=0.0001)
     return atoms.get_potential_energy()
+
 
 def test_new_bfgs_frechet():
     atoms = setup_surface()

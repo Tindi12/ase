@@ -71,28 +71,38 @@ class Optimizer:
         # Altough maybe that feature can come via a classmethod
         self.step = step
 
-    def run(self, steps=None):
-        for step in self.irun(steps):
+        # If we don't have self.step, then restarting would need to
+        # pass the step to run(), which may be awkward.
+        # But having self.step is also awkward.
+
+    def run(self, *, steps=None):
+        for step in self.irun(steps=steps):
             pass
         return step
 
-    def irun(self, steps=None):
+    def irun(self, *, steps=None):
         if self.step is None:
             self.step = Step.start(self.target)
+            self._writefiles(self.step)
             yield self.step
 
-        while not step.gradient_obj.converged:
+        if steps is not None:
+            # (We may start from "step 17" if we restart)
+            steps += self.step.i
+
+        def check_stop(step):
+            # Would it be better to raise an error if we don't converge,
+            # or should there be an option for doing so?
+            return step.gradient_obj.converged or step.i == steps
+
+        while not check_stop(self.step):
             # (Both method and target change in this update)
             self.step = next_step(self.target, self.method, self.step)
-            self._writefiles(step)
+            self._writefiles(self.step)
             yield self.step
-            if self.step.i == steps:
-                # What's best: raise or return?
-                # steps should be additive probably (if we start from step N)?
-                return
 
     def _writefiles(self, step):
-        write_to_log(self.method, self.log, step)
+        write_to_log(self.method, self.log, self.step)
         if self.trajectory is not None:
             write_to_traj(self.target, self.trajectory, self.comm)
         if self.restartfile is not None and self.comm.rank == 0:
