@@ -100,6 +100,8 @@ class FrechetTarget:
             'mask': self._utility.mask6.tolist(),
             'orig_cell': self._utility.orig_cell.ravel().tolist(),
             # XXX We may need to save multiple things from the Utility.
+            # But currently not, because we create the utility, and
+            # don't set those things.
         }
 
     @classmethod

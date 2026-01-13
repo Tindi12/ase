@@ -10,13 +10,18 @@ class BFGSMethod:
 
     def compute_step(self, gradient):
         omega, vectors = np.linalg.eigh(self.hessian)
+        # Not sure what we should do about negative eigenvalues,
+        # taking the absolute value is arbitrary and probably not good.
         return -vectors @ (gradient @ vectors / np.fabs(omega))
 
     def update(self, pos, gradient, pos0, gradient0):
         dpos = pos - pos0
 
         if np.abs(dpos).max() < 1e-7:
-            # Same configuration again (maybe a restart):
+            # Same configuration again (maybe a restart).
+            #
+            # This happens when the class is used by the old code,
+            # but it shouldn't generally trigger in ase._4.
             return
 
         dgradient = gradient - gradient0

@@ -67,7 +67,7 @@ class Optimizer:
         self.method = method
         self.trajectory = trajectory
         self.restartfile = restartfile
-        # We need both "restart from" and "save restart to", somehow.
+        # TODO We need both "restart from" and "save restart to", somehow.
         # Altough maybe that feature can come via a classmethod
         self.step = step
 
@@ -100,6 +100,9 @@ class Optimizer:
 
     @classmethod
     def restart(cls, restartfile, calc, **kwargs):
+        # Since this method has "calc", it doesn't really belong on this
+        # class (we know about Targets etc. but not calcs).
+        # Maybe therefore this should be a standalone function.
         target, method, step = read_restartfile(restartfile, calc)
         return cls(target=target, method=method, step=step, **kwargs)
 
@@ -152,7 +155,7 @@ class Step:
 
 def next_step(target, method, step) -> Step:
     dx = method.compute_step(step.gradient_obj.gradient)
-    # We do not have maxstep right now.  This will not run the same
+    # TODO We do not have maxstep right now.  This will not run the same
     # as legacy optimizations until we apply a maxstep.
 
     # Target may apply constraints or other magic, so we may not
@@ -185,7 +188,7 @@ def write_to_log(method, log, step):
 
 def write_to_traj(target, trajpath, comm):
     with Trajectory(trajpath, comm=comm, mode='a') as traj:
-        # XXX we are not setting metadata (like old optimizers)
+        # TODO we are not setting metadata (like old optimizers)
         traj.write(target)
 
 
@@ -195,7 +198,7 @@ def read_images(trajpath):
 
 
 def write_restartfile(restartfile, method, target, step):
-    # Unsafe if we just overwrite, we should backup/delete to prevent
+    # TODO Unsafe if we just overwrite, we should backup/delete to prevent
     # accidental partial save
 
     # Still need some things, like maximum iterations.
@@ -216,9 +219,7 @@ def read_restartfile(restartfile, calc):
 
     assert {*dct} == {'method', 'target', 'step'}
     method_iotype, method_data = dct['method']
-    print('grrr', dct['target'])
     target_iotype, target_dct = dct['target']
-    print(target_dct)
 
     if method_iotype == 'bfgs':
         from ase._4.optimize.bfgs import BFGSMethod
