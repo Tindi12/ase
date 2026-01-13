@@ -234,6 +234,7 @@ def read_restartfile(restartfile, calc):
 
     if method_iotype == 'bfgs':
         from ase._4.optimize.bfgs import BFGSMethod
+
         method = BFGSMethod.undatafy(method_data)
     else:
         raise ValueError(f'No such method: {method_iotype}')
