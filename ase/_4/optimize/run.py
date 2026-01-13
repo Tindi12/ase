@@ -77,11 +77,16 @@ class Optimizer:
         return step
 
     def irun(self, steps=None):
-        for step in irun(self.target, self.method, step=self.step):
-            self.step = step
+        if self.step is None:
+            self.step = Step.start(self.target)
+            yield self.step
+
+        while not step.gradient_obj.converged:
+            # (Both method and target change in this update)
+            self.step = next_step(self.target, self.method, self.step)
             self._writefiles(step)
-            yield step
-            if step.i == steps:
+            yield self.step
+            if self.step.i == steps:
                 # What's best: raise or return?
                 # steps should be additive probably (if we start from step N)?
                 return
@@ -143,23 +148,6 @@ class Step:
             gradient_obj=gradient_obj,
             value=dct['value'],
         )
-
-
-def run(target, method, step=None):
-    for step in irun(target, method, step):
-        pass
-    return step
-
-
-def irun(target, method, step=None):
-    if step is None:
-        step = Step.start(target)
-        yield step
-
-    while not step.gradient_obj.converged:
-        # (Both method and target change in this update)
-        step = next_step(target, method, step)
-        yield step
 
 
 def next_step(target, method, step) -> Step:
