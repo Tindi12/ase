@@ -110,6 +110,34 @@ def test_vec_cell(atoms, images):
     assert a[0].symbol == 'Mg'
 
 
+def test_sequence_move_mask_variable_constraints(tmp_path):
+    # in response to issue #1849
+    # Regression test: writing a sequence with move_mask and varying natoms
+    # Previously this would use constraints from the first frame for all frames.
+    # Previously this would crash with IndexError when later frames are smaller.
+    pos0 = np.zeros((71, 3), dtype=float)
+    pos0[:, 0] = np.arange(71, dtype=float)
+    a0 = Atoms('H71', positions=pos0)
+    a0.set_constraint(FixAtoms(indices=[63]))
+
+    pos1 = np.zeros((63, 3), dtype=float)
+    pos1[:, 0] = np.arange(63, dtype=float)
+    a1 = Atoms('H63', positions=pos1)
+
+    path = tmp_path / 'multi-movemask.xyz'
+    ase.io.write(path, [a0, a1], format='extxyz',)
+
+    images2 = ase.io.read(path, index=':')
+
+    assert len(images2) == 2
+
+    assert len(images2[0].constraints) == 1
+    assert isinstance(images2[0].constraints[0], FixAtoms)
+    assert np.all(images2[0].constraints[0].index == a0.constraints[0].index)
+
+    assert images2[1].constraints == []
+
+
 # read xyz with / and @ signs in key value
 def test_read_slash():
     Path('slash.xyz').write_text("""4
@@ -359,9 +387,18 @@ class TestConstraints:
         constraint2 = self._roundtrip(atoms, columns, constraint)
         assert len(constraint2) == len(atoms)
         assert isinstance(constraint2[0], FixCartesian)
-        assert np.all(constraint2[0].mask)
+        assert np.all(~constraint2[0].mask)  # unconstrained
         assert np.all(constraint2[1].mask == constraint.mask)
-        assert np.all(constraint2[2].mask)
+        assert np.all(~constraint2[2].mask)  # unconstrained
+
+    def test_list_of_fix_atoms(self, columns) -> None:
+        """Test list of `FixAtoms`."""
+        atoms = self._make_atoms()
+        constraint = [FixAtoms(0), FixAtoms(2)]
+        constraint2 = self._roundtrip(atoms, columns, constraint)
+        assert len(constraint2) == 1
+        assert isinstance(constraint2[0], FixAtoms)
+        assert np.all(constraint2[0].index == [0, 2])
 
     def test_list_of_fix_cartesian(self, columns) -> None:
         """Test list of `FixCartesian`."""
@@ -370,7 +407,7 @@ class TestConstraints:
         constraint2 = self._roundtrip(atoms, columns, constraint)
         assert len(constraint2) == len(atoms)
         assert np.all(constraint2[0].mask == constraint[0].mask)
-        assert np.all(constraint2[1].mask)
+        assert np.all(~constraint2[1].mask)  # unconstrained
         assert np.all(constraint2[2].mask == constraint[1].mask)
 
     def test_list_of_fixed_line(self, columns) -> None:
