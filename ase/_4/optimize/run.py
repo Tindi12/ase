@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -67,6 +68,8 @@ class Optimizer:
         self.target = target
         self.method = method
         self.trajectory = trajectory
+        if restartfile is not None:
+            restartfile = Path(restartfile)
         self.restartfile = restartfile
         # TODO We need both "restart from" and "save restart to", somehow.
         # Altough maybe that feature can come via a classmethod
@@ -77,9 +80,10 @@ class Optimizer:
         # But having self.step is also awkward.
 
     def run(self, *, steps=None):
-        for step in self.irun(steps=steps):
+        for _ in self.irun(steps=steps):
             pass
-        return step
+        # Note: This may take zero steps, but self.step is always non-None
+        return self.step
 
     def irun(self, *, steps=None):
         if self.step is None:
