@@ -96,9 +96,9 @@ class CellAwareBFGS(BFGS):
     def converged(self, gradient):
         # XXX currently ignoring gradient
         forces = self.atoms.atoms.get_forces()
-        stress = self.atoms.atoms.get_stress(voigt=False) * self.atoms.mask
+        stress = self.atoms.stress
         return np.max(np.sum(forces**2, axis=1))**0.5 < self.fmax and \
-            np.max(np.abs(stress)) < self.smax
+            np.max(np.abs(stress.flatten())) < self.smax
 
     def run(self, fmax=0.05, smax=0.005, steps=None):
         """ call Dynamics.run and keep track of fmax"""
@@ -114,8 +114,7 @@ class CellAwareBFGS(BFGS):
         fmax = (forces ** 2).sum(axis=1).max() ** 0.5
         e = self.optimizable.get_value()
         T = time.localtime()
-        smax = abs(self.atoms.atoms.get_stress(voigt=False) *
-                   self.atoms.mask).max()
+        smax = abs(np.max(self.atoms.stress.flatten()))
         volume = self.atoms.atoms.cell.volume
         if self.logfile is not None:
             name = self.__class__.__name__
