@@ -6,7 +6,6 @@ from copy import copy
 
 import numpy as np
 
-import ase
 import ase.data
 import ase.gui.ui as ui
 from ase.cluster import wulff_construction
@@ -398,6 +397,7 @@ class SetupNanoparticle:
             self.makeatoms()
             if self.atoms is not None:
                 self.gui.new_atoms(self.atoms)
+                self.gui.clear_history()
         else:
             self.clearatoms()
         self.makeinfo()
@@ -527,6 +527,7 @@ class SetupNanoparticle:
         self.makeatoms()
         if self.atoms is not None:
             self.gui.new_atoms(self.atoms)
+            self.gui.clear_history()
             return True
         else:
             ui.error(_('No valid atoms.'),
