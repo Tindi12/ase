@@ -60,6 +60,7 @@ class Optimizer:
         comm=world,
         logfile='-',
         step=None,
+        maxstep=0.2,
     ):
         from ase.optimize.optimize import Log
 
@@ -73,6 +74,7 @@ class Optimizer:
         self.restartfile = restartfile
         # TODO We need both "restart from" and "save restart to", somehow.
         # Altough maybe that feature can come via a classmethod
+        self.maxstep = maxstep
         self.step = step
 
         # If we don't have self.step, then restarting would need to
@@ -102,7 +104,9 @@ class Optimizer:
 
         while not check_stop(self.step):
             # (Both method and target change in this update)
-            self.step = next_step(self.target, self.method, self.step)
+            self.step = next_step(
+                self.target, self.method, self.step, self.maxstep
+            )
             self._writefiles(self.step)
             yield self.step
 
@@ -168,10 +172,18 @@ class Step:
         )
 
 
-def next_step(target, method, step) -> Step:
+def next_step(target, method, step, maxstep: float | None) -> Step:
     dx = method.compute_step(step.gradient_obj.gradient)
     # TODO We do not have maxstep right now.  This will not run the same
     # as legacy optimizations until we apply a maxstep.
+
+    # Questionable: We are using the function for computing norm of
+    # the gradient to compute norm of another vector.
+    if maxstep is not None:
+        longest = target.optimizable.gradient_norm(dx)
+        if longest > maxstep:
+            scale = maxstep / longest
+            dx *= scale
 
     # Target may apply constraints or other magic, so we may not
     # get the same x back as the one we set.
