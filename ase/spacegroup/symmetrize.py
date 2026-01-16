@@ -80,8 +80,9 @@ def refine_symmetry(atoms, symprec=0.01, verbose=False):
     spglib dataset
 
     """
-    _check_and_symmetrize_cell(atoms, symprec=symprec, verbose=verbose)
-    _check_and_symmetrize_positions(atoms, symprec=symprec, verbose=verbose)
+    res = spglib.find_primitive(atoms_to_spglib_cell(atoms), symprec=symprec)
+    dataset = _check_and_symmetrize_cell(atoms, symprec=symprec, verbose=verbose)
+    _check_and_symmetrize_positions(atoms, res, dataset=dataset, symprec=symprec, verbose=verbose)
     return check_symmetry(atoms, symprec=1e-4, verbose=verbose)
 
 
@@ -112,15 +113,31 @@ def get_symmetrized_atoms(atoms,
     symatoms : Atoms
         New atoms object symmetrized according to the input symprec.
     """
-    atoms = atoms.copy()
-    original_dataset = _check_and_symmetrize_cell(atoms, symprec=symprec)
-    intermediate_dataset = _check_and_symmetrize_positions(
-        atoms, symprec=symprec)
-    if intermediate_dataset.number != original_dataset.number:
-        raise IntermediateDatasetError()
-    final_symprec = final_symprec or symprec
-    final_dataset = check_symmetry(atoms, symprec=final_symprec)
-    assert final_dataset.number == original_dataset.number
+    import spglib
+    iterations = 0
+    while True:
+        atoms = atoms.copy()
+        res = spglib.find_primitive(atoms_to_spglib_cell(atoms), symprec=symprec)
+        original_dataset = _check_and_symmetrize_cell(atoms, symprec=symprec)
+        intermediate_dataset = _check_and_symmetrize_positions(
+            atoms,
+            res,
+            dataset=original_dataset,
+            symprec=symprec)
+        if intermediate_dataset.number != original_dataset.number:
+            raise IntermediateDatasetError()
+        final_symprec = final_symprec or symprec
+        final_dataset = check_symmetry(atoms, symprec=final_symprec)
+        if final_dataset is None:
+            from ase.io import write
+            write('/home/kuisma/symtests/a.xyz', atoms)
+            raise IntermediateDatasetError()
+
+        if final_dataset.number == original_dataset.number:
+            break
+        iterations += 1
+        if iterations > 3:
+            raise IntermediateDatasetError()
     return atoms, final_dataset
 
 
@@ -139,12 +156,11 @@ def _symmetrize_cell(atoms, dataset):
     atoms.set_cell(rot_trans_std_cell, True)
 
 
-def _check_and_symmetrize_positions(atoms, *, symprec, **kwargs):
+def _check_and_symmetrize_positions(atoms, res, dataset=None, *, symprec, **kwargs):
     import spglib
-    dataset = check_symmetry(atoms, symprec=symprec, **kwargs)
+    dataset = dataset or check_symmetry(atoms, symprec=symprec, **kwargs)
     # here we are assuming that primitive vectors returned by find_primitive
     #    are compatible with std_lattice returned by get_symmetry_dataset
-    res = spglib.find_primitive(atoms_to_spglib_cell(atoms), symprec=symprec)
     _symmetrize_positions(atoms, dataset, res)
     return dataset
 
@@ -173,8 +189,13 @@ def _symmetrize_positions(atoms, dataset, primitive_spglib_cell):
     for i_at in range(len(atoms)):
         std_i_at = std_mapping_to_primitive.index(mapping_to_primitive[i_at])
         dp = aligned_std_pos[std_i_at] - pos[i_at]
+        print(dp)
         dp_s = dp @ inv_rot_prim_cell
+        print('dp_s', dp_s)
+        print(np.round(dp_s))
         pos[i_at] = (aligned_std_pos[std_i_at] - np.round(dp_s) @ rot_prim_cell)
+    print(rot_prim_cell)
+    print(atoms.get_cell())
     atoms.set_positions(pos)
 
 
@@ -186,6 +207,8 @@ def check_symmetry(atoms, symprec=1.0e-6, verbose=False):
     """
     dataset = spglib_get_symmetry_dataset(atoms_to_spglib_cell(atoms),
                                           symprec=symprec)
+    if dataset is None:
+        print('Cannot find symmetry', atoms, symprec)
     if verbose:
         print_symmetry(symprec, dataset)
     return dataset

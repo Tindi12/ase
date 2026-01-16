@@ -81,4 +81,7 @@ def test_mineral_symmetrization(datadir, mineral, rngseed):
             _symatoms, dataset = get_symmetrized_atoms(
                 atoms, symprec=symprec, final_symprec=1e-5)
         except IntermediateDatasetError:
+            from ase.io import write
+            write(f'/home/kuisma/symtests/failing_atoms_{symprec}.xyz', atoms)
+            raise
             continue
