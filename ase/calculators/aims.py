@@ -20,7 +20,7 @@ from ase.calculators.genericfileio import (
     GenericFileIOCalculator,
     read_stdout,
 )
-from ase.io.aims import write_aims, write_control
+from ase.io import write, read
 
 
 def get_aims_version(string):
@@ -142,11 +142,12 @@ class AimsTemplate(CalculatorTemplate):
 
         geometry_in = directory / 'geometry.in'
 
-        write_aims(
+        write(
             geometry_in,
             atoms,
-            scaled,
-            geo_constrain,
+            format="aims",
+            scaled=scaled,
+            geo_constrain=geo_constrain,
             write_velocities=write_velocities,
             ghosts=ghosts,
         )
@@ -159,17 +160,17 @@ class AimsTemplate(CalculatorTemplate):
         ):
             parameters['species_dir'] = profile.default_species_directory
 
-        write_control(control, atoms, parameters)
+        write(control, atoms, format="aims-control", parameters=parameters)
+        # write_control(control, atoms, parameters)
 
     def execute(self, directory, profile):
         profile.run(directory, None, self.outputname,
                     errorfile=self.errorname)
 
     def read_results(self, directory):
-        from ase.io.aims import read_aims_results
-
         dst = directory / self.outputname
-        return read_aims_results(dst, index=-1)
+
+        return read(dst, format="aims-output", index=-1).calc.results
 
     def load_profile(self, cfg, **kwargs):
         return AimsProfile.from_config(cfg, self.name, **kwargs)
