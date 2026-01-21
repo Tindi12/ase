@@ -226,7 +226,6 @@ class DimerEigenmodeSearch:
                      self.control.get_counter('rotcount'),
                      self.get_curvature(), '---------', norm(f_rot_A))
             self.logfile.write(l)
-            self.logfile.flush()
 
     def get_rotational_force(self):
         """Calculate the rotational force that acts on the dimer."""
@@ -1013,7 +1012,6 @@ class MinModeTranslate(Optimizer):
                 l = 'MinModeTranslate: STEP      TIME          ENERGY    ' + \
                     'MAX-FORCE     STEPSIZE    CURVATURE  ROT-STEPS\n'
             self.logfile.write(l)
-            self.logfile.flush()
 
         # Load the relevant parameters from control
         self.cg_on = self.control.get_parameter('cg_translation')
@@ -1031,6 +1029,7 @@ class MinModeTranslate(Optimizer):
 
     def step(self, f=None):
         """Perform the optimization step."""
+
         atoms = self.dimeratoms
         if f is None:
             f = atoms.get_forces()
@@ -1078,10 +1077,9 @@ class MinModeTranslate(Optimizer):
         self.direction_old = direction.copy()
         return self.cg_direction.copy()
 
-    def log(self, f=None, stepsize=None):
+    def log(self, gradient, stepsize=None):
         """Log each step of the optimization."""
-        if f is None:
-            f = self.dimeratoms.get_forces()
+        f = self.dimeratoms.get_forces()
         if self.logfile is not None:
             T = time.localtime()
             e = self.dimeratoms.get_potential_energy()
@@ -1104,7 +1102,6 @@ class MinModeTranslate(Optimizer):
                             T[3], T[4], T[5], e, fmax, '    --------',
                             curvature, rotsteps)
             self.logfile.write(l)
-            self.logfile.flush()
 
 
 def read_eigenmode(mlog, index=-1):

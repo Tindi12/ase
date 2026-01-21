@@ -1,12 +1,14 @@
 # fmt: off
 
+import numpy as np
+
 import ase.gui.ui as ui
 from ase.gui.i18n import _
 
 
 class Repeat:
     def __init__(self, gui):
-        win = ui.Window(_('Repeat'), wmtype='utility')
+        win = ui.Window(_('Repeat'))
         win.add(_('Repeat atoms:'))
         self.repeat = [ui.SpinBox(r, 1, 9, 1, self.change)
                        for r in gui.images.repeat]
@@ -23,9 +25,11 @@ class Repeat:
         repeat = [int(r.value) for r in self.repeat]
         self.gui.images.repeat_images(repeat)
         self.gui.set_frame()
+        self.gui.update_history(mask=np.ones(len(self.gui.images), bool))
 
     def set_unit_cell(self):
         self.gui.images.repeat_unit_cell()
         for r in self.repeat:
             r.value = 1
         self.gui.set_frame()
+        self.gui.update_history(mask=np.ones(len(self.gui.images), bool))

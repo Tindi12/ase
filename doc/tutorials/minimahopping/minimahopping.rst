@@ -4,6 +4,16 @@
 Constrained minima hopping (global optimization)
 ================================================
 
+.. note::
+
+  We are currently moving to a new way to display our examples.
+  For this example we have an updated version, which you 
+  can find :ref:`here <minima_hopping>`.
+  The example on this page is deprecated and will be removed 
+  once all examples have been moved to 
+  the new format.
+
+
 This is an example of a search for a global optimum geometric configuration using the minima hopping algorithm, along with the Hookean class of constraints. This type of approach is useful in searching for the global optimum position of adsorbates on a surface while enforcing that the adsorbates' identity is preserved.
 
 The below example looks at finding the optimum configuration of a :mol:`Cu_2` adsorbate on a fixed Pt (110) surface. Although this is not a physically relevant simulation --- these elements (Cu, Pt) were chosen only because they work with the EMT calculator -- one can imagine replacing the :mol:`Cu_2` adsorbate with CO, for example, to find its optimum binding configuration under the constraint that the CO does not dissociate into separate C and O adsorbates.
@@ -18,7 +28,7 @@ Alternatively, there is a utility to allow you to visualize the progress of the 
 
 .. literalinclude:: mhsummary.py
 
-This will make a summary figure, which should look something like the one below. As the search is inherently random, yours will look different than this (and this will look different each time the documentation is rebuilt). In this figure, you will see on the `E_\mathrm{pot}` axes the energy levels of the conformers found. The flat bars represent the energy at the end of each local optimization step. The checkmark indicates the local minimum was accepted; red arrows indicate it was rejected for the three possible reasons. The black path between steps is the potential energy during the molecular dynamics (MD) portion of the step; the dashed line is the local optimization on termination of the MD step. Note the y axis is broken to allow different energy scales between the local minima and the space explored in the MD simulations. The `T` and `E_\mathrm{diff}` plots show the values of the self-adjusting parameters as the algorithm progresses.
+This will make a summary figure, which should look something like the one below. As the search is inherently random, yours will look different than this (and this will look different each time the documentation is rebuilt). In this figure, you will see on the :math:`E_\mathrm{pot}` axes the energy levels of the conformers found. The flat bars represent the energy at the end of each local optimization step. The checkmark indicates the local minimum was accepted; red arrows indicate it was rejected for the three possible reasons. The black path between steps is the potential energy during the molecular dynamics (MD) portion of the step; the dashed line is the local optimization on termination of the MD step. Note the y axis is broken to allow different energy scales between the local minima and the space explored in the MD simulations. The :math:`T` and :math:`E_\mathrm{diff}` plots show the values of the self-adjusting parameters as the algorithm progresses.
 
 .. image:: summary.png
 

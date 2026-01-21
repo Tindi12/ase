@@ -1,16 +1,29 @@
 Atomic Simulation Environment
 =============================
 
+.. image:: https://gitlab.com/ase/ase/-/raw/master/doc/static/ase256.png
+    :target: https://ase-lib.org/
+    :align: center
+
+|
+
+.. image:: https://badge.fury.io/py/ase.svg
+    :target: https://pypi.org/project/ase/
+
+.. image:: https://gitlab.com/ase/ase/badges/master/coverage.svg?job=coverage-combine
+    :target: https://ase-lib.org/coverage-html/
+
+
 ASE is a set of tools and Python modules for setting up, manipulating,
 running, visualizing and analyzing atomistic simulations.
 
-Webpage: http://wiki.fysik.dtu.dk/ase
+Webpage: https://ase-lib.org/
 
 
 Requirements
 ------------
 
-* Python_ 3.9 or later
+* Python_ 3.10 or later
 * NumPy_ (base N-dimensional array package)
 * SciPy_ (library for scientific computing)
 * Matplotlib_ (2D Plotting)
@@ -91,10 +104,10 @@ This example requires NWChem to be installed.
     $ ase gui h2.traj
 
 
-.. _Python: http://www.python.org/
-.. _NumPy: http://docs.scipy.org/doc/numpy/reference/
-.. _SciPy: http://docs.scipy.org/doc/scipy/reference/
-.. _Matplotlib: http://matplotlib.org/
+.. _Python: https://www.python.org/
+.. _NumPy: https://numpy.org/doc/stable/
+.. _SciPy: https://docs.scipy.org/doc/scipy/
+.. _Matplotlib: https://matplotlib.org/
 .. _flask: https://pypi.org/project/Flask/
 .. _spglib: https://github.com/spglib/spglib
 .. _ase-users: https://listserv.fysik.dtu.dk/mailman/listinfo/ase-users

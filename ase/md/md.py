@@ -8,7 +8,7 @@ import numpy as np
 
 from ase import Atoms, units
 from ase.md.logger import MDLogger
-from ase.optimize.optimize import Dynamics
+from ase.optimize.optimize import BaseDynamics
 
 
 def process_temperature(
@@ -60,7 +60,7 @@ def process_temperature(
     return temperature_K
 
 
-class MolecularDynamics(Dynamics):
+class MolecularDynamics(BaseDynamics):
     """Base-class for all MD classes."""
 
     def __init__(
@@ -132,7 +132,8 @@ class MolecularDynamics(Dynamics):
 
         if logfile:
             logger = self.closelater(
-                MDLogger(dyn=self, atoms=atoms, logfile=logfile))
+                MDLogger(dyn=self, atoms=atoms, logfile=logfile,
+                         comm=self.comm))
             self.attach(logger, loginterval)
 
     def todict(self):
@@ -153,7 +154,30 @@ class MolecularDynamics(Dynamics):
         converged : bool
             True if the maximum number of steps are reached.
         """
-        return Dynamics.irun(self, steps=steps)
+        # update the maximum number of steps
+        self.max_steps = self.nsteps + steps
+
+        if self.nsteps == 0:
+            # For historical reasons we do a magical incantation
+            # here with forces, log, observers.
+            self.atoms.get_forces()
+            self.log()
+            self.call_observers()
+
+        yield self.nsteps == self.max_steps
+
+        # run the algorithm until converged or max_steps reached
+        while self.nsteps < self.max_steps:
+            self.step()
+            self.nsteps += 1
+            self.atoms.get_forces()
+            self.log()
+            self.call_observers()
+            yield self.nsteps == self.max_steps
+
+    def log(self):
+        # Subclasses can override this.
+        return None
 
     def run(self, steps=50):
         """Run molecular dynamics algorithm.
@@ -168,13 +192,17 @@ class MolecularDynamics(Dynamics):
         converged : bool
             True if the maximum number of steps are reached.
         """
-        return Dynamics.run(self, steps=steps)
+        converged = steps == 0
+        for converged in self.irun(steps=steps):
+            pass
+        return converged
 
     def get_time(self):
         return self.nsteps * self.dt
 
-    def converged(self):
+    def converged(self, gradient=None):
         """ MD is 'converged' when number of maximum steps is reached. """
+        # We take gradient now (due to optimizers).  Should refactor.
         return self.nsteps >= self.max_steps
 
     def _get_com_velocity(self, velocity):

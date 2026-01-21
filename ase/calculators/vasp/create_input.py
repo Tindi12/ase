@@ -3,10 +3,14 @@
 # Copyright (C) 2008 CSC - Scientific Computing Ltd.
 """This module defines an ASE interface to VASP.
 
-Developed on the basis of modules by Jussi Enkovaara and John
-Kitchin.  The path of the directory containing the pseudopotential
-directories (potpaw,potpaw_GGA, potpaw_PBE, ...) should be set
-by the environmental flag $VASP_PP_PATH.
+Developed on the basis of modules by Jussi Enkovaara and John Kitchin.
+The pseudpotentials provided by VASP should be stored in a single directory
+that is defined by the environment variable VASP_PP_PATH. The VASP_PP_PATH
+should contain subdirectories of the form potpaw_LDA(.version) and
+potpaw_PBE(.version). The version of the pseudopotentials can be specified
+with the environment variable VASP_PP_VERSION or by the calculator input
+parameter 'pp_version'. If neither is set, the default is to use the
+unversioned directories to maintain backwards compatability.
 
 The user should also set the environmental flag $VASP_SCRIPT pointing
 to a python script looking something like::
@@ -17,18 +21,20 @@ to a python script looking something like::
 Alternatively, user can set the environmental flag $VASP_COMMAND pointing
 to the command use the launch vasp e.g. 'vasp' or 'mpirun -n 16 vasp'
 
-http://cms.mpi.univie.ac.at/vasp/
+https://www.vasp.at/
 """
 
 import os
+import re
 import shutil
 import warnings
-from os.path import isfile, islink, join
-from typing import List, Sequence, Tuple
+from os.path import join
+from typing import Any, List, Sequence, TextIO, Tuple, Union
 
 import numpy as np
 
 import ase
+from ase import Atoms
 from ase.calculators.calculator import kpts2ndarray
 from ase.calculators.vasp.setups import get_default_setups
 from ase.config import cfg
@@ -119,22 +125,27 @@ def set_ldau(ldau_param, luj_params, symbol_count):
     return ldau_dct
 
 
-def test_nelect_charge_compitability(nelect, charge, nelect_from_ppp):
-    # We need to determine the nelect resulting from a given
-    # charge in any case if it's != 0, but if nelect is
-    # additionally given explicitly, then we need to determine it
-    # even for net charge of 0 to check for conflicts
-    if charge is not None and charge != 0:
+def _calc_nelect_from_charge(
+    nelect: Union[float, None],
+    charge: Union[float, None],
+    nelect_from_ppp: float,
+) -> Union[float, None]:
+    """Determine nelect resulting from a given charge if charge != 0.0.
+
+    If nelect is additionally given explicitly, then we need to determine it
+    even for net charge of 0 to check for conflicts.
+
+    """
+    if charge is not None and charge != 0.0:
         nelect_from_charge = nelect_from_ppp - charge
         if nelect and nelect != nelect_from_charge:
-            raise ValueError('incompatible input parameters: '
-                             f'nelect={nelect}, but charge={charge} '
-                             '(neutral nelect is '
-                             f'{nelect_from_ppp})')
-        print(nelect_from_charge)
+            raise ValueError(
+                'incompatible input parameters: '
+                f'nelect={nelect}, but charge={charge} '
+                f'(neutral nelect is {nelect_from_ppp})'
+            )
         return nelect_from_charge
-    else:
-        return nelect
+    return nelect  # NELECT explicitly given in INCAR (`None` if not given)
 
 
 def get_pp_setup(setup) -> Tuple[dict, Sequence[int]]:
@@ -243,9 +254,11 @@ float_keys = [
     'aggac',  # Fraction of gradient correction to correlation
     'aggax',  # Fraction of gradient correction to exchange
     'aldac',  # Fraction of LDA correlation energy
-    'amin',  #
-    'amix',  #
-    'amix_mag',  #
+    'amggac',  # parameter that multiplies the meta-GGA correlation functional
+    'amggax',  # parameter that multiplies the meta-GGA exchange functional
+    'amin',  # minimal mixing parameter in Kerker's initial approximatio
+    'amix',  # linear mixing parameter
+    'amix_mag',  # linear mixing parameter for the magnetization density
     'bmix',  # tags for mixing
     'bmix_mag',  #
     'cshift',  # Complex shift for dielectric tensor calculation (LOPTICS)
@@ -459,6 +472,8 @@ exp_keys = [
 
 string_keys = [
     'algo',  # algorithm: Normal (Davidson) | Fast | Very_Fast (RMM-DIIS)
+    'bandgap',  # determines the verbosity for reporting the bandgap info
+    'bseprec',  # precision of the time-evolution algorithm
     'gga',  # xc-type: PW PB LM or 91 (LDA if not set)
     'metagga',  #
     'prec',  # Precission of calculation (Low, Normal, Accurate)
@@ -480,6 +495,7 @@ int_keys = [
     'iniwav',  # initial electr wf. : 0-lowe 1-rand
     'isif',  # calculate stress and what to relax
     'ismear',  # part. occupancies: -5 Blochl -4-tet -1-fermi 0-gaus >0 MP
+    'isearch',  # line-search algorithm for ALGO = All
     'ispin',  # spin-polarized calculation
     'istart',  # startjob: 0-new 1-cont 2-samecut
     'isym',  # symmetry: 0-nonsym 1-usesym 2-usePAWsym
@@ -994,13 +1010,12 @@ class GenerateVaspInput:
             'aggac': 1.00,
             'aldac': 0.00
         },
-        'pw91': {
-            'pp': 'PW91',
-            'gga': '91'
-        },
         'pbe': {
             'pp': 'PBE',
             'gga': 'PE'
+        },
+        'pw91': {
+            'gga': '91'
         },
         'pbesol': {
             'gga': 'PS'
@@ -1042,11 +1057,6 @@ class GenerateVaspInput:
         'r2scan': {
             'metagga': 'R2SCAN'
         },
-        'scan-rvv10': {
-            'metagga': 'SCAN',
-            'luse_vdw': True,
-            'bparam': 15.7
-        },
         'mbj': {
             # Modified Becke-Johnson
             'metagga': 'MBJ',
@@ -1073,6 +1083,52 @@ class GenerateVaspInput:
             'lhfcalc': True,
             'aexx': 0.2,
             'aggax': 0.8
+        },
+        'vdw-df3-opt1': {
+            'gga': 'BO',
+            'param1': 0.1122334456,
+            'param2': 0.1234568,
+            'aggac': 0.0,
+            'luse_vdw': True,
+            'ivdw_nl': 3,
+            'alpha_vdw': 0.94950,
+            'gamma_vdw': 1.12,
+        },
+        'vdw-df3-opt2': {
+            'gga': 'MK',
+            'param1': 0.1234568,
+            'param2': 0.58,
+            'aggac': 0.0,
+            'luse_vdw': True,
+            'ivdw_nl': 4,
+            'zab_vdw': -1.8867,
+            'alpha_vdw': 0.28248,
+            'gamma_vdw': 1.29,
+        },
+        'rvv10': {
+            'gga': 'ML',
+            'luse_vdw': True,
+            'ivdw_nl': 2,
+            'bparam': 6.3,
+            'cparam': 0.0093,
+        },
+        'scan+rvv10': {
+            'metagga': 'SCAN',
+            'luse_vdw': True,
+            'bparam': 15.7,
+            'cparam': 0.0093,
+        },
+        'pbe+rvv10l': {
+            'gga': 'PE',
+            'luse_vdw': True,
+            'bparam': 10,
+            'cparam': 0.0093,
+        },
+        'r2scan+rvv10': {
+            'metagga': 'R2SCAN',
+            'luse_vdw': True,
+            'bparam': 11.95,
+            'cparam': 0.0093,
         },
         'optpbe-vdw': {
             'gga': 'OR',
@@ -1191,6 +1247,7 @@ class GenerateVaspInput:
 
     # environment variable for PP paths
     VASP_PP_PATH = 'VASP_PP_PATH'
+    VASP_PP_VERSION = 'VASP_PP_VERSION'
 
     def __init__(self, restart=None):
         self.float_params = {}
@@ -1230,6 +1287,7 @@ class GenerateVaspInput:
         self.input_params = {
             'xc': None,  # Exchange-correlation recipe (e.g. 'B3LYP')
             'pp': None,  # Pseudopotential file (e.g. 'PW91')
+            'pp_version': None,  # pseudopotential version (e.g. '52', '64')
             'setups': None,  # Special setups (e.g pv, sv, ...)
             'txt': '-',  # Where to send information
             'kpts': (1, 1, 1),  # k-points
@@ -1250,16 +1308,6 @@ class GenerateVaspInput:
             # Custom key-value pairs, written to INCAR with *no* type checking
             'custom': {},
         }
-        # warning message for pw91
-        self.pw91_warning_msg =\
-            "The PW91 (potpaw_GGA) pseudopotential set is " \
-            "from 2006 and not recommended for use.\nWe will " \
-            "remove support for it in a future release, " \
-            "and use the current PBE (potpaw_PBE) set instead.\n" \
-            "Note that this still allows for PW91 calculations, " \
-            "since VASP recalculates the exchange-correlation\n" \
-            "energy inside the PAW sphere and corrects the atomic " \
-            "energies given by the POTCAR file."
 
     def set_xc_params(self, xc):
         """Set parameters corresponding to XC functional"""
@@ -1271,11 +1319,6 @@ class GenerateVaspInput:
             raise ValueError('{} is not supported for xc! Supported xc values'
                              'are: {}'.format(xc, xc_allowed))
         else:
-            # print future warning in case pw91 is selected:
-            if xc == 'pw91':
-                warnings.warn(
-                    self.pw91_warning_msg, FutureWarning
-                )
             # XC defaults to PBE pseudopotentials
             if 'pp' not in self.xc_defaults[xc]:
                 self.set(pp='PBE')
@@ -1361,12 +1404,6 @@ class GenerateVaspInput:
         if 'pp' not in p or p['pp'] is None:
             if self.string_params['gga'] is None:
                 p.update({'pp': 'lda'})
-            elif self.string_params['gga'] == '91':
-                p.update({'pp': 'pw91'})
-                warnings.warn(
-                    self.pw91_warning_msg, FutureWarning
-                )
-
             elif self.string_params['gga'] == 'PE':
                 p.update({'pp': 'pbe'})
             else:
@@ -1376,12 +1413,12 @@ class GenerateVaspInput:
                     "1. Use the 'xc' parameter to define your XC functional."
                     "These 'recipes' determine the pseudopotential file as "
                     "well as setting the INCAR parameters.\n"
-                    "2. Use the 'gga' settings None (default), 'PE' or '91'; "
-                    "these correspond to LDA, PBE and PW91 respectively.\n"
+                    "2. Use the 'gga' settings None (default) or 'PE'; "
+                    "these correspond to LDA and PBE, respectively.\n"
                     "3. Set the POTCAR explicitly with the 'pp' flag. The "
                     "value should be the name of a folder on the VASP_PP_PATH"
-                    ", and the aliases 'LDA', 'PBE' and 'PW91' are also"
-                    "accepted.\n")
+                    ", and the aliases 'LDA' and 'PBE' are also accepted.\n"
+                    )
 
         if (p['xc'] is not None and p['xc'].lower() == 'lda'
                 and p['pp'].lower() != 'lda'):
@@ -1428,23 +1465,34 @@ class GenerateVaspInput:
 
         p = self.input_params
 
+        if p['pp_version'] is not None:
+            pp_version = p['pp_version']
+        elif self.VASP_PP_VERSION in cfg:
+            pp_version = cfg[self.VASP_PP_VERSION]
+        else:
+            pp_version = ''
+
         if setups is None:
             setups, special_setups = get_pp_setup(p['setups'])
 
         symbols, _ = count_symbols(atoms, exclude=special_setups)
 
         # Potpaw folders may be identified by an alias or full name
-        for pp_alias, pp_folder in (('lda', 'potpaw'), ('pw91', 'potpaw_GGA'),
-                                    ('pbe', 'potpaw_PBE')):
+        for pp_alias, pp_folder in (('lda', f'potpaw_LDA.{pp_version}'
+                                     if pp_version else 'potpaw'),
+                                    ('pbe', f'potpaw_PBE.{pp_version}'
+                                     if pp_version else 'potpaw_PBE')):
             if p['pp'].lower() == pp_alias:
                 break
         else:
             pp_folder = p['pp']
 
         if self.VASP_PP_PATH in cfg:
-            pppaths = cfg[self.VASP_PP_PATH].split(':')
+            pppath = cfg[self.VASP_PP_PATH]
+            if not os.path.exists(pppath):
+                raise RuntimeError(f"VASP_PP_PATH does not exist: {pppath}")
         else:
-            pppaths = []
+            pppath = None
         ppp_list = []
         # Setting the pseudopotentials, first special setups and
         # then according to symbols
@@ -1457,20 +1505,16 @@ class GenerateVaspInput:
                 raise Exception("Having trouble with special setup index {}."
                                 " Please use an int.".format(m))
             potcar = join(pp_folder, setups[special_setup_index], 'POTCAR')
-            for path in pppaths:
-                filename = join(path, potcar)
+            potcar_path = join(pppath, potcar) if pppath is not None else potcar
 
-                if isfile(filename) or islink(filename):
-                    ppp_list.append(filename)
-                    break
-                elif isfile(filename + '.Z') or islink(filename + '.Z'):
-                    ppp_list.append(filename + '.Z')
-                    break
+            if os.path.exists(potcar_path):
+                ppp_list.append(potcar_path)
+            elif os.path.exists(potcar_path + '.Z'):
+                ppp_list.append(potcar_path + '.Z')
             else:
-                symbol = atoms.symbols[m]
                 msg = """Looking for {}.
                 No pseudopotential for symbol{} with setup {} """.format(
-                    potcar, symbol, setups[special_setup_index])
+                    potcar_path, atoms.symbols[m], setups[special_setup_index])
                 raise RuntimeError(msg)
 
         for symbol in symbols:
@@ -1478,27 +1522,26 @@ class GenerateVaspInput:
                 potcar = join(pp_folder, symbol + setups[symbol], 'POTCAR')
             except (TypeError, KeyError):
                 potcar = join(pp_folder, symbol, 'POTCAR')
-            for path in pppaths:
-                filename = join(path, potcar)
 
-                if isfile(filename) or islink(filename):
-                    ppp_list.append(filename)
-                    break
-                elif isfile(filename + '.Z') or islink(filename + '.Z'):
-                    ppp_list.append(filename + '.Z')
-                    break
+            potcar_path = join(pppath, potcar) if pppath is not None else potcar
+
+            if os.path.exists(potcar_path):
+                ppp_list.append(potcar_path)
+            elif os.path.exists(potcar_path + '.Z'):
+                ppp_list.append(potcar_path + '.Z')
             else:
-                msg = ("""Looking for PP for {}
+                msg = ("""Looking for {}
                         The pseudopotentials are expected to be in:
-                        LDA:  $VASP_PP_PATH/potpaw/
-                        PBE:  $VASP_PP_PATH/potpaw_PBE/
-                        PW91: $VASP_PP_PATH/potpaw_GGA/
+                        LDA:  $VASP_PP_PATH/potpaw_LDA(.52|.54|.64)
+                                or $VASP_PP_PATH/potpaw
+                        PBE:  $VASP_PP_PATH/potpaw_PBE(.52|.54|.64)
 
-                        No pseudopotential for {}!""".format(potcar, symbol))
+                        No pseudopotential for {}!""".format(potcar_path, symbol
+                                                             ))
                 raise RuntimeError(msg)
         return ppp_list
 
-    def initialize(self, atoms):
+    def initialize(self, atoms: Atoms) -> None:
         """Initialize a VASP calculation
 
         Constructs the POTCAR file (does not actually write it).
@@ -1506,9 +1549,8 @@ class GenerateVaspInput:
         to the pseudopotentials in VASP_PP_PATH environment variable
 
         The pseudopotentials are expected to be in:
-        LDA:  $VASP_PP_PATH/potpaw/
-        PBE:  $VASP_PP_PATH/potpaw_PBE/
-        PW91: $VASP_PP_PATH/potpaw_GGA/
+        LDA:  $VASP_PP_PATH/potpaw_LDA(.52|.54|.64) or $VASP_PP_PATH/potpaw
+        PBE:  $VASP_PP_PATH/potpaw_PBE(.52|.54|.64)
 
         if your pseudopotentials are somewhere else, or named
         differently you may make symlinks at the paths above that
@@ -1536,32 +1578,34 @@ class GenerateVaspInput:
         # Check if the necessary POTCAR files exists and
         # create a list of their paths.
         atomtypes = atoms.get_chemical_symbols()
-        self.symbol_count = []
+        self.symbol_count: list[tuple[str, int]] = []
         for m in special_setups:
-            self.symbol_count.append([atomtypes[m], 1])
-        for m in symbols:
-            self.symbol_count.append([m, symbolcount[m]])
+            self.symbol_count.append((atomtypes[m], 1))
+        for s in symbols:
+            self.symbol_count.append((s, symbolcount[s]))
 
         # create pseudopotential list
-        self.ppp_list = self._build_pp_list(atoms,
-                                            setups=setups,
-                                            special_setups=special_setups)
+        self.ppp_list = self._build_pp_list(
+            atoms,
+            setups=setups,
+            special_setups=special_setups,
+        )
 
         self.converged = None
         self.setups_changed = None
 
-    def default_nelect_from_ppp(self):
+    def default_nelect_from_ppp(self) -> float:
         """ Get default number of electrons from ppp_list and symbol_count
 
         "Default" here means that the resulting cell would be neutral.
         """
-        symbol_valences = []
+        symbol_valences: list[tuple[str, float]] = []
         for filename in self.ppp_list:
             with open_potcar(filename=filename) as ppp_file:
                 r = read_potcar_numbers_of_electrons(ppp_file)
                 symbol_valences.extend(r)
         assert len(self.symbol_count) == len(symbol_valences)
-        default_nelect = 0
+        default_nelect = 0.0
         for ((symbol1, count),
              (symbol2, valence)) in zip(self.symbol_count, symbol_valences):
             assert symbol1 == symbol2
@@ -1591,7 +1635,7 @@ class GenerateVaspInput:
         dst = os.path.join(directory, kernel)
 
         # No need to copy the file again
-        if isfile(dst):
+        if os.path.isfile(dst):
             return
 
         if self.bool_params['luse_vdw']:
@@ -1599,7 +1643,7 @@ class GenerateVaspInput:
             if vdw_env in cfg:
                 src = os.path.join(cfg[vdw_env], kernel)
 
-            if not src or not isfile(src):
+            if not src or not os.path.isfile(src):
                 warnings.warn(
                     ('vdW has been enabled, however no'
                      ' location for the {} file'
@@ -1641,7 +1685,7 @@ class GenerateVaspInput:
 
         if 'charge' in self.input_params and self.input_params[
                 'charge'] is not None:
-            nelect_val = test_nelect_charge_compitability(
+            nelect_val = _calc_nelect_from_charge(
                 self.float_params['nelect'],
                 self.input_params['charge'],
                 self.default_nelect_from_ppp())
@@ -1782,6 +1826,8 @@ class GenerateVaspInput:
                 raise ValueError("KSPACING value {} is not allowable. "
                                  "Please use None or a positive number."
                                  "".format(self.float_params['kspacing']))
+        if self.input_params['kpts'] is None:
+            return
 
         kpointstring = format_kpoints(
             kpts=self.input_params['kpts'],
@@ -1813,6 +1859,11 @@ class GenerateVaspInput:
                 fd.write('%5i %5i \n' % (self.sort[n], self.resort[n]))
 
     # The below functions are used to restart a calculation
+
+    @staticmethod
+    def set_if_none(collection: dict[str, Any], key: str, value: Any) -> None:
+        collection[key] = value if collection.get(key) is None \
+                                else collection[key]
 
     def read_incar(self, filename):
         """Method that imports settings from INCAR file.
@@ -1848,42 +1899,40 @@ class GenerateVaspInput:
                     # First "#" denotes beginning of comment
                     # Add everything before comment as a string to custom dict
                     value = value.split('#', 1)[0].strip()
-                    self.input_params['custom'][key] = value
+                    self.set_if_none(self.inputs_params['custom'], key, value)
                 elif key in float_keys:
-                    self.float_params[key] = float(data[2])
+                    self.set_if_none(self.float_params, key, float(data[2]))
                 elif key in exp_keys:
-                    self.exp_params[key] = float(data[2])
+                    self.set_if_none(self.exp_params, key, float(data[2]))
                 elif key in string_keys:
-                    self.string_params[key] = str(data[2])
+                    self.set_if_none(self.string_params, key, str(data[2]))
                 elif key in int_keys:
                     if key == 'ispin':
                         # JRK added. not sure why we would want to leave ispin
                         # out
-                        self.int_params[key] = int(data[2])
+                        self.set_if_none(self.int_params, key, int(data[2]))
                         if int(data[2]) == 2:
                             self.spinpol = True
                     else:
-                        self.int_params[key] = int(data[2])
+                        self.set_if_none(self.int_params, key, int(data[2]))
                 elif key in bool_keys:
-                    val_char = data[2].lower().replace('.', '', 1)
-                    if val_char.startswith('t'):
-                        self.bool_params[key] = True
-                    elif val_char.startswith('f'):
-                        self.bool_params[key] = False
-                    else:
+                    try:
+                        bool_val = _from_vasp_bool(data[2])
+                    except ValueError as exc:
                         raise ValueError(f'Invalid value "{data[2]}" for bool '
-                                         f'key "{key}"')
+                                         f'key "{key}"') from exc
+                    self.set_if_none(self.bool_params, key, bool_val)
 
                 elif key in list_bool_keys:
-                    self.list_bool_params[key] = [
+                    self.set_if_none(self.list_bool_params, key, [
                         _from_vasp_bool(x)
                         for x in _args_without_comment(data[2:])
-                    ]
+                    ])
 
                 elif key in list_int_keys:
-                    self.list_int_params[key] = [
+                    self.set_if_none(self.list_int_params, key, [
                         int(x) for x in _args_without_comment(data[2:])
-                    ]
+                    ])
 
                 elif key in list_float_keys:
                     if key == 'magmom':
@@ -1900,38 +1949,41 @@ class GenerateVaspInput:
                             else:
                                 lst.append(float(data[i]))
                             i += 1
-                        self.list_float_params['magmom'] = lst
+                        self.set_if_none(self.list_float_params, 'magmom', lst)
                         lst = np.array(lst)
                         if self.atoms is not None:
                             self.atoms.set_initial_magnetic_moments(
                                 lst[self.resort])
                     else:
                         data = _args_without_comment(data)
-                        self.list_float_params[key] = [
+                        self.set_if_none(self.list_float_params, key, [
                             float(x) for x in data[2:]
-                        ]
+                        ])
                 elif key in special_keys:
                     if key == 'lreal':
-                        val_char = data[2].lower().replace('.', '', 1)
-                        if val_char.startswith('t'):
-                            self.bool_params[key] = True
-                        elif val_char.startswith('f'):
-                            self.bool_params[key] = False
-                        else:
+                        # can't use set_if_none since value might be in one of
+                        # two dicts
+                        if (self.bool_params.get(key) is not None or
+                            self.special_params.get(key) is not None):
+                            continue
+                        try:
+                            val = _from_vasp_bool(data[2])
+                            self.bool_params[key] = val
+                        except ValueError:
                             self.special_params[key] = data[2]
 
                 # non-registered keys
                 elif data[2].lower() in {'t', 'true', '.true.'}:
-                    self.bool_params[key] = True
+                    self.set_if_none(self.bool_params, key, True)
                 elif data[2].lower() in {'f', 'false', '.false.'}:
-                    self.bool_params[key] = False
+                    self.set_if_none(self.bool_params, key, False)
                 elif data[2].isdigit():
-                    self.int_params[key] = int(data[2])
+                    self.set_if_none(self.int_params, key, int(data[2]))
                 else:
                     try:
-                        self.float_params[key] = float(data[2])
+                        self.set_if_none(self.float_params, key, float(data[2]))
                     except ValueError:
-                        self.string_params[key] = data[2]
+                        self.set_if_none(self.string_params, key, data[2])
 
             except KeyError as exc:
                 raise KeyError(
@@ -2034,9 +2086,9 @@ def _from_vasp_bool(x):
 
     """
     assert isinstance(x, str)
-    if x.lower() == '.true.' or x.lower() == 't':
+    if re.search(r'^\.?[tT]', x):
         return True
-    elif x.lower() == '.false.' or x.lower() == 'f':
+    elif re.search(r'^\.?[fF]', x):
         return False
     else:
         raise ValueError(f'Value "{x}" not recognized as bool')
@@ -2075,21 +2127,27 @@ def open_potcar(filename):
         raise ValueError(f'Invalid POTCAR filename: "{filename}"')
 
 
-def read_potcar_numbers_of_electrons(file_obj):
-    """ Read list of tuples (atomic symbol, number of valence electrons)
-    for each atomtype from a POTCAR file."""
-    nelect = []
-    lines = file_obj.readlines()
+def read_potcar_numbers_of_electrons(fd: TextIO, /) -> list[tuple[str, float]]:
+    """Read number of valence electrons for each atomtype from a POTCAR file.
+
+    Returns
+    -------
+    list[tuple[str, float]]
+        List of (atomic symbol, number of valence electrons).
+
+    """
+    nelect: list[tuple[str, float]] = []
+    lines = fd.readlines()
     for n, line in enumerate(lines):
         if 'TITEL' in line:
             symbol = line.split('=')[1].split()[1].split('_')[0].strip()
-            valence = float(
-                lines[n + 4].split(';')[1].split('=')[1].split()[0].strip())
-            nelect.append((symbol, valence))
+            linep4 = lines[n + 4]
+            zval = float(linep4.split(';')[1].split('=')[1].split()[0].strip())
+            nelect.append((symbol, zval))
     return nelect
 
 
-def count_symbols(atoms, exclude=()):
+def count_symbols(atoms: Atoms, exclude=()) -> tuple[list[str], dict[str, int]]:
     """Count symbols in atoms object, excluding a set of indices
 
     Parameters:
@@ -2110,8 +2168,8 @@ def count_symbols(atoms, exclude=()):
     >>> count_symbols(atoms, exclude=(1, 2, 3))
     (['Na', 'Cl'], {'Na': 3, 'Cl': 2})
     """
-    symbols = []
-    symbolcount = {}
+    symbols: list[str] = []
+    symbolcount: dict[str, int] = {}
     for m, symbol in enumerate(atoms.symbols):
         if m in exclude:
             continue

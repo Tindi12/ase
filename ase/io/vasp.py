@@ -29,6 +29,8 @@ __all__ = [
     'read_vasp_xml', 'write_vasp', 'write_vasp_xdatcar'
 ]
 
+EVTOJ = 1.60217733E-19  # VASP constant.F
+
 
 def parse_poscar_scaling_factor(line: str) -> np.ndarray:
     """Parse scaling factor(s) in the second line in POSCAR/CONTCAR.
@@ -153,6 +155,9 @@ def read_vasp(fd):
     fails the atom types are read from OUTCAR or POTCAR file.
     """
     atoms = read_vasp_configuration(fd)
+    velocity_init_line = fd.readline()
+    if velocity_init_line.strip() and velocity_init_line[0].lower() == 'l':
+        read_lattice_velocities(fd)
     velocities = read_velocities_if_present(fd, len(atoms))
     if velocities is not None:
         atoms.set_velocities(velocities)
@@ -274,16 +279,29 @@ def read_vasp_configuration(fd):
     return atoms
 
 
+def read_lattice_velocities(fd):
+    """
+    Read lattice velocities and vectors from POSCAR/CONTCAR.
+    As lattice velocities are not yet implemented in ASE, this function just
+    throws away these lines.
+    """
+    fd.readline()  # initialization state
+    for _ in range(3):  # lattice velocities
+        fd.readline()
+    for _ in range(3):  # lattice vectors
+        fd.readline()
+    fd.readline()  # get rid of 1 empty line below if it exists
+
+
 def read_velocities_if_present(fd, natoms) -> np.ndarray | None:
     """Read velocities from POSCAR/CONTCAR if present, return in ASE units."""
-    ac_type = fd.readline().strip()
-
-    # Check if velocities are present
-    if not ac_type:
+    # Check if it is the velocities block or the MD extra block
+    words = fd.readline().split()
+    if len(words) <= 1:  # MD extra block or end of file
         return None
-
     atoms_vel = np.empty((natoms, 3))
-    for atom in range(natoms):
+    atoms_vel[0] = (float(words[0]), float(words[1]), float(words[2]))
+    for atom in range(1, natoms):
         words = fd.readline().split()
         assert len(words) == 3
         atoms_vel[atom] = (float(words[0]), float(words[1]), float(words[2]))
@@ -460,7 +478,7 @@ def read_vasp_xml(filename='vasprun.xml', index=-1):
                         kpts_params = OrderedDict()
                         parameters['kpoints_generation'] = kpts_params
                         for par in subelem.iter():
-                            if par.tag in ['v', 'i']:
+                            if par.tag in ['v', 'i'] and "name" in par.attrib:
                                 parname = par.attrib['name'].lower()
                                 kpts_params[parname] = __get_xml_parameter(par)
 
@@ -550,6 +568,22 @@ def read_vasp_xml(filename='vasprun.xml', index=-1):
         steps = []
 
     for step in steps:
+        cell = np.zeros((3, 3), dtype=float)
+        for i, vector in enumerate(
+                step.find('structure/crystal/varray[@name="basis"]')):
+            cell[i] = np.array([float(val) for val in vector.text.split()])
+        volume = np.linalg.det(cell)
+
+        free_energy = float(step.find('energy/i[@name="e_fr_energy"]').text)
+
+        # https://gitlab.com/ase/ase/-/merge_requests/2685
+        # e_fr_energy in calculation/energy is actually an enthalpy including
+        # the PV term, unlike that in /calculation/scstep/energy or in OUTCAR,
+        # and therefore we need to subtract the PV term.
+        pressure = parameters.get('pstress', 0.0)
+        pressure *= 1e-22 / EVTOJ  # kbar -> eV/A3
+        free_energy -= pressure * volume
+
         # Workaround for VASP bug, e_0_energy contains the wrong value
         # in calculation/energy, but calculation/scstep/energy does not
         # include classical VDW corrections. So, first calculate
@@ -565,13 +599,7 @@ def read_vasp_xml(filename='vasprun.xml', index=-1):
         de = (float(lastscf.find('i[@name="e_0_energy"]').text) -
               float(lastscf.find('i[@name="e_fr_energy"]').text))
 
-        free_energy = float(step.find('energy/i[@name="e_fr_energy"]').text)
         energy = free_energy + de
-
-        cell = np.zeros((3, 3), dtype=float)
-        for i, vector in enumerate(
-                step.find('structure/crystal/varray[@name="basis"]')):
-            cell[i] = np.array([float(val) for val in vector.text.split()])
 
         scpos = np.zeros((natoms, 3), dtype=float)
         for i, vector in enumerate(

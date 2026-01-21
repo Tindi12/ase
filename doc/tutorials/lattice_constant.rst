@@ -4,6 +4,16 @@
 Finding lattice constants using EOS and the stress tensor
 =========================================================
 
+.. note::
+
+  We are currently moving to a new way to display our examples.
+  For this example we have an updated version, which you 
+  can find :ref:`here <lattice_constant_example>`.
+  The example on this page is deprecated and will be removed 
+  once all examples have been moved to 
+  the new format.
+
+
 .. seealso::
 
    :ref:`eos`.
@@ -12,11 +22,11 @@ Finding lattice constants using EOS and the stress tensor
 HCP
 ===
 
-Let's try to find the `a` and `c` lattice constants for HCP nickel
+Let's try to find the :math:`a` and :math:`c` lattice constants for HCP nickel
 using the :mod:`EMT <ase.calculators.emt>` potential.
 
-First, we make a good initial guess for `a` and `c` using the FCC nearest
-neighbor distance and the ideal `c/a` ratio:
+First, we make a good initial guess for :math:`a` and :math:`c` using the FCC nearest
+neighbor distance and the ideal :math:`c/a` ratio:
 
 .. literalinclude:: lattice_constant.py
    :start-after: creates:
@@ -28,7 +38,7 @@ and create a trajectory for the results:
    :start-after: literalinclude division line 1
    :end-before: literalinclude division line 2
 
-Finally, we do the 9 calculations (three values for `a` and three for `c`):
+Finally, we do the 9 calculations (three values for :math:`a` and three for :math:`c`):
 
 .. literalinclude:: lattice_constant.py
    :start-after: literalinclude division line 2
@@ -47,7 +57,7 @@ array([[ 2.5  ,  0.   ,  0.   ],
        [-1.25 ,  2.165,  0.   ],
        [ 0.   ,  0.   ,  4.   ]])
 
-So, we can get `a` and `c` from ``ni.cell[0, 0]`` and ``ni.cell[2,
+So, we can get :math:`a` and :math:`c` from ``ni.cell[0, 0]`` and ``ni.cell[2,
 2]``:
 
 .. literalinclude:: lattice_constant.py

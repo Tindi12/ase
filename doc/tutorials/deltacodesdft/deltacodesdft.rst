@@ -3,6 +3,14 @@
 Calculating Delta-values
 ========================
 
+.. note::
+
+  We are currently moving to a new way to display our examples.
+  For this example we have an updated version.
+  The example on this page is deprecated and will be removed
+  once all examples have been moved to
+  the new format.
+
 In this tutorial we compare the equation-of-state (EOS) calculated for 7 FCC
 metals using values from :class:`~ase.calculators.emt.EMT`, WIEN2k and
 experiment. Each EOS is described by three parameters:
@@ -11,7 +19,7 @@ experiment. Each EOS is described by three parameters:
 * bulk-modulus
 * pressure derivative of bulk-modulus
 
-Differences between two EOS'es can be measured by a single `\Delta` value
+Differences between two EOS'es can be measured by a single :math:`\Delta` value
 defined as:
 
 .. math::
@@ -20,8 +28,8 @@ defined as:
                 (E_1(V) - E_2(V))^2 dV}
           {V_b - V_a}},
 
-where `E_n(V)` is the energy per atom as a function of volume.
-The `\Delta` value can be calculated using the
+where :math:`E_n(V)` is the energy per atom as a function of volume.
+The :math:`\Delta` value can be calculated using the
 :func:`ase.utils.deltacodesdft.delta` function:
 
 .. autofunction:: ase.utils.deltacodesdft.delta
@@ -59,7 +67,7 @@ Pressure derivative of bulk-moduli:
 .. csv-table::
     :file: Bp.csv
 
-Now, we can calculate `\Delta` between EMT and WIEN2k for Pt:
+Now, we can calculate :math:`\Delta` between EMT and WIEN2k for Pt:
 
 >>> from ase.utils.deltacodesdft import delta
 >>> from ase.units import kJ

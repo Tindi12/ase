@@ -802,12 +802,31 @@ def output_column_format(atoms, columns, arrays, write_info=True):
     return comment_str, property_ncols, dtype, fmt
 
 
+def _make_move_mask(atoms: Atoms) -> np.ndarray:
+    natoms = len(atoms)
+    cnstr = atoms.constraints
+    cnstr = [_ for _ in cnstr if isinstance(_, (FixAtoms, FixCartesian))]
+    if any(isinstance(_, FixCartesian) for _ in cnstr):
+        move_mask = np.ones((natoms, 3), dtype=bool)
+    else:
+        move_mask = np.ones((natoms,), dtype=bool)
+    for c0 in cnstr:
+        if isinstance(c0, FixAtoms):
+            move_mask[c0.index] = False
+        elif isinstance(c0, FixCartesian):
+            # The `False` elements of `move_mask` should be kept.
+            move_mask[c0.index] = ~c0.mask & move_mask[c0.index]
+    return move_mask
+
+
 @writer
 def write_xyz(fileobj, images, comment='', columns=None,
               write_info=True,
               write_results=True, plain=False, vec_cell=False):
     """
     Write output in extended XYZ format
+
+    ``images`` may be Atoms or any Iterable[Atoms].
 
     Optionally, specify which columns (arrays) to include in output,
     whether to write the contents of the `atoms.info` dict to the
@@ -838,7 +857,7 @@ def write_xyz(fileobj, images, comment='', columns=None,
                     voigt_6_to_full_3x3_stress(atoms.info['stress'])
 
         if columns is None:
-            fr_cols = (['symbols', 'positions']
+            fr_cols = (['symbols', 'positions', 'move_mask']
                        + [key for key in atoms.arrays if
                           key not in ['symbols', 'positions', 'numbers',
                                       'species', 'pos']])
@@ -893,20 +912,8 @@ def write_xyz(fileobj, images, comment='', columns=None,
 
         # Move mask
         if 'move_mask' in fr_cols:
-            cnstr = images[0]._get_constraints()
-            if len(cnstr) > 0:
-                c0 = cnstr[0]
-                if isinstance(c0, FixAtoms):
-                    cnstr = np.ones((natoms,), dtype=bool)
-                    for idx in c0.index:
-                        cnstr[idx] = False  # cnstr: atoms that can be moved
-                elif isinstance(c0, FixCartesian):
-                    masks = np.ones((natoms, 3), dtype=bool)
-                    for i in range(len(cnstr)):
-                        idx = cnstr[i].index
-                        masks[idx] = cnstr[i].mask
-                    cnstr = ~masks  # cnstr: coordinates that can be moved
-            else:
+            move_mask = _make_move_mask(atoms)
+            if np.all(move_mask):
                 fr_cols.remove('move_mask')
 
         # Collect data to be written out
@@ -919,7 +926,7 @@ def write_xyz(fileobj, images, comment='', columns=None,
             elif column == 'symbols':
                 arrays[column] = np.array(symbols)
             elif column == 'move_mask':
-                arrays[column] = cnstr
+                arrays[column] = move_mask
             else:
                 raise ValueError(f'Missing array "{column}"')
 

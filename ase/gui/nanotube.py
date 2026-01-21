@@ -37,7 +37,7 @@ class SetupNanotube:
         self.length = ui.SpinBox(1, 1, 100, 1, self.make)
         self.description = ui.Label('')
 
-        win = self.win = ui.Window(_('Nanotube'), wmtype='utility')
+        win = self.win = ui.Window(_('Nanotube'))
         win.add(ui.Text(introtext))
         win.add(self.element)
         win.add([_('Bond length: '),
@@ -79,6 +79,7 @@ class SetupNanotube:
         self.make()
         if self.atoms is not None:
             self.gui.new_atoms(self.atoms)
+            self.gui.clear_history()
             return True
         else:
             ui.error(_('No valid atoms.'),

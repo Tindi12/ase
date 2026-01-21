@@ -1,4 +1,5 @@
 # fmt: off
+from io import StringIO
 from unittest import mock
 
 import numpy as np
@@ -8,8 +9,10 @@ from ase.build import bulk
 from ase.calculators.vasp.create_input import (
     GenerateVaspInput,
     _args_without_comment,
+    _calc_nelect_from_charge,
     _from_vasp_bool,
     _to_vasp_bool,
+    read_potcar_numbers_of_electrons,
 )
 
 
@@ -227,18 +230,16 @@ def test_vasp_xc(vaspinput_factory):
     assert calc_hse.bool_params['lhfcalc'] is True
     assert dict_is_subset({'gga': 'RE'}, calc_hse.string_params)
 
-    with pytest.warns(FutureWarning):
-        calc_pw91 = vaspinput_factory(xc='pw91',
-                                      kpts=(2, 2, 2),
-                                      gamma=True,
-                                      lreal='Auto')
-        assert dict_is_subset(
-            {
-                'pp': 'PW91',
-                'kpts': (2, 2, 2),
-                'gamma': True,
-                'reciprocal': False
-            }, calc_pw91.input_params)
+    calc_pw91 = vaspinput_factory(xc='pw91',
+                                    kpts=(2, 2, 2),
+                                    gamma=True,
+                                    lreal='Auto')
+    assert dict_is_subset(
+        {
+            'kpts': (2, 2, 2),
+            'gamma': True,
+            'reciprocal': False
+        }, calc_pw91.input_params)
 
 
 def test_ichain(vaspinput_factory):
@@ -324,3 +325,49 @@ def test_bool(tmp_path, vaspinput_factory):
         calc = vaspinput_factory(encut=100)
         with pytest.raises(ValueError):
             calc.read_incar(tmp_path / 'INCAR')
+
+
+def test_read_potcar_numbers_of_electrons() -> None:
+    """Test if the numbers of valence electrons are parsed correctly."""
+    # POTCAR lines publicly available
+    # https://www.vasp.at/wiki/index.php/POTCAR
+    lines = """\
+TITEL  = PAW_PBE Ti_pv 07Sep2000
+...
+...
+...
+POMASS =   47.880; ZVAL   =   10.000    mass and valenz
+"""
+    assert read_potcar_numbers_of_electrons(StringIO(lines)) == [('Ti', 10.0)]
+
+
+def test_calc_nelect_from_charge() -> None:
+    """Test if NELECT can be determined correctly."""
+    assert _calc_nelect_from_charge(None, None, 10.0) is None
+    assert _calc_nelect_from_charge(None, 4.0, 10.0) == 6.0
+
+
+def test_first_instance(tmp_path, vaspinput_factory):
+    """Test that INCAR parser uses first instance of each tag
+    """
+
+    for key, dict_name, vals in [
+            ('ENCUT', 'float', (100.0, 200.0)),
+            ('EDIFF', 'exp', (1e-5, 1e-6)),
+            ('ALGO', 'string', ('fast', 'veryfast')),
+            ('IALGO', 'int', (1, 2)),
+            ('KGAMMA', 'bool', (True, False)),
+            ('IBAND', 'list_int', ([1, 2], [2, 3])),
+            ('LRCTYPE', 'list_bool', ([True, False], [False, True])),
+            ('DIPOL', 'list_float', ([1, 1, 1], [2, 2, 2])),
+            ('LREAL', 'special', ('auto', 'off'))]:
+        with open(tmp_path / 'INCAR', 'w') as fout:
+            for val in vals:
+                if isinstance(val, list):
+                    val_s = " ".join([str(v) for v in val])
+                else:
+                    val_s = str(val)
+                fout.write(f'{key} = {val_s}\n')
+        calc = vaspinput_factory()
+        calc.read_incar(tmp_path / 'INCAR')
+        assert getattr(calc, dict_name + '_params')[key.lower()] == vals[0]

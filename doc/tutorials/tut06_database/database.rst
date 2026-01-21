@@ -1,5 +1,14 @@
 Introduction to ASE databases
 =============================
+
+.. note::
+
+  We are currently moving to a new way to display our examples.
+  For this example we have an updated version.
+  The example on this page is deprecated and will be removed
+  once all examples have been moved to
+  the new format.
+
 ASE has its own database format that can be used for storing and retrieving
 atoms (and associated data) in a compact and convenient way. In this exercise
 we will see how to create databases and how to interact with them through
@@ -180,7 +189,7 @@ in action you can check out the 2D database https://cmrdb.fysik.dtu.dk/c2db.
 Adsorbates on metals
 --------------------
 When you are done with this introductory exercise we encourage you to follow
-the online ASE-DB tutorial at https://wiki.fysik.dtu.dk/ase/tutorials/db/db.html.
+the online ASE-DB tutorial at https://ase-lib.org/tutorials/db/db.html.
 
 
 Solutions

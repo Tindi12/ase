@@ -19,7 +19,6 @@ Modules
    * :mod:`~ase.data`
    * :mod:`~ase.filters`
    * :mod:`~ase.formula`
-   * :mod:`~ase.ga`
    * :mod:`~ase.geometry`
    * :mod:`~ase.gui`
    * :mod:`~ase.io`
@@ -46,8 +45,6 @@ Modules
    * :ref:`tutorials`
    * :ref:`cli`
    * :git:`Source code <>`
-   * Presentation about ASE:
-     `ase-talk.pdf <https://wiki.fysik.dtu.dk/ase-files/ase-talk.pdf>`__
 
 .. toctree::
    :maxdepth: 2
@@ -71,7 +68,6 @@ Modules
    geometry
    db/db
    mep
-   ga/ga
    gui/gui
    lattice
    cluster/cluster

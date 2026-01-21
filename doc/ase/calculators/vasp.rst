@@ -57,12 +57,19 @@ This approach allows for doing other things pre- and post-calculation.
 Pseudopotentials
 ----------------
 
-A directory containing the pseudopotential directories :file:`potpaw`
-(LDA XC) :file:`potpaw_GGA` (PW91 XC) and :file:`potpaw_PBE` (PBE XC)
-is also needed, and it is to be put in the environment variable
-:envvar:`VASP_PP_PATH`.
+A directory containing the pseudopotential directories is also needed,
+and it is to be put in the environment variable :envvar:`VASP_PP_PATH`.
+The pseudopotential directories should be named and formatted as
+provided by VASP. For instance, within :envvar:`VASP_PP_PATH`, you should
+expect to have directories like :file:`potpaw_PBE.64` and
+:file:`potpaw_LDA.64`.
 
-Set both environment variables in your shell configuration file:
+To tell ASE which pseudopotential version to use, you can set the
+environment variable :envvar:`VASP_PP_VERSION`. This variable is optional,
+and if not set, ASE will look for unversioned pseudopotential folders
+and legacy names of :file:`potpaw_PBE` (PBE) and :file:`potpaw` (LDA).
+
+Set the environment variables in your shell configuration file:
 
 .. highlight:: bash
 
@@ -70,6 +77,7 @@ Set both environment variables in your shell configuration file:
 
   $ export VASP_SCRIPT=$HOME/vasp/run_vasp.py
   $ export VASP_PP_PATH=$HOME/vasp/mypps
+  $ export VASP_PP_VERSION=64
 
 .. _VASP vdW wiki: https://www.vasp.at/wiki/index.php/VdW-DF_functional_of_Langreth_and_Lundqvist_et_al.
 
@@ -121,9 +129,11 @@ keyword         type       default value   description
                                            None if ``gga`` set explicitly.
 ``setups``      ``str``    None            Additional setup option
 ``pp``          ``str``    Set by ``xc``   Pseudopotential (POTCAR) set
-                           or ``gga``      used (LDA, PW91 or PBE).
-``kpts``        various    `\Gamma`-point  **k**-point sampling
-``gamma``       ``bool``   None            `\Gamma`-point centered
+                           or ``gga``      used (LDA or PBE).
+``pp_version``  ``str``    None            Version (suffix) to use, such as
+                                           "", "52", "54", "64"
+``kpts``        various    Γ-point         **k**-point sampling
+``gamma``       ``bool``   None            Γ-point centered
                                            **k**-point sampling
 ``reciprocal``  ``bool``   None            Use reciprocal units if
                                            **k**-points are specified
@@ -179,12 +189,12 @@ modified with
    >>> calc = ase.calculators.vasp.Vasp(xc='hse06', hfscreen=0.4)
 
 The default pseudopotential set is potpaw_PBE unless ``xc`` or ``pp``
-is set to ``pw91`` or ``lda``.
+is set to ``lda``.
 
 ==========================  =====================================
 ``xc`` value                Parameters set
 ==========================  =====================================
-lda, pbe, pw91              ``pp`` (``gga`` set implicitly in POTCAR)
+lda, pbe                    ``pp`` (``gga`` set implicitly in POTCAR)
 pbesol, revpbe, rpbe, am05  ``gga``
 blyp                        ``gga``, ``aldax``, ``aggax``, ``aggac``, ``aldac``
 tpss, revtpss, m06l         ``metagga``
@@ -340,8 +350,8 @@ subdivisions for each reciprocal lattice vector.
 
 This is the `second “Automatic” scheme <https://www.vasp.at/wiki/index.php/KPOINTS#Automatic_k-mesh_generation>`_ described in the VASP manual.
 In the ASE calculator, it is used by setting ``kpts`` to a sequence of three ``int`` values, e.g. ``[2, 2, 3]``.
-If ``gamma` is set to ``True``, the mesh will be centred at the `\Gamma`-point;
-otherwise, a regular Monkhorst-Pack grid is used, which may or may not include the `\Gamma`-point.
+If ``gamma` is set to ``True``, the mesh will be centred at the :math:`\Gamma`-point;
+otherwise, a regular Monkhorst-Pack grid is used, which may or may not include the :math:`\Gamma`-point.
 
 In VASP it is possible to define an automatic grid and shift the origin point.
 This function is not currently included in the ASE calculator. The same result can be achieved by using :func:`ase.dft.kpoints.monkhorst_pack` to generate an explicit list of **k**-points (see below) and simply adding a constant vector to the matrix.

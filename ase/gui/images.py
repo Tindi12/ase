@@ -11,6 +11,7 @@ from ase.constraints import FixAtoms
 from ase.data import covalent_radii
 from ase.geometry import find_mic
 from ase.gui.defaults import read_defaults
+from ase.gui.history import History
 from ase.gui.i18n import _
 from ase.io import read, string2index, write
 
@@ -23,6 +24,7 @@ class Images:
         if images is None:
             images = [Atoms()]
         self.initialize(images)
+        self.history = History(self)
 
     def __len__(self):
         return len(self._images)
@@ -87,9 +89,6 @@ class Images:
             self._images.append(atoms)
             self.have_varying_species |= not np.array_equal(self[0].numbers,
                                                             atoms.numbers)
-            if hasattr(self, 'Q'):
-                assert False  # XXX askhl fix quaternions
-                self.Q[i] = atoms.get_quaternions()
             if (atoms.pbc != self[0].pbc).any():
                 warning = True
 

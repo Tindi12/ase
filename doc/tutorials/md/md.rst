@@ -6,6 +6,16 @@ Molecular dynamics
 
 .. note::
 
+  We are currently moving to a new way to display our examples.
+  For this example we have an updated version, which you 
+  can find :ref:`here <md_tutorials_basic>`.
+  The example on this page is deprecated and will be removed 
+  once all examples have been moved to 
+  the new format.
+
+
+.. note::
+
   These examples *can* be used without Asap installed, then
   the ase.EMT calculator (implemented in Python) is used, but nearly
   superhuman patience is required.
@@ -84,7 +94,7 @@ Let us see what happens when we propagate a nanoparticle for a long time:
 .. literalinclude:: moldyn4.py
 
 After running the simulation, use :ref:`ase-gui` to compare the results
-with how it looks if you comment out either the line that says `Stationary(atoms)`, `ZeroRotation(atoms)` or both.
+with how it looks if you comment out either the line that says ``Stationary(atoms)``, ``ZeroRotation(atoms)`` or both.
 
 ::
 

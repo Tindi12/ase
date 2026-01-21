@@ -211,7 +211,7 @@ class ContourExploration(Dynamics):
         """ Call Dynamics.run and adjust max_steps """
         return Dynamics.run(self, steps=steps)
 
-    def log(self):
+    def log(self, gradient):
         if self.logfile is not None:
             # name = self.__class__.__name__
             if self.nsteps == 0:
@@ -235,8 +235,6 @@ class ContourExploration(Dynamics):
                 dev_per_atom)
             msg = "%6d %15.6f %15.6f %12.6f %12.6f %24.9f\n" % args
             self.logfile.write(msg)
-
-            self.logfile.flush()
 
     def rand_vect(self):
         '''Returns a random (Natoms,3) vector'''
@@ -382,7 +380,6 @@ class ContourExploration(Dynamics):
 
     def step(self, f=None):
         atoms = self._actual_atoms
-
         if f is None:
             f = atoms.get_forces()
 

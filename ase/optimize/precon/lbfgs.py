@@ -126,7 +126,7 @@ class PreconLBFGS(Optimizer):
         """
         if variable_cell:
             atoms = UnitCellFilter(atoms)
-        Optimizer.__init__(self, atoms, restart, logfile, trajectory, **kwargs)
+        super().__init__(atoms, restart, logfile, trajectory, **kwargs)
 
         self._actual_atoms = atoms
 
@@ -206,7 +206,6 @@ class PreconLBFGS(Optimizer):
         Use the given forces, update the history and calculate the next step --
         then take it"""
         r = self._actual_atoms.get_positions()
-
         if f is None:
             f = self._actual_atoms.get_forces()
 
@@ -367,11 +366,10 @@ class PreconLBFGS(Optimizer):
         if smax is None:
             smax = fmax
         self.smax = smax
-        return Optimizer.run(self, fmax, steps)
+        return super().run(fmax, steps)
 
-    def log(self, forces=None):
-        if forces is None:
-            forces = self._actual_atoms.get_forces()
+    def log(self, gradient):
+        forces = self._actual_atoms.get_forces()
         if isinstance(self._actual_atoms, UnitCellFilter):
             natoms = len(self._actual_atoms.atoms)
             forces, stress = forces[:natoms], self._actual_atoms.stress
@@ -396,12 +394,11 @@ class PreconLBFGS(Optimizer):
                 self.logfile.write(
                     '%s: %3d  %02d:%02d:%02d %15.6f %12.4f\n' %
                     (name, self.nsteps, T[3], T[4], T[5], e, fmax))
-            self.logfile.flush()
 
-    def converged(self, forces=None):
+    def converged(self, gradient):
         """Did the optimization converge?"""
-        if forces is None:
-            forces = self._actual_atoms.get_forces()
+        # XXX ignoring gradient
+        forces = self._actual_atoms.get_forces()
         if isinstance(self._actual_atoms, UnitCellFilter):
             natoms = len(self._actual_atoms.atoms)
             forces, stress = forces[:natoms], self._actual_atoms.stress

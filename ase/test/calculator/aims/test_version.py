@@ -1,7 +1,3 @@
-# fmt: off
-import pytest
-
-pyfhiaims = pytest.importorskip("pyfhiaims")
 from ase.calculators.aims import get_aims_version
 
 version_string = """\

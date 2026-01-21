@@ -10,7 +10,7 @@ from ase.data import atomic_numbers
 from ase.data.colors import jmol_colors
 from ase.geometry import complete_cell
 from ase.gui.colors import ColorWindow
-from ase.gui.i18n import ngettext
+from ase.gui.i18n import _, ngettext
 from ase.gui.render import Render
 from ase.gui.repeat import Repeat
 from ase.gui.rotate import Rotate
@@ -144,6 +144,9 @@ class View:
         ).format(len(self.images))
 
         self.window.title = f'{header} — {images_loaded_text}'
+
+        if self.movie_window is not None:
+            self.movie_window.frame_number.value = frame
 
         if focus:
             self.focus()
@@ -322,25 +325,25 @@ class View:
             self.axes = rotate('-90.0x,-90.0y,0.0z')
         elif key == 'Y':
             self.axes = rotate('90.0x,0.0y,90.0z')
-        elif key == 'Alt+Z':
+        elif key == 'Shift+Z':
             self.axes = rotate('180.0x,0.0y,90.0z')
-        elif key == 'Alt+X':
+        elif key == 'Shift+X':
             self.axes = rotate('0.0x,90.0y,0.0z')
-        elif key == 'Alt+Y':
+        elif key == 'Shift+Y':
             self.axes = rotate('-90.0x,0.0y,0.0z')
         else:
-            if key == '3':
-                i, j = 0, 1
-            elif key == '1':
+            if key == 'I':
                 i, j = 1, 2
-            elif key == '2':
+            elif key == 'J':
                 i, j = 2, 0
-            elif key == 'Alt+3':
-                i, j = 1, 0
-            elif key == 'Alt+1':
+            elif key == 'K':
+                i, j = 0, 1
+            elif key == 'Shift+I':
                 i, j = 2, 1
-            elif key == 'Alt+2':
+            elif key == 'Shift+J':
                 i, j = 0, 2
+            elif key == 'Shift+K':
+                i, j = 1, 0
 
             A = complete_cell(self.atoms.cell)
             x1 = A[i]
@@ -554,15 +557,26 @@ class View:
         if self.window['toggle-show-axes']:
             self.draw_axes()
 
-        if len(self.images) > 1:
-            self.draw_frame_number()
+        if self.arrowkey_mode != self.ARROWKEY_SCAN:
+            self.draw_arrowkey_hint()
+        else:
+            self.hide_arrowkey_hint()
+            if len(self.images) > 1:
+                self.draw_frame_number()
 
         self.window.update()
 
         if status:
             self.status.status(self.atoms)
 
-        self.obs.draw.notify()
+        # Currently we change the atoms all over the place willy-nilly
+        # and then call draw().  For which reason we abuse draw() to notify
+        # the observers about general changes.
+        #
+        # We should refactor so change_atoms is only emitted
+        # when when atoms actually change, and maybe have a separate signal
+        # to listen to e.g. changes of view.
+        self.obs.change_atoms.notify()
 
     def arrow(self, coords, width):
         line = self.window.line
@@ -594,6 +608,39 @@ class View:
             d = int(-self.axes[i][1] * axes_length + b)
             self.window.line((a, b, c, d))
             self.window.text(c, d, 'XYZ'[i], color=rgb[i])
+
+    def draw_arrowkey_hint(self):
+        if self.arrowkey_mode == self.ARROWKEY_ROTATE:
+            hint = _('ROTATING')
+            bg = PURPLE
+            tip_text = _(
+                'Ctrl + Up/Down: rotate around the view axis\n'
+                'Shift + Arrow keys: rotate in smaller increments'
+            )
+        else:
+            hint = _('MOVING')
+            bg = GREEN
+            tip_text = _(
+                'Ctrl + Up/Down: move along the view axis\n'
+                'Shift + Arrow keys: move in smaller increments'
+            )
+        self.arrowkey_hint.label.configure(
+            text=hint,
+            padx=3,
+            bg=bg,
+        )
+        self.arrowkey_hint.tooltip.configure(
+            text=tip_text,
+            justify='right',
+            font='TkTooltipFont',
+        )
+        self.arrowkey_hint.place(relx=1.0, rely=1.0, anchor='se')
+        self.arrowkey_hint.exists = True
+
+    def hide_arrowkey_hint(self):
+        if self.arrowkey_hint.exists:
+            self.arrowkey_hint.place_forget()
+            self.arrowkey_hint.exists = False
 
     def draw_frame_number(self):
         x, y = self.window.size

@@ -11,13 +11,109 @@ Git master branch
 
 :git:`master <>`.
 
+Thermochemistry (:mr:`3358`):
+
+- **Breaking change**: The ``vib_energies`` property of thermochemistry classes is
+  now deprecated. It will still be around for a while until all classes moved to
+  the new modes-based framework. Adapt your workflows accordingly. See also below
+  for more details on the new modes-based framework.
+  
+* Major parts of the thermochemistry module have been rewritten to include 
+  a range of new methods: :class:`MSRRHOThermo` based on the modified
+  rigid-rotor-harmonic-oscillator (msRRHO) approximation by Grimme *et al.*
+  (:doi:`10.1002/chem.201200497` and :doi:`10.1039/D1SC00621E`) and Otlyotov
+  and Minenkov :doi:`10.1002/jcc.27129`.
+* A new base class for thermochemistry, :class:`ase.thermochemistry.ThermoBase`,
+  has been introduced to facilitate the implementation of new thermochemistry
+  methods.
+* Multiple classes are now based on a framework of individual modes
+  rather than just a list of vibrational energies. This allows for a
+  flexible mixing of different treatments of vibrational modes
+  (e.g., Grimme's msRRHO for low-frequency modes and harmonic
+  oscillator for high-frequency modes). Each vibrational mode is
+  represented by an instance of the
+  :class:`ase.thermochemistry.AbstractMode` class or one of its
+  subclasses. Multiple modes are then used to build a
+  :class:`ase.thermochemistry.BaseThermoChem` instance or one of its
+  subclasses. The old way of passing a list of vibrational energies is
+  still supported for backwards compatibility, but it is recommended
+  to switch to the new modes-based framework. The ``vib_energies``
+  property is still available for backwards compatibility, but it is
+  recommended to use the ``modes`` property instead, which returns a
+  list of mode instances.
+
+
+Version 3.27.0
+==============
+
+28 December 2025: :git:`3.27.0 <../3.27.0>`
+
 * No changes yet
+
+
+Version 3.26.0
+==============
+
+12 August 2025: :git:`3.26.0 <../3.26.0>`
+
+This is the first release following the 2025 ASE workshop at EPFL.
+The workshop established plans for ASE 4 as well as a
+steering committee.  New features for ASE 4 will be developed under the
+ase._4 namespace and are experimental.  More information about these
+developments should be added to the documentation in the near future.
+
+The web page has been moved to `ase-lib.org <https://ase-lib.org/>`_
+and now uses the sphinx book theme.  It is now deployed automatically
+using Gitlab pages and continuous integration.
+
+Optimizers can now work on any target function with derivatives
+thanks to the limited :class:`~ase.utils.abc.Optimizable` interface.
+One future goal of this effort is to replace Filters with simpler objects
+and make it easier to control e.g. tolerances in cell optimizations.
+
+Highlights:
+
+- **Breaking change**: IO: Removed unused ``IOFormat.open()`` method (:mr:`3738`).
+- **Breaking change:** Optimizers: The :class:`~ase.utils.abc.Optimizable` interface
+  now works in terms of arbitrary degrees of freedom rather than
+  Cartesian (Nx3) ones.
+  This can break code that uses internals of ``Optimizer`` such as ``converged()``.
+  Please note that the interface is still considered an internal feature
+  and may still change significantly. (:mr:`3732`)
+- Changed :class:`~ase.calculators.elk.ELK` based on
+  :class:`~ase.calculators.GenericFileIOCalculator` (:mr:`3736`)
+- Molecular dynamics: Added anisotropic NpT with MTK equations (:mr:`3595`).
+- GUI: Multiple bugfixes related to keyboard shortcuts,
+  particularly for OSX.
+- GUI: Added general window to view and edit data on atoms directly
+  in the same style as the cell editor.
+  The window currently edits
+  symbols and Cartesian positions only (:mr:`3790`).
 
 
 Version 3.25.0
 ==============
 
 11 April 2025: :git:`3.25.0 <../3.25.0>`
+
+
+Starting with this release, release notes will change format.
+Until now, the release notes were mostly a changelog.
+Instead, release notes should now consist of prose and/or a shorter
+list of highlights.  In addition, a more detailed :ref:`changelog`
+is now generated using `scriv <https://github.com/nedbat/scriv>`_.
+
+Noteworthy changes in this release are:
+
+- **BREAKING** :mod:`ase.io.orca.read_orca_output` now returns :class:`~ase.Atoms` with attached properties.
+  :func:`ase.io.read` will use this function.
+  The previous behaviour (return results dictionary only) is still available from function
+  :func:`ase.io.orca.read_orca_outputs`. (:mr:`3599`)
+- The "heavy-weight" database backends in :mod:`ase.db` have been
+  moved to a separate project, https://gitlab.com/ase/ase-db-backends.
+- The EAM calculator can now compute stress tensors (:mr:`3581`).
+- Molecular dynamics: Added isotropic NPT with MTK equations (:mr:`3550`).
+
 
 Version 3.24.0
 ==============
@@ -117,7 +213,7 @@ Version 3.23.0
 * Added a function, :func:`ase.dft.kpoints.mindistance2monkhorstpack`, to
   construct a Monkhorst-Pack grid (:mr:`2811`)
 
-* Fixed turbomole calculator parsing issues when `=` are present in data
+* Fixed turbomole calculator parsing issues when ``=`` are present in data
   groups (:mr:`2808`)
 
 * Fixed round-trip dict (de)serialization with ``FixedMode`` constraint
@@ -155,7 +251,7 @@ Version 3.23.0
 
 * Replaced :class:`ase.phasediagram.Pourbaix` class (to be deprecated)
   with the :mod:`ase.pourbaix` module. The latter includes a
-  `~ase.pourbaix.Pourbaix` class able to plot a complete diagram given a
+  :class:`~ase.pourbaix.Pourbaix` class able to plot a complete diagram given a
   set of references. The decomposition energy is now shown on a colormap
   and the phase boundaries are determined with a plane intersection method.
   (:mr:`3280`)
@@ -242,7 +338,7 @@ Calculators:
 
 * Support PBCs in Plumed calculator (:mr:`2671`)
 
-* Support z-matrix format for ``FixCartesian``` constraints in Siesta (:mr:`2669`)
+* Support z-matrix format for ``FixCartesian`` constraints in Siesta (:mr:`2669`)
 
 * Support spin-orbit coupling and non-colinear calculations in Siesta
   (:mr:`2665`, :mr:`2665`)
@@ -476,9 +572,9 @@ Algorithms:
   highly curved regions of the potential energy surface.
 
 * :class:`ase.neb.NEB` has been overhauled and given support for
-  preconditioning via a new `precon` argument to its constructor,
-  and two newly supported methods, `spline` for spline-interpolated
-  tangets and `string` for the string method, both of which support
+  preconditioning via a new ``precon`` argument to its constructor,
+  and two newly supported methods, ``spline`` for spline-interpolated
+  tangets and ``string`` for the string method, both of which support
   preconditioning. The default behaviour should be unchanged.
 
 * Interpolating NEB images on constrained atoms will now raise an
@@ -870,10 +966,11 @@ Algorithms:
   for nanowire and thin film structures.
 
 * Added a new tutorial on molecular crystal structure prediction using
-  a genetic algorithm, see :ref:`ga_molecular_crystal_tutorial`.
+  a genetic algorithm (Update: moved to `ase-ga
+  <https://dtu-energy.github.io/ase-ga/tutorials/ga_molecular_crystal.html>`__.)
 
-* Allow setting the initial hessian in `optimize.BFGS` via the keyword `alpha` or
-  explicitly via `opt.H0 = ...` after instantiation.
+* Allow setting the initial hessian in ``optimize.BFGS`` via the keyword ``alpha`` or
+  explicitly via ``opt.H0 = ...`` after instantiation.
 
 Command-line interface:
 
@@ -1229,7 +1326,8 @@ Algorithms:
   criterion, although this behaviour may change in future versions.
 
 * The genetic algorithm module :mod:`ase.ga` now has operators for crystal
-  structure prediction. See :ref:`ga_bulk_tutorial`.
+  structure prediction.  (Update: moved to
+  `ase-ga <https://dtu-energy.github.io/ase-ga>`__.)
 
 * New :func:`ase.geometry.dimensionality.analyze_dimensionality` function.
   See: :ref:`dimtutorial`.
@@ -1514,7 +1612,7 @@ Version 3.15.0
   :ref:`Turbomole <turbomole qmmm>` and :mod:`DFTB+ <ase.calculators.dftb>`
   as the QM part.
 
-* New :ref:`db tutorial` tutorial.
+* New :ref:`adsorbate_db tutorials` tutorial.
 
 * :mod:`ase.gui`:  Improved atom colouring options; support the Render Scene (povray) and Ctrl+R rotation features again; updated German and Chinese translations.
 
@@ -1763,7 +1861,7 @@ Version 3.11.0
 
 10 May 2016: :git:`3.11.0 <../3.11.0>`.
 
-* Special `\mathbf{k}`-points from the [Setyawan-Curtarolo]_ paper was added:
+* Special :math:`\mathbf{k}`-points from the [Setyawan-Curtarolo]_ paper was added:
   :data:`ase.dft.kpoints.special_points`.
 
 * New :mod:`ase.collections` module added.  Currently contains the G2 database

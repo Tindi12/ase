@@ -4,11 +4,11 @@
 import time
 import warnings
 from collections.abc import Callable
+from contextlib import contextmanager
 from functools import cached_property
-from math import sqrt
 from os.path import isfile
 from pathlib import Path
-from typing import IO, Any, Dict, List, Optional, Tuple, Union
+from typing import IO, Any
 
 from ase import Atoms
 from ase.calculators.calculator import PropertyNotImplementedError
@@ -28,14 +28,14 @@ class OptimizableAtoms(Optimizable):
     def __init__(self, atoms):
         self.atoms = atoms
 
-    def get_positions(self):
-        return self.atoms.get_positions()
+    def get_x(self):
+        return self.atoms.get_positions().ravel()
 
-    def set_positions(self, positions):
-        self.atoms.set_positions(positions)
+    def set_x(self, x):
+        self.atoms.set_positions(x.reshape(-1, 3))
 
-    def get_forces(self):
-        return self.atoms.get_forces()
+    def get_gradient(self):
+        return -self.atoms.get_forces().ravel()
 
     @cached_property
     def _use_force_consistent_energy(self):
@@ -55,7 +55,7 @@ class OptimizableAtoms(Optimizable):
         else:
             return True
 
-    def get_potential_energy(self):
+    def get_value(self):
         force_consistent = self._use_force_consistent_energy
         return self.atoms.get_potential_energy(
             force_consistent=force_consistent)
@@ -64,82 +64,125 @@ class OptimizableAtoms(Optimizable):
         # XXX document purpose of iterimages
         return self.atoms.iterimages()
 
-    def __len__(self):
-        # TODO: return 3 * len(self.atoms), because we want the length
-        # of this to be the number of DOFs
-        return len(self.atoms)
+    def ndofs(self):
+        return 3 * len(self.atoms)
 
 
-class Dynamics(IOContext):
-    """Base-class for all MD and structure optimization classes."""
+class Log:
+    def __init__(self, logfile, comm):
+        self._logfile = logfile
+        self._comm = comm
 
+    def write(self, msg):
+        if self._logfile is None or self._comm.rank != 0:
+            return
+
+        if hasattr(self._logfile, 'write'):
+            self._logfile.write(msg)
+            return
+
+        if self._logfile == '-':
+            print(msg, end='')
+            return
+
+        with open(self._logfile, mode='a') as fd:
+            fd.write(msg)
+
+    def flush(self):
+        warnings.warn('Log flushes by default now.  Please do not call '
+                      'flush().  If you want a different flushing behaviour '
+                      'please open logfile yourself and choose '
+                      'buffering mode as appropriate.  '
+                      'This flush() method currently does nothing.',
+                      FutureWarning)
+
+
+class BaseDynamics(IOContext):
+    """Common superclass for optimization and MD.
+
+    This class implements logfile, trajectory, and observer handling.
+    It should do as little as possible other than that.
+
+    We should try to remove the "atoms" parameter from this class,
+    since Optimizers only require Optimizables.
+    """
     def __init__(
         self,
         atoms: Atoms,
-        logfile: Optional[Union[IO, Path, str]] = None,
-        trajectory: Optional[Union[str, Path]] = None,
+        logfile: IO | Path | str | None = None,
+        trajectory: str | Path | None = None,
         append_trajectory: bool = False,
-        master: Optional[bool] = None,
+        master: bool | None = None,
         comm=world,
         *,
         loginterval: int = 1,
     ):
-        """Dynamics object.
-
-        Parameters
-        ----------
-        atoms : Atoms object
-            The Atoms object to operate on.
-
-        logfile : file object, Path, or str
-            If *logfile* is a string, a file with that name will be opened.
-            Use '-' for stdout.
-
-        trajectory : Trajectory object, str, or Path
-            Attach a trajectory object. If *trajectory* is a string/Path, a
-            Trajectory will be constructed. Use *None* for no trajectory.
-
-        append_trajectory : bool
-            Defaults to False, which causes the trajectory file to be
-            overwriten each time the dynamics is restarted from scratch.
-            If True, the new structures are appended to the trajectory
-            file instead.
-
-        master : bool
-            Defaults to None, which causes only rank 0 to save files. If set to
-            true, this rank will save files.
-
-        comm : Communicator object
-            Communicator to handle parallel file reading and writing.
-
-        loginterval : int, default: 1
-            Only write a log line for every *loginterval* time steps.
-        """
         self.atoms = atoms
-        self.optimizable = atoms.__ase_optimizable__()
-        self.logfile = self.openfile(file=logfile, comm=comm, mode='a')
-        self.observers: List[Tuple[Callable, int, Tuple, Dict[str, Any]]] = []
+        self.logfile = Log(logfile, comm=comm)
+        self.observers: list[tuple[Callable, int, tuple, dict[str, Any]]] = []
         self.nsteps = 0
         self.max_steps = 0  # to be updated in run or irun
         self.comm = comm
 
+        self._orig_trajectory = trajectory
+        self._master = master
+
+        if trajectory is None or hasattr(trajectory, 'write'):
+            # 'write' attribute is meant to check for a Trajectory
+            # (could be BundleTrajectory).
+            # There is no unified way to check for Trajectory.
+            # In this case the trajectory is already open so we do not
+            # open it.
+            pass
+        else:
+            trajectory = Path(trajectory)
+            if comm.rank == 0 and not append_trajectory:
+                trajectory.unlink(missing_ok=True)
+
         if trajectory is not None:
-            if isinstance(trajectory, str) or isinstance(trajectory, Path):
-                from ase.io.trajectory import Trajectory
-                mode = "a" if append_trajectory else "w"
-                trajectory = self.closelater(Trajectory(
-                    trajectory, mode=mode, master=master, comm=comm
-                ))
-            self.attach(
-                trajectory,
-                interval=loginterval,
-                atoms=self.optimizable,
-            )
+            self.attach(self._traj_write_image, interval=loginterval,
+                        description={'interval': loginterval})
 
         self.trajectory = trajectory
 
-    def todict(self) -> Dict[str, Any]:
+    def todict(self) -> dict[str, Any]:
         raise NotImplementedError
+
+    @contextmanager
+    def _opentraj(self):
+        from ase.io.trajectory import Trajectory
+        assert self._orig_trajectory is not None
+
+        if hasattr(self._orig_trajectory, 'write'):
+            # Already an open trajectory, we are not responsible for open/close
+            yield self._orig_trajectory
+            return
+
+        with Trajectory(
+                self._orig_trajectory,
+                master=self._master, mode='a', comm=self.comm,
+        ) as traj:
+            yield traj
+
+    def _traj_write_image(self, description: dict):
+        with self._opentraj() as traj:
+            # The description is only written when we write a header,
+            # and we probably only write the header when we need to
+            # (in append mode) but I am not sure about that.
+            traj.set_description(self.todict() | description)
+            traj.write(self.atoms.__ase_optimizable__())
+
+    def _traj_is_empty(self):
+        with self._opentraj() as traj:
+            return len(traj) == 0
+
+    def _get_gradient(self, forces=None):
+        if forces is not None:
+            warnings.warn('Please do not pass forces to step().  '
+                          'This argument will be removed in '
+                          'ase 3.28.0.')
+            return -forces.ravel()
+        return self.optimizable.get_gradient()
 
     def get_number_of_steps(self):
         return self.nsteps
@@ -184,10 +227,6 @@ class Dynamics(IOContext):
         arguments *args* and keyword arguments *kwargs*.  This is
         currently zero indexed."""
 
-        if hasattr(function, "set_description"):
-            d = self.todict()
-            d.update(interval=interval)
-            function.set_description(d)
         if not isinstance(function, Callable):
             function = function.write
         self.observers.append((function, interval, args, kwargs))
@@ -205,6 +244,53 @@ class Dynamics(IOContext):
                     call = True
             if call:
                 function(*args, **kwargs)
+
+
+class Dynamics(BaseDynamics):
+    """Historical base-class for MD and structure optimization classes.
+
+    This inheritance level can probably be eliminated by merging it with
+    Optimizer, since by now, the only significant thing it provides
+    is the implementation of irun() suitable for optimizations.
+
+    This class is an implementation detail and may change or be removed.
+    """
+
+    def __init__(self, atoms: Atoms, *args, **kwargs):
+        """Dynamics object.
+
+        Parameters
+        ----------
+        atoms : Atoms object
+            The Atoms object to operate on.
+
+        logfile : file object, Path, or str
+            If *logfile* is a string, a file with that name will be opened.
+            Use '-' for stdout.
+
+        trajectory : Trajectory object, str, or Path
+            Attach a trajectory object. If *trajectory* is a string/Path, a
+            Trajectory will be constructed. Use *None* for no trajectory.
+
+        append_trajectory : bool
+            Defaults to False, which causes the trajectory file to be
+            overwriten each time the dynamics is restarted from scratch.
+            If True, the new structures are appended to the trajectory
+            file instead.
+
+        master : bool
+            Defaults to None, which causes only rank 0 to save files. If set to
+            true, this rank will save files.
+
+        comm : Communicator object
+            Communicator to handle parallel file reading and writing.
+
+        loginterval : int, default: 1
+            Only write a log line for every *loginterval* time steps.
+        """
+        super().__init__(atoms, *args, **kwargs)
+        self.atoms = atoms
+        self.optimizable = atoms.__ase_optimizable__()
 
     def irun(self, steps=DEFAULT_MAX_STEPS):
         """Run dynamics algorithm as generator.
@@ -233,22 +319,23 @@ class Dynamics(IOContext):
         self.max_steps = self.nsteps + steps
 
         # compute the initial step
-        self.optimizable.get_forces()
+        gradient = self.optimizable.get_gradient()
 
         # log the initial step
         if self.nsteps == 0:
-            self.log()
+            self.log(gradient)
 
             # we write a trajectory file if it is None
             if self.trajectory is None:
                 self.call_observers()
             # We do not write on restart w/ an existing trajectory file
             # present. This duplicates the same entry twice
-            elif len(self.trajectory) == 0:
+            elif self._traj_is_empty():
                 self.call_observers()
 
         # check convergence
-        is_converged = self.converged()
+        gradient = self.optimizable.get_gradient()
+        is_converged = self.converged(gradient)
         yield is_converged
 
         # run the algorithm until converged or max_steps reached
@@ -258,11 +345,13 @@ class Dynamics(IOContext):
             self.nsteps += 1
 
             # log the step
-            self.log()
+            gradient = self.optimizable.get_gradient()
+            self.log(gradient)
             self.call_observers()
 
             # check convergence
-            is_converged = self.converged()
+            gradient = self.optimizable.get_gradient()
+            is_converged = self.converged(gradient)
             yield is_converged
 
     def run(self, steps=DEFAULT_MAX_STEPS):
@@ -287,12 +376,12 @@ class Dynamics(IOContext):
             pass
         return converged
 
-    def converged(self):
+    def converged(self, gradient):
         """" a dummy function as placeholder for a real criterion, e.g. in
         Optimizer """
         return False
 
-    def log(self, *args):
+    def log(self, *args, **kwargs):
         """ a dummy function as placeholder for a real logger, e.g. in
         Optimizer """
         return True
@@ -312,9 +401,9 @@ class Optimizer(Dynamics):
     def __init__(
         self,
         atoms: Atoms,
-        restart: Optional[str] = None,
-        logfile: Optional[Union[IO, str, Path]] = None,
-        trajectory: Optional[Union[str, Path]] = None,
+        restart: str | Path | None = None,
+        logfile: IO | str | Path | None = None,
+        trajectory: str | Path | None = None,
         append_trajectory: bool = False,
         **kwargs,
     ):
@@ -325,7 +414,7 @@ class Optimizer(Dynamics):
         atoms: :class:`~ase.Atoms`
             The Atoms object to relax.
 
-        restart: str
+        restart: str | Path | None
             Filename for restart file. Default value is *None*.
 
         logfile: file object, Path, or str
@@ -367,12 +456,12 @@ class Optimizer(Dynamics):
 
     def todict(self):
         description = {
-            "type": "optimization",
-            "optimizer": self.__class__.__name__,
+            'type': 'optimization',
+            'optimizer': self.__class__.__name__,
+            'restart': None if self.restart is None else str(self.restart),
         }
         # add custom attributes from subclasses
-        for attr in ('maxstep', 'alpha', 'max_steps', 'restart',
-                     'fmax'):
+        for attr in ('maxstep', 'alpha', 'max_steps', 'fmax'):
             if hasattr(self, attr):
                 description.update({attr: getattr(self, attr)})
         return description
@@ -416,17 +505,14 @@ class Optimizer(Dynamics):
         self.fmax = fmax
         return Dynamics.run(self, steps=steps)
 
-    def converged(self, forces=None):
+    def converged(self, gradient):
         """Did the optimization converge?"""
-        if forces is None:
-            forces = self.optimizable.get_forces()
-        return self.optimizable.converged(forces, self.fmax)
+        assert gradient.ndim == 1
+        return self.optimizable.converged(gradient, self.fmax)
 
-    def log(self, forces=None):
-        if forces is None:
-            forces = self.optimizable.get_forces()
-        fmax = sqrt((forces ** 2).sum(axis=1).max())
-        e = self.optimizable.get_potential_energy()
+    def log(self, gradient):
+        fmax = self.optimizable.gradient_norm(gradient)
+        e = self.optimizable.get_value()
         T = time.localtime()
         if self.logfile is not None:
             name = self.__class__.__name__
@@ -438,7 +524,6 @@ class Optimizer(Dynamics):
             args = (name, self.nsteps, T[3], T[4], T[5], e, fmax)
             msg = "%s:  %3d %02d:%02d:%02d %15.6f %15.6f\n" % args
             self.logfile.write(msg)
-            self.logfile.flush()
 
     def dump(self, data):
         from ase.io.jsonio import write_json

@@ -103,13 +103,13 @@ def _get_comm():
     if 'mpi4py' in sys.modules:
         return MPI4PY()
     if '_gpaw' in sys.modules:
-        import _gpaw
-        if hasattr(_gpaw, 'Communicator'):
-            return _gpaw.Communicator()
+        world = _gpaw_world()
+        if world is not None:
+            return world
     if '_asap' in sys.modules:
-        import _asap
-        if hasattr(_asap, 'Communicator'):
-            return _asap.Communicator()
+        world = _asap_world()
+        if world is not None:
+            return world
     return DummyMPI()
 
 
@@ -185,39 +185,47 @@ class MPI4PY:
         return self._returnval(a, b)
 
 
-world = None
+class AsapCommWrapper:
+    """Compatibility hack to save people from trouble with older asap.
 
-# Check for special MPI-enabled Python interpreters:
-if '_gpaw' in sys.builtin_module_names:
-    # http://gpaw.readthedocs.io
-    import _gpaw
-    world = _gpaw.Communicator()
-elif '_asap' in sys.builtin_module_names:
-    # Modern version of Asap
-    # http://wiki.fysik.dtu.dk/asap
-    # We cannot import asap3.mpi here, as that creates an import deadlock
-    import _asap
-    world = _asap.Communicator()
+    We can definitely remove this in 2027."""
+    def __init__(self, world):
+        self.world = world
 
-# Check if MPI implementation has been imported already:
-elif '_gpaw' in sys.modules:
-    # Same thing as above but for the module version
-    import _gpaw
-    try:
-        world = _gpaw.Communicator()
-    except AttributeError:
-        pass
-elif '_asap' in sys.modules:
+    def __getattr__(self, attr):
+        return getattr(self.world, attr)
+
+    def sum_scalar(self, a, root=-1):
+        buf = np.array([a])
+        self.world.sum(buf, root=root)
+        return buf[0]
+
+
+def _asap_world():
     import _asap
     try:
         world = _asap.Communicator()
     except AttributeError:
-        pass
-elif 'mpi4py' in sys.modules:
-    world = MPI4PY()
+        return None
 
-if world is None:
-    world = MPI()
+    if not hasattr(world, 'sum_scalar'):
+        world = AsapCommWrapper(world)
+
+    return world
+
+
+def _gpaw_world():
+    import _gpaw
+
+    if not hasattr(_gpaw, 'Communicator'):
+        return None
+
+    # Return the actual public (possibly wrapper) object
+    from gpaw.mpi import world
+    return world
+
+
+world = MPI()
 
 
 def barrier():
@@ -254,9 +262,9 @@ def parallel_function(func):
 
     @functools.wraps(func)
     def new_func(*args, **kwargs):
+        parallel = kwargs.pop('parallel', True)
         if (world.size == 1 or
-            args and getattr(args[0], 'serial', False) or
-                not kwargs.pop('parallel', True)):
+            (args and getattr(args[0], 'serial', False)) or not parallel):
             # Disable:
             return func(*args, **kwargs)
 
@@ -285,9 +293,10 @@ def parallel_generator(generator):
 
     @functools.wraps(generator)
     def new_generator(*args, **kwargs):
+        parallel = kwargs.pop('parallel', True)
         if (world.size == 1 or
-            args and getattr(args[0], 'serial', False) or
-                not kwargs.pop('parallel', True)):
+            (args and getattr(args[0], 'serial', False)) or
+                not parallel):
             # Disable:
             for result in generator(*args, **kwargs):
                 yield result

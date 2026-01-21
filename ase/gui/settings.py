@@ -7,7 +7,7 @@ from ase.gui.i18n import _
 class Settings:
     def __init__(self, gui):
         self.gui = gui
-        win = ui.Window(_('Settings'), wmtype='utility')
+        win = ui.Window(_('Settings'))
 
         # Constraints
         win.add(_('Constraints:'))
@@ -86,10 +86,12 @@ class Settings:
 
     def constrain_selected(self):
         self.gui.images.set_dynamic(self.gui.images.selected, False)
+        self.gui.update_history()
         self.gui.draw()
 
     def release_selected(self):
         self.gui.images.set_dynamic(self.gui.images.selected, True)
+        self.gui.update_history()
         self.gui.draw()
 
     def clear_constraints(self):
@@ -97,4 +99,5 @@ class Settings:
         # only add FixAtoms....
         for atoms in self.gui.images:
             atoms.constraints = []
+        self.gui.update_history()
         self.gui.draw()

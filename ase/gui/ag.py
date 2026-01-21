@@ -9,7 +9,7 @@ class CLICommand:
     """ASE's graphical user interface.
 
     ASE-GUI.  See the online manual
-    (https://wiki.fysik.dtu.dk/ase/ase/gui/gui.html)
+    (https://ase-lib.org/ase/gui/gui.html)
     for more information.
     """
 
@@ -42,7 +42,7 @@ class CLICommand:
             help='Plot x,y1,y2,... graph from configurations or '
             'write data to sdtout in terminal mode.  Use the '
             'symbols: i, s, d, fmax, e, ekin, A, R, E and F.  See '
-            'https://wiki.fysik.dtu.dk/ase/ase/gui/gui.html'
+            'https://ase-lib.org/ase/gui/gui.html'
             '#plotting-data for more details.')
         add('-t', '--terminal',
             action='store_true',
@@ -98,12 +98,23 @@ class CLICommand:
         else:
             import os
 
+            import matplotlib
+
             from ase.gui.gui import GUI
 
-            backend = os.environ.get('MPLBACKEND', '')
-            if backend == 'module://ipykernel.pylab.backend_inline':
-                # Jupyter should not steal our windows
-                del os.environ['MPLBACKEND']
+            # When using Jupyter or some other interactive interpreter,
+            # matplotlib is set up to use an inline backend such as:
+            #     'inline'
+            #     'module://ipykernel.pylab.backend_inline'
+            #     'module://matplotlib_inline.backend_inline'
+            # However, these would cause plots in the GUI to break so
+            # we need to switch to Tk
+            backend = matplotlib.get_backend()
+            if 'inline' in backend:
+                os.environ['MPLBACKEND'] = 'TkAgg'
 
             gui = GUI(images, args.rotations, args.bonds, args.graph)
             gui.run()
+
+            # Reinstate the backend used before the GUI was opened
+            os.environ['MPLBACKEND'] = backend

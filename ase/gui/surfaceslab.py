@@ -64,7 +64,7 @@ class SetupSurfaceSlab:
         self.vacuum = ui.SpinBox(5, 0, 40, 0.01, self.make)
         self.description = ui.Label('')
 
-        win = self.win = ui.Window(_('Surface'), wmtype='utility')
+        win = self.win = ui.Window(_('Surface'))
         win.add(ui.Text(introtext))
         win.add(self.element)
         win.add([_('Structure:'), self.structure, self.structure_warn])
@@ -218,6 +218,7 @@ class SetupSurfaceSlab:
         self.make()
         if self.atoms is not None:
             self.gui.new_atoms(self.atoms)
+            self.gui.clear_history()
             return True
         else:
             ui.error(_('No valid atoms.'),
