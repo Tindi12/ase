@@ -4,6 +4,7 @@ import pytest
 from ase import Atoms
 from ase.optimize import QuasiNewton
 
+
 @pytest.mark.calculator('aims')
 def test_H2O_aims(factory):
     water = Atoms('HOH', [(1, 0, 0), (0, 0, 0), (0, 1, 0)])

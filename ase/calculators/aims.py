@@ -20,7 +20,7 @@ from ase.calculators.genericfileio import (
     GenericFileIOCalculator,
     read_stdout,
 )
-from ase.io import write, read
+from ase.io import read, write
 
 
 def get_aims_version(string):
