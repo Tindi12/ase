@@ -1246,3 +1246,4 @@ def plot_band_from_fit(s, E, Sfit, Efit, lines, ax=None):
         Please use :meth:`NEBTools.plot_band_from_fit`.
     """
     NEBTools.plot_band_from_fit(s, E, Sfit, Efit, lines, ax=None)
+
