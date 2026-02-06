@@ -4,38 +4,11 @@
 Coding Conventions
 ==================
 
-The code must be compatible with the oldest supported version of python
-as given on the :ref:`download_and_install` page.
+Please follow the below conventions when writing code.
 
-Please run :ref:`ruff check <stylecheck>` on your code.
+* Generally speaking, follow PEP8_.
 
-The rules are almost identical
-to those used by the `Docutils project`_:
-
-Contributed code will not be refused merely because it does not
-strictly adhere to these conditions; as long as it's internally
-consistent, clean, and correct, it probably will be accepted.  But
-don't be surprised if the "offending" code gets fiddled over time to
-conform to these conventions.
-
-The project follows the generic coding conventions as
-specified in the `Style Guide for Python Code`_ and `Docstring
-Conventions`_ PEPs, clarified and extended as follows:
-
-* Do not use "``*``" imports such as ``from module import *``.  Instead,
-  list imports explicitly.
-
-* Use 4 spaces per indentation level.  No tabs.
-
-* Read the *Whitespace in Expressions and Statements*
-  section of PEP8_.
-
-* Avoid `trailing whitespaces`_.
-
-* No one-liner compound statements (i.e., no ``if x: return``: use two
-  lines).
-
-* Maximum line length is 78 characters.
+* Use :ref:`ruff` to lint and autoformat new code.
 
 * Use "StudlyCaps" for class names.
 
@@ -48,22 +21,12 @@ Conventions`_ PEPs, clarified and extended as follows:
   that encompass a very small number of lines
   (``for i in range(5): ...``).
 
-* Avoid lambda expressions.  Use named functions instead.
+* It is normally best to use named functions instead of lambda expressions.
 
-* Avoid functional constructs (filter, map, etc.).  Use list
-  comprehensions instead.
+* Use list comprehensions insteaed of functional constructs
+  (filter, map, etc.).
 
-* Use ``'single quotes'`` for string literals, and ``"""triple double
-  quotes"""`` for :term:`docstring`\ s.  Double quotes are OK for
-  something like ``"don't"``.
-
-.. _Style Guide for Python Code:
 .. _PEP8: https://www.python.org/dev/peps/pep-0008/
-.. _Docstring Conventions: https://www.python.org/dev/peps/pep-0257/
-.. _Docutils project: http://docutils.sourceforge.net/docs/dev/policies.html
-                      #python-coding-conventions
-.. _trailing whitespaces: http://www.gnu.org/software/emacs/manual/html_node/
-                          emacs/Useless-Whitespace.html
 
 .. attention::
 
@@ -84,42 +47,37 @@ General advice
 
  * Use descriptive variable names.
 
-Writing documentation in the code
-=================================
+Docstrings
+==========
 
 ASE follows the NumPy/SciPy convention for docstrings:
 
   https://numpydoc.readthedocs.io/en/latest/format.html#docstring-standard
 
 
-.. _stylecheck:
+.. _ruff:
 
-Run ruff on your code
-=======================
 
-It's a good idea to run `ruff <https://docs.astral.sh/ruff/>`_
-on your code (or use a text editor that does it automatically)::
+Ruff formatter and linter
+-------------------------
 
-    $ ruff check --fix filename.py
-    $ ruff format filename.py
+ASE is moving towards using `ruff <https://docs.astral.sh/ruff/>`__ to
+autoformat and check all code.  New modules must be autoformatted with
+ruff whereas older code may still have autoformatting
+disabled by ``# fmt: off`` in order to avoid git conflicts.
+The goal is to enable autoformatting on all the whole codebase.
 
-.. _autopep8py:
+The ASE source code must pass these checks::
 
-Run autopep8.py on your code
-============================
+  $ ruff format --check
+  $ ruff check
 
-Another method of enforcing PEP8_ is using a tool such as
-`autopep8.py <https://github.com/hhatto/autopep8>`_. These tools tend to be
-very effective at cleaning up code, but should be used carefully and code
-should be retested after cleaning it. Try::
+To autoformat your code (which modifies the files!), run::
 
-  $ autopep8.py --help
+  $ ruff format
+  $ ruff check --fix
 
 .. attention::
 
-   There is a common issue with pep8 where spaces are added around the power
-   operator.  Code such as "x**2" should not be changed to "x ** 2".  This
-   issue is not fixed in pep8 as of the time of this writing, but a small
-   `change <http://listserv.fysik.dtu.dk/pipermail/gpaw-developers/
-   2014-October/005075.html>`_ to autopep8 has been effective to prevent
-   this change.
+  Please do not mix significant automated changes by ruff with other
+  changes since this is makes code review difficult.
