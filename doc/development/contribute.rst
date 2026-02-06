@@ -4,44 +4,23 @@
 How to contribute
 =================
 
-Discussion of ASE development takes place on the
+We welcome new developers who would like to help improving
+ASE.
+All work on the source code takes place on Gitlab_.
+It is a good idea to propose changes using the `issue tracker`_
+before starting a major effort.
+Other `communication channels <contact>` exist including
+mailing list and chat.
+
 :ref:`ase-user <contact>` mailing list, the ``#ase``
 :ref:`Matrix channel <contact>`, and on Gitlab_.
-
-We welcome new developers who would like to help work on improving
-ASE.  If you would like to contribute, you should first tell us what
-you want to work on.  Use the :ref:`mailing list <contact>` for that.
-
-
-GitLab repository
-=================
-
-All work on the source code takes place on Gitlab_.
+Most subjects should be discussed on the `issue tracker`_
 
 .. _Gitlab: https://gitlab.com/ase/ase
+.. _issue tracker: https://gitlab.com/ase/ase/issues
 
-
-Proposed git workflow
----------------------
-
-The workflow described here has two elements:
-
-1. The guidelines of project git-branches as a whole.
-2. The workflow of the individual developer, i.e., the standard operating
-   procedure when cloning, pulling, pushing etc.
-
-Only the latter will covered at the moment. When the developer team agree
-on the former it will be added here too. One comment though:
-
-In general:
-
-* Never work in master branch locally or on GitLab.
-* Make a new branch for whatever you are doing.  When you are done, push
-  it to your own repository and make a merge request from that branch in your
-  repository to official master.
-
-The above policy ensures that the master branch means the same thing in all
-repositories (official and forks).
+git workflow
+------------
 
 You can learn the basics of git in several places:
 
@@ -52,20 +31,34 @@ You can learn the basics of git in several places:
 * `Tech Talk: Linus Torvalds on git
   <https://www.youtube.com/watch?v=4XpnKHJAok8>`__
 
+Please follow this workflow:
 
-Aliases
--------
+ * Create a branch from the master branch and name it after what you are doing.
+   Example: ``git checkout -b fix-spglib-compatibility``.
+   Do not work in the master branch.
 
-These aliases are quite common::
+ * Commit your changes to the branch.  Many small commits are better
+   than few large commits.
 
-    $ git config --global alias.st status
-    $ git config --global alias.ci commit
-    $ git config --global alias.co checkout
-    $ git config --global alias.lol "log --pretty=oneline --abbrev-commit --graph --decorate"
+ * To get the change merged to master, open a merge request.
+   A maintainer will review the merge request, or maybe you have to
+   contact maintainers in order for that to happen, since maintainers
+   have very limited time.  The reviewer may request many or major changes.
+
+ * The continuous integration (CI) pipeline needs to run and pass.
+   This requires registering with Gitlab in order to have a
+   free but limited allowance of CI compute minutes.  Alternatively,
+   one can become a member of the ASE project and push to a branch under the
+   ASE project (instead of a fork).  Then CI runs on the CAMD (DTU) runners.
+   That is a much better solution for repeat contributors.
 
 
 The first steps as a developer
 ------------------------------
+
+.. note::
+
+   This section is outdated and may not correspond to current state of affairs.
 
 * Register as a user on https://about.gitlab.com/
 * Find and/or change your user-name in your account setting. You will need it.
