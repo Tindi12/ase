@@ -72,10 +72,6 @@ Python -m tricks
 Some ASE modules can be invoked directly form the command line using ``python3
 -m``.
 
-:ref:`stylecheck`::
-
-    $ python -m ase.utils.stylecheck source.py
-
 :ref:`iso surface`::
 
     $ python -m ase.visulaize.mlab [options] filename
