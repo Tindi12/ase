@@ -1,7 +1,11 @@
+from __future__ import annotations
+
 from dataclasses import asdict, dataclass
+from typing import Any, Iterator
 
 import numpy as np
 
+from ase import Atoms
 from ase._4.optimize.cellutil import CellUtility
 from ase.units import GPa
 
@@ -17,7 +21,7 @@ def initial_frechet_hessian(
     bulk_modulus: float = 145 * GPa,
     poisson_ratio: float = 0.3,
     alpha: float = 70.0,
-):
+) -> np.ndarray:
     from ase._4.optimize.run import initial_position_hessian
     from ase.optimize.cellawarebfgs import calculate_isotropic_elasticity_tensor
 
@@ -52,20 +56,20 @@ class FrechetGradient:
     converged: bool
     volume: float
 
-    def loginfo(self):
+    def loginfo(self) -> dict[str, float]:
         return {'fmax': self.fnorm, 'smax': self.snorm, 'vol': self.volume}
 
-    def datafy(self):
+    def datafy(self) -> dict[str, Any]:
         # XXX must be able to handle the type somehow.
         # The Target type would know what Gradient type to restore.
         return asdict(self)
 
     @classmethod
-    def undatafy(cls, dct):
+    def undatafy(cls, dct: dict[str, Any]) -> FrechetGradient:
         return cls(**dct)
 
 
-def default_mask(pbc):
+def default_mask(pbc) -> np.ndarray:
     mask = np.ones(6, bool)
     mask[:3] = pbc
     for i in range(3):
@@ -78,7 +82,15 @@ def default_mask(pbc):
 class FrechetTarget:
     iotype = 'frechet'
 
-    def __init__(self, atoms, mask=None, *, fmax, smax, orig_cell=None):
+    def __init__(
+        self,
+        atoms: Atoms,
+        mask: Any = None,
+        *,
+        fmax: float,
+        smax: float,
+        orig_cell: np.ndarray | None = None,
+    ):
         self.atoms = atoms
         if mask is None:
             mask = default_mask(atoms.pbc)
@@ -92,7 +104,7 @@ class FrechetTarget:
         self.fmax = fmax
         self.smax = smax
 
-    def datafy(self):
+    def datafy(self) -> dict[str, Any]:
         return {
             'fmax': self.fmax,
             'smax': self.smax,
@@ -105,7 +117,7 @@ class FrechetTarget:
         }
 
     @classmethod
-    def undatafy(cls, dct, calc):
+    def undatafy(cls, dct: dict, calc) -> FrechetTarget:
         # XXX Here we depend directly on calculator since it's the only thing
         # we don't know how to restore.
         atoms = dct['atoms'].copy()
@@ -122,16 +134,16 @@ class FrechetTarget:
         )
 
     @classmethod
-    def undatafy_gradient(cls, dct):
+    def undatafy_gradient(cls, dct: dict) -> FrechetGradient:
         return FrechetGradient.undatafy(dct)
 
-    def get_value(self):
+    def get_value(self) -> float:
         return (
             self.optimizable.get_value()
             + self._utility.get_energy_correction(self.atoms.cell.volume)
         )
 
-    def get_gradient(self):
+    def get_gradient(self) -> FrechetGradient:
         from ase._4.optimize.run import get_maxforce
 
         atoms_forces = self.atoms.get_forces()
@@ -164,15 +176,15 @@ class FrechetTarget:
         )
 
     @property
-    def _cell_factor(self):
+    def _cell_factor(self) -> float:
         # XXX Default behaviour taken from unitcellfilter:
         return float(len(self.atoms))
 
     @property
-    def _exp_cell_factor(self):
+    def _exp_cell_factor(self) -> float:
         return 1.0  # always 1.0 with 'cellaware'
 
-    def get_x(self):
+    def get_x(self) -> np.ndarray:
         return self._utility.get_positions_frechet(
             self.atoms.get_positions(),
             self.atoms.get_cell(),
@@ -180,7 +192,7 @@ class FrechetTarget:
             exp_cell_factor=self._exp_cell_factor,
         ).ravel()
 
-    def set_x(self, x):
+    def set_x(self, x: np.ndarray) -> None:
         self._utility.set_positions_frechet(
             x.reshape(-1, 3),
             self.atoms,
@@ -206,5 +218,5 @@ class FrechetTarget:
             alpha,
         )
 
-    def iterimages(self):
+    def iterimages(self) -> Iterator[Atoms]:
         yield self.atoms

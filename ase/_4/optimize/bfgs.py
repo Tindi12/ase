@@ -5,16 +5,22 @@ class BFGSMethod:
     iotype = 'bfgs'
     methodname = 'BFGS'
 
-    def __init__(self, hessian):
+    def __init__(self, hessian: np.ndarray):
         self.hessian = hessian
 
-    def compute_step(self, gradient):
+    def compute_step(self, gradient: np.ndarray) -> np.ndarray:
         omega, vectors = np.linalg.eigh(self.hessian)
         # Not sure what we should do about negative eigenvalues,
         # taking the absolute value is arbitrary and probably not good.
         return -vectors @ (gradient @ vectors / np.fabs(omega))
 
-    def update(self, pos, gradient, pos0, gradient0):
+    def update(
+        self,
+        pos: np.ndarray,
+        gradient: np.ndarray,
+        pos0: np.ndarray,
+        gradient0: np.ndarray,
+    ) -> None:
         dpos = pos - pos0
 
         if np.abs(dpos).max() < 1e-7:
@@ -32,13 +38,13 @@ class BFGSMethod:
             np.outer(dgradient, dgradient) / a - np.outer(dg, dg) / b
         )
 
-    def datafy(self):
+    def datafy(self) -> list[float]:
         return self.hessian.ravel().tolist()
 
     @classmethod
-    def undatafy(cls, hessian):
+    def undatafy(cls, hessian: list[float]):
         from math import isqrt
 
         n = isqrt(len(hessian))
-        hessian = np.array(hessian).reshape(n, n)
-        return cls(hessian)
+        hessian_array = np.array(hessian).reshape(n, n)
+        return cls(hessian_array)

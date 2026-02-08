@@ -2,17 +2,18 @@ from itertools import product
 
 import numpy as np
 
+from ase import Atoms
 from ase.stress import full_3x3_to_voigt_6_stress, voigt_6_to_full_3x3_stress
 
 
 class CellUtility:
     def __init__(
         self,
-        orig_cell,
+        orig_cell: np.ndarray,
         mask,
-        scalar_pressure=0.0,
-        constant_volume=False,
-        hydrostatic_strain=False,
+        scalar_pressure: float = 0.0,
+        constant_volume: bool = False,
+        hydrostatic_strain: bool = False,
     ):
         from scipy.linalg import expm, expm_frechet, logm
 
@@ -38,10 +39,10 @@ class CellUtility:
         self.hydrostatic_strain = hydrostatic_strain
         self.constant_volume = constant_volume
 
-    def deform_grad(self, cell):
+    def deform_grad(self, cell) -> np.ndarray:
         return np.linalg.solve(self.orig_cell, cell).T
 
-    def get_energy(self, atoms, force_consistent):
+    def get_energy(self, atoms: Atoms, force_consistent: bool | None) -> float:
         atoms_energy = atoms.get_potential_energy(
             force_consistent=force_consistent
         )
@@ -50,7 +51,9 @@ class CellUtility:
     def get_energy_correction(self, volume: float) -> float:
         return self.scalar_pressure * volume
 
-    def get_positions_unitcellfilter(self, positions, cell, cell_factor):
+    def get_positions_unitcellfilter(
+        self, positions: np.ndarray, cell, cell_factor: float
+    ) -> np.ndarray:
         cur_deform_grad = self.deform_grad(cell)
         natoms = len(positions)
         pos = np.zeros((natoms + 3, 3))
@@ -63,7 +66,7 @@ class CellUtility:
         return pos
 
     def set_positions_unitcellfilter(
-        self, new, atoms, cell_factor, **setpos_kwargs
+        self, new: np.ndarray, atoms: Atoms, cell_factor: float, **setpos_kwargs
     ):
         # We do a few non-trivial call with Atoms so this is not decoupled
         # from atoms (yet?).
@@ -87,8 +90,12 @@ class CellUtility:
         )
 
     def get_positions_frechet(
-        self, positions, cell, cell_factor, exp_cell_factor
-    ):
+        self,
+        positions: np.ndarray,
+        cell,
+        cell_factor: float,
+        exp_cell_factor: float,
+    ) -> np.ndarray:
         # XXX This is unitcellfilter's
         # default behaviour
         cell_factor = float(len(positions))
@@ -98,8 +105,13 @@ class CellUtility:
         return pos
 
     def set_positions_frechet(
-        self, new, atoms, cell_factor, exp_cell_factor, **setpos_kwargs
-    ):
+        self,
+        new: np.ndarray,
+        atoms: Atoms,
+        cell_factor: float,
+        exp_cell_factor: float,
+        **setpos_kwargs,
+    ) -> None:
         natoms = len(atoms)
         new2 = new.copy()
         new2[natoms:] = self.expm(new[natoms:] / exp_cell_factor)
@@ -108,8 +120,12 @@ class CellUtility:
         )
 
     def get_forces_unitcellfilter(
-        self, atoms_forces, stress, cell, cell_factor
-    ):
+        self,
+        atoms_forces: np.ndarray,
+        stress: np.ndarray,
+        cell,
+        cell_factor: float,
+    ) -> tuple[np.ndarray, np.ndarray]:
         volume = cell.volume
         virial = -volume * (
             voigt_6_to_full_3x3_stress(stress)
@@ -139,7 +155,13 @@ class CellUtility:
         modified_stress = -full_3x3_to_voigt_6_stress(virial) / volume
         return forces, modified_stress
 
-    def get_forces_frechet(self, atoms_forces, stress, cell, exp_cell_factor):
+    def get_forces_frechet(
+        self,
+        atoms_forces: np.ndarray,
+        stress: np.ndarray,
+        cell,
+        exp_cell_factor: float,
+    ) -> tuple[np.ndarray, np.ndarray]:
         volume = cell.volume
 
         virial = -volume * (

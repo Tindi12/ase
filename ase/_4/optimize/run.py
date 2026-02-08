@@ -1,24 +1,27 @@
+from __future__ import annotations
+
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 import numpy as np
 
+from ase import Atoms
 from ase.io.jsonio import default, object_hook
 from ase.io.trajectory import Trajectory
 from ase.parallel import world
 
 
 class Target:
-    def __init__(self, atoms, fmax):
+    def __init__(self, atoms: Atoms, fmax: float):
         self.optimizable = atoms.__ase_optimizable__()
         self.fmax = fmax
 
-    def get_value(self):
+    def get_value(self) -> float:
         return self.optimizable.get_value()
 
-    def get_gradient(self):
+    def get_gradient(self) -> ForceGradient:
         forces = self.optimizable.atoms.get_forces()
         gradient = -forces.ravel()
         fnorm = get_maxforce(forces)
@@ -30,23 +33,23 @@ class Target:
             converged=converged,
         )
 
-    def get_x(self):
+    def get_x(self) -> np.ndarray:
         return self.optimizable.get_x()
 
-    def set_x(self, x):
+    def set_x(self, x: np.ndarray) -> None:
         self.optimizable.set_x(x)
 
-    def gradient_norm(self, gradient):
+    def gradient_norm(self, gradient: np.ndarray) -> float:
         return self.optimizable.gradient_norm(gradient)
 
-    def converged(self, gradient) -> bool:
+    def converged(self, gradient: np.ndarray) -> bool:
         return self.gradient_norm(gradient) < self.fmax
 
-    def initial_hessian(self, alpha=70.0) -> np.ndarray:
+    def initial_hessian(self, alpha: float = 70.0) -> np.ndarray:
         return initial_position_hessian(self.optimizable.ndofs(), alpha)
 
 
-def get_maxforce(forces) -> float:
+def get_maxforce(forces: np.ndarray) -> float:
     return np.linalg.norm(forces, axis=1).max()
 
 
@@ -81,13 +84,13 @@ class Optimizer:
         # pass the step to run(), which may be awkward.
         # But having self.step is also awkward.
 
-    def run(self, *, steps=None):
+    def run(self, *, steps: int | None = None) -> Step:
         for _ in self.irun(steps=steps):
             pass
         # Note: This may take zero steps, but self.step is always non-None
         return self.step
 
-    def irun(self, *, steps=None):
+    def irun(self, *, steps: int | None = None) -> Iterator[Step]:
         if self.step is None:
             self.step = Step.start(self.target)
             self._writefiles(self.step)
@@ -133,11 +136,11 @@ class ForceGradient:
     fnorm: float
     converged: bool
 
-    def loginfo(self):
+    def loginfo(self) -> dict[str, float]:
         return {'fmax': self.fnorm}
 
 
-def initial_position_hessian(ndofs, alpha=70.0):
+def initial_position_hessian(ndofs: int, alpha: float = 70.0) -> np.ndarray:
     return np.diag(np.full(ndofs, 70.0))
 
 
@@ -149,12 +152,12 @@ class Step:
     value: float
 
     @classmethod
-    def start(cls, target):
+    def start(cls, target) -> Step:
         step = cls(0, target.get_x(), target.get_gradient(), target.get_value())
         assert step.gradient_obj.gradient.shape == (len(step.x),)
         return step
 
-    def datafy(self):
+    def datafy(self) -> dict[str, Any]:
         return {
             'i': self.i,
             'x': self.x.tolist(),
