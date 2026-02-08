@@ -37,6 +37,8 @@ class BFGSMethod:
 
     @classmethod
     def undatafy(cls, hessian):
-        n = int(np.round(len(hessian) ** 0.5))
+        from math import isqrt
+
+        n = isqrt(len(hessian))
         hessian = np.array(hessian).reshape(n, n)
         return cls(hessian)
