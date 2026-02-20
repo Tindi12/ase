@@ -4,11 +4,8 @@
 # [ ] Precalculate Cholesky derivative
 # [ ] Prettier print of atomic degrees of freedom
 from dataclasses import dataclass
-from sys import argv
 
 import numpy as np
-from gpaw.new.ase_interface import GPAW
-from gpaw.new.symmetry import create_symmetries_object
 
 from ase import Atoms
 from ase._4.symopt.relax_print import (
@@ -152,6 +149,8 @@ class AtomsSymmetries:
 
     @classmethod
     def from_GPAW(cls, atoms, log=None, *, tolerance, symmorphic):
+        from gpaw.new.symmetry import create_symmetries_object
+
         gpaw_symmetries = create_symmetries_object(
             atoms, tolerance=tolerance, symmorphic=symmorphic
         )
@@ -696,7 +695,7 @@ class Relax:
         teelog=True,
         *,
         atoms: Atoms,
-        calc: GPAW,
+        calc,
         optimizer_factory,
         symprec,
         comm,
@@ -874,52 +873,11 @@ class Relax:
         saa.actual_atoms.calc = self.calc()
 
 
-def phonon_code(saa: SymmetryAdaptedAtoms):
-    sym = saa.symmetries
-    atommap_sa = sym.atommap_sa  # shape (ns, na)
-    rotation_scc = sym.rotation_scc  # shape (ns, 3, 3)
-
-    ns, na = atommap_sa.shape
-    dim = 3 * na
-
-    # --- Build D(s) = Π(s) ⊗ U(s)
-    D_s = []
-
-    C_cv = saa.actual_atoms.cell
-    for s in range(ns):
-        Pi = np.zeros((na, na))
-        for a in range(na):
-            ap = atommap_sa[s, a]
-            Pi[a, ap] = 1.0
-
-        U = rotation_scc[s]
-        D = np.kron(Pi, np.linalg.inv(C_cv) @ U @ C_cv)  # (3na x 3na)
-        D_s.append(D)
-
-    H = np.random.randn(dim, dim)
-    H = 0.5 * (H + H.T)
-
-    A = np.zeros_like(H)
-    for D in D_s:
-        A += D.T @ H @ D
-    A /= ns
-
-    eps, vecs = np.linalg.eigh(A)
-
-    print('Eigenvalues:')
-    from ase.io.trajectory import Trajectory
-
-    traj = Trajectory('modes.traj', 'w')
-    saa.actual_atoms = saa.actual_atoms.copy()
-    for vec in vecs.T:
-        saa.actual_atoms.set_velocities(vec.reshape((na, 3)))
-        traj.write(saa.actual_atoms)
-    print(np.round(eps, 8))
-
-
 # Tests:
 # Wurtzite, distorted structure, nice logging, quick convergence
 if __name__ == '__main__':
+    from sys import argv
+
     if world.rank == 0:
         import requests
 
@@ -944,6 +902,8 @@ if __name__ == '__main__':
     atoms.center()
 
     def calc():
+        from gpaw.new.ase_interface import GPAW
+
         return GPAW(
             mode={'name': 'pw', 'ecut': 800},
             kpts={'density': 4, 'gamma': True},
@@ -966,7 +926,6 @@ if __name__ == '__main__':
         teelog=True,
         comm=world,
     )
-    # phonon_code(relax.symmetry_adapted_atoms)
-    # asd
+
     relax.run(fmax=0.01, smax=0.0005, maxiter=40)
     relax.calc_hessian()
