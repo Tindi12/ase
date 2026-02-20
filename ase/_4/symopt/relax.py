@@ -413,7 +413,9 @@ class SymmetryAdaptedScaledCoordinates:
             B_A[(a * 3) : (a * 3 + 3), :] = np.eye(3)
         B_EA = np.vstack([B_EA, B_A.T])
         # import sympy as sp
-        # nullspace = np.array(sp.Matrix(np.array(B_EA, dtype=int)).nullspace(), dtype=float)
+
+        # nullspace = np.array(sp.Matrix(np.array(B_EA,
+        # dtype=int)).nullspace(), dtype=float)
 
         # Make sure the old svd code reproduces the same result
         U, S, Vh = np.linalg.svd(B_EA, False)
@@ -630,7 +632,8 @@ class SymmetryAdaptedAtoms:
                 dof_zX.T @ np.linalg.inv(dof_zX @ dof_zX.T) @ atoms_grad_z
             ).reshape(F_av.shape)
         else:
-            # Even if there is degrees of freedom, it is possible to get symmetry violation
+            # Even if there is degrees of freedom, it is possible to
+            # get symmetry violation
             back_Fav = np.zeros_like(F_av)
 
         dF_av = F_av - back_Fav
@@ -646,7 +649,8 @@ class SymmetryAdaptedAtoms:
             print('atom Obtained force           Back projected force')
             for a, (F_v, F2_v) in enumerate(zip(F_av, back_Fav)):
                 print(
-                    f'{a:5d} {F_v[0]:7.4f} {F_v[1]:7.4f} {F_v[2]:7.4f} {F2_v[0]:7.4f} {F2_v[1]:7.4f} {F2_v[2]:7.4f}'
+                    f'{a:5d} {F_v[0]:7.4f} {F_v[1]:7.4f} {F_v[2]:7.4f}'
+                    f' {F2_v[0]:7.4f} {F2_v[1]:7.4f} {F2_v[2]:7.4f}'
                 )
 
         gradient = np.hstack([grad_z, atoms_grad_z])
@@ -760,7 +764,8 @@ class Relax:
             ]
         )
         self.log(
-            f'iter  time     E           maxF   maxS     maxG   a1    a2    a3    L1      L2       L3     {dtitles}   log_10 viol.'
+            f'iter  time     E           maxF   maxS     maxG   a1    a2'
+            f'    a3    L1      L2       L3     {dtitles}   log_10 viol.'
         )
         for _ in self.optimizer.irun(fmax=fmax):
             import time
@@ -798,7 +803,8 @@ class Relax:
             if syviol < self.fmax:
                 symviol = green(symviol)
             self.log(
-                f'{i:5d} {tstr} {E:9.5f} {sFmax} {sSmax} {gmax:7.3f} {cell}{dofs} {symviol}'
+                f'{i:5d} {tstr} {E:9.5f} {sFmax} {sSmax} {gmax:7.3f}'
+                f' {cell}{dofs} {symviol}'
             )
             i += 1
             if i > self.maxiter or i > 40:

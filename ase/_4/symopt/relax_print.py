@@ -88,10 +88,13 @@ def pretty_atomic_dofs(atoms, dof_zac, *, log):
         log()
 
 
+_header = (
+    '   id symbol  Rx         Ry         Rz         sx         sy         sz'
+)
+
+
 def atom_table(atoms, *, log):
-    log(
-        '   id symbol  Rx         Ry         Rz         sx         sy         sz'
-    )
+    log(_header)
     for a in atoms:
         s = f'{a.index:5d} {a.symbol:5s}'
         for v in range(3):

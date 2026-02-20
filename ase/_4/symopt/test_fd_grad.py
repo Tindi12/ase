@@ -10,12 +10,14 @@ from ase.parallel import world
 def test_generalized_coordinate_units():
     """Test that displacements are in Å and stresses in eV/Å^3.
 
-    Even the relaxation uses generalized coordinates, they are scaled in such way,
-    that at least in the initial configuration, moving generalized coordinate
-    an amount x, reflects to the actual coordinate to move an amount of x.
+    Even the relaxation uses generalized coordinates, they are scaled
+    in such way, that at least in the initial configuration, moving
+    generalized coordinate an amount x, reflects to the actual
+    coordinate to move an amount of x.
 
     |dR| = |dz(atom)|
     |deps| = |dz(cell)|  (Cell strain)
+
     """
     atoms = bulk('AuAg', crystalstructure='wurtzite', a=3.24, c=5.20)
     print(atoms.cell.volume, 'SCALE')
