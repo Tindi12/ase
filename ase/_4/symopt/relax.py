@@ -1,8 +1,3 @@
-# TODO:
-# [X] Test cholesky derivative
-# [X] Add analytical cholesky derivative
-# [ ] Precalculate Cholesky derivative
-# [ ] Prettier print of atomic degrees of freedom
 from dataclasses import dataclass
 
 import numpy as np
