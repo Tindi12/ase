@@ -5,14 +5,14 @@
 # [ ] Prettier print of atomic degrees of freedom
 from sys import argv
 from gpaw.new.logger import GREEN, RESET
-from gpaw.mpi import world
+from ase.parallel import world
 from gpaw.new.ase_interface import GPAW
 from ase import Atoms
 from gpaw.new.symmetry import create_symmetries_object
 import numpy as np
 from dataclasses import dataclass
 from ase.build import molecule
-from gpaw.new.relax_print import (
+from ase._4.symopt.relax_print import (
     pretty,
     pprint_atoms,
     pretty_dofs,
@@ -909,7 +909,7 @@ if __name__ == "__main__":
             convergence={"density": 1e-7},
         )
     from ase.optimize.bfgs import BFGS
-    from gpaw.mpi import world
+
     relax = Relax(
         atoms=atoms,
         calc=calc,

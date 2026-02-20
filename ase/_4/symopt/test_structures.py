@@ -37,9 +37,9 @@ def test_symmetry_constrained_relaxation_emt(system):
     atoms = atoms_ref.copy()
 
     # Symmetry adapted relaxation
-    from gpaw.new.relax import Relax
+    from ase._4.symopt.relax import Relax
     from ase.optimize.bfgs import BFGS
-    from gpaw.mpi import world
+    from ase.parallel import world
     relax = Relax(atoms=atoms, calc=EMT, optimizer_factory=lambda atoms: BFGS(atoms, alpha=100.0), symprec=0.01, comm=world)
     relax.run(fmax=0.0001, smax=0.00001)
 

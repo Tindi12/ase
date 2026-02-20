@@ -92,7 +92,7 @@ def atom_table(atoms, *, log):
 
 
 def pretty_dofs(dM_zcc, M_cc, rot_vv, C_cv, eps=1e-8, *, log):
-    from gpaw.new.relax import chol_derivative
+    from ase._4.symopt.relax import chol_derivative
 
     log(f"Found {len(dM_zcc)} independent cell degrees of freedom")
     for z, dM_cc in enumerate(dM_zcc):

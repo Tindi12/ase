@@ -1,9 +1,10 @@
 from ase.build import bulk
 from ase.calculators.emt import EMT
-from gpaw.new.relax import Relax
+from ase._4.symopt.relax import Relax
 import numpy as np
 from ase.optimize.bfgs import BFGS
-from gpaw.mpi import world
+from ase.parallel import world
+
 
 def test_generalized_coordinate_units():
     """Test that displacements are in Å and stresses in eV/Å^3.

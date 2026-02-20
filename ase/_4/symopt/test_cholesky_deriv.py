@@ -1,5 +1,5 @@
 import numpy as np
-from gpaw.new.relax import chol_derivative
+from ase._4.symopt.relax import chol_derivative
 
 def numerical_chol_derivative(A, dA, eps=1e-10):
     dA = (dA + dA.T) / 2
