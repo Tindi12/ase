@@ -52,7 +52,6 @@ def minimize_l1(dof_zac):
         return np.sum(np.abs(np.einsum('zw,wac->zac', U_zz(x), dof_zac)))
 
     xopt, *args = fmin(function, np.zeros((nb,)), xtol=1e-7, ftol=1e-7)
-    print(args)
     dof_zac[:] = np.einsum('zw,wac->zac', U_zz(np.array(xopt)), dof_zac)
 
 
@@ -212,8 +211,8 @@ class SymmeryAdaptedCellCoordinates:
         try:
             C_cv = np.linalg.cholesky(M_cc) @ self.rot_vv.T
         except np.linalg.LinAlgError:
-            print('Failed to create cell from metric', M_cc)
-            raise
+            raise RuntimeError('Failed to create cell from metric', M_cc)
+
         return Atoms(cell=C_cv).cell
 
     def get_M_cc(self, cell_z):
@@ -358,12 +357,7 @@ class SymmeryAdaptedCellCoordinates:
         for z in range(len(dM_zcc)):
             dC = chol_derivative(M_cc, dM_zcc[z]) @ rot_vv.T
             eps = 0.5 * (Cinv @ dC + dC.T @ Cinv.T)
-            if np.sum(np.abs(eps)) < 1e-5:
-                from code import interact
 
-                interact(local=locals())
-            print('XXXxxx this goes to zero')
-            print('eps', eps, dM_zcc[z] @ rot_vv.T)
             dM_zcc[z] /= np.sum(np.abs(eps)) * np.linalg.det(C_cv)
             dM_zcc[z] *= 40
             # Define the direction of the tangent vector such that
@@ -569,20 +563,12 @@ class SymmetryAdaptedAtoms:
         return self.value_z.copy()
 
     def set_x(self, x):
-        old_cell = self.cell_coordinates.get_cell(self.cell_z)
         self.value_z[:] = x
-        try:
-            self.actual_atoms.set_cell(
-                self.cell_coordinates.get_cell(self.cell_z)
-            )
-        except np.linalg.LinAlgError as e:
-            print(e)
-            print('Old cell', old_cell)
+        self.actual_atoms.set_cell(self.cell_coordinates.get_cell(self.cell_z))
 
         self.actual_atoms.set_scaled_positions(
             self.atom_coordinates.get_scaled_coordinates(self.atoms_z)
         )
-        self.actual_atoms.wrap()
 
     def get_gradient(self):
         grad_z = np.zeros(self._ndofs_cell)
@@ -714,12 +700,8 @@ class Relax:
         pretty_subheader('Symmetrized atoms', self.log)
         pprint_atoms(self.symmetry_adapted_atoms.actual_atoms, self.log)
 
-        # if not isinstance(calc, ASECalculator):
-        #    raise ValueError("Calculator must be new GPAW.")
-
         self.optimizer_factory = optimizer_factory
         self.optimizer = self.optimizer_factory(self.symmetry_adapted_atoms)
-        # atoms.wrap()
 
     def log(self, *args, **kwargs):
         if self.comm.rank == 0:
