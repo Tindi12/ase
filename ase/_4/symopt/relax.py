@@ -466,7 +466,7 @@ class SymmetryAdaptedAtoms:
         self.actual_atoms = actual_atoms
         self.symmetries = symmetries
         self.symmetry_force_violation = np.inf
-        self.fmax = None
+        self.fmax = 0.01
 
         pretty_subheader('Symmetry adapted cell coordinates', log)
         self.cell_coordinates: SymmeryAdaptedCellCoordinates = (
@@ -618,17 +618,24 @@ class SymmetryAdaptedAtoms:
         self.symmetry_force_violation = dF
         self.back_Fav = back_Fav
 
-        if dF > (self.fmax or 0.01) / 20:
-            print(
+        if dF > self.fmax / 20:
+            # Should probably be logged somehow instead of being a warning
+            # as such.  This may happen if the code's forces are noisy.
+            import warnings
+
+            warning_chunks = [
                 'Warning!!! Back projection of symmetry adapted'
-                f' forces to Cartesian space failed by {dF:7.13f}'
-            )
-            print('atom Obtained force           Back projected force')
+                f' forces to Cartesian space failed by {dF:7.13f}\n'
+                'atom Obtained force           Back projected force'
+            ]
+
             for a, (F_v, F2_v) in enumerate(zip(F_av, back_Fav)):
-                print(
+                warning_chunks.append(
                     f'{a:5d} {F_v[0]:7.4f} {F_v[1]:7.4f} {F_v[2]:7.4f}'
                     f' {F2_v[0]:7.4f} {F2_v[1]:7.4f} {F2_v[2]:7.4f}'
                 )
+
+            warnings.warn('\n'.join(warning_chunks))
 
         return np.hstack([grad_z, atoms_grad_z])
 
