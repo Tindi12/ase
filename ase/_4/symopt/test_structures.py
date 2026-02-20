@@ -16,6 +16,7 @@ def generate_all_bulk_structures():
         try:
             atoms = bulk(symbol)
             from ase.build import niggli_reduce
+
             niggli_reduce(atoms)
             print(atoms.cell.angles())
         except Exception:
@@ -24,7 +25,7 @@ def generate_all_bulk_structures():
     return cases
 
 
-@pytest.fixture(scope="session", params=generate_all_bulk_structures())
+@pytest.fixture(scope='session', params=generate_all_bulk_structures())
 def system(request):
     symbol, atoms = request.param
     atoms = atoms.copy()
@@ -41,12 +42,20 @@ def test_symmetry_constrained_relaxation_emt(system):
     from ase._4.symopt.relax import Relax
     from ase.optimize.bfgs import BFGS
     from ase.parallel import world
-    relax = Relax(atoms=atoms, calc=EMT, optimizer_factory=lambda atoms: BFGS(atoms, alpha=100.0), symprec=0.01, comm=world)
+
+    relax = Relax(
+        atoms=atoms,
+        calc=EMT,
+        optimizer_factory=lambda atoms: BFGS(atoms, alpha=100.0),
+        symprec=0.01,
+        comm=world,
+    )
     relax.run(fmax=0.0001, smax=0.00001)
 
     print('Relax complete', atoms.get_stress())
     from ase.filters import FrechetCellFilter
     from ase.optimize.cellawarebfgs import CellAwareBFGS
+
     atoms_ref.calc = EMT()
     relax = CellAwareBFGS(FrechetCellFilter(atoms_ref, exp_cell_factor=1.0))
     relax.run(fmax=0.0001, smax=0.00001)
@@ -55,5 +64,7 @@ def test_symmetry_constrained_relaxation_emt(system):
     print(atoms.cell.lengths(), atoms_ref.cell.lengths())
     print(atoms.cell.angles(), atoms_ref.cell.angles())
 
-    assert np.allclose(atoms.cell.lengths(), atoms_ref.cell.lengths(), atol=0.01)
+    assert np.allclose(
+        atoms.cell.lengths(), atoms_ref.cell.lengths(), atol=0.01
+    )
     assert np.allclose(atoms.cell.angles(), atoms_ref.cell.angles(), atol=0.01)
