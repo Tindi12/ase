@@ -790,52 +790,6 @@ class Relax:
                 self.set_x(x)
                 traj.write(self.atoms.copy())
 
-    def calc_hessian(self):
-        from gpaw.new.symmetry import SymmetryBrokenError
-
-        saa = self.symmetry_adapted_atoms
-        x = np.zeros((saa._ndofs))
-        H = np.zeros((saa._ndofs, saa._ndofs))
-
-        def grad():
-            try:
-                G = saa.get_gradient()
-            except SymmetryBrokenError:
-                saa.actual_atoms.calc = self.calc()
-                G = saa.get_gradient()
-            return G
-
-        for i in range(saa._ndofs):
-            x[:] = 0.0
-            x[i] = 1e-3
-            saa.set_x(x)
-            G = grad()
-            x[i] = -1e-3
-            saa.set_x(x)
-            G0 = grad()
-            H[i] = (G - G0) / (2e-3)
-            print(i)
-        H = 0.5 * (H + H.T)
-        pretty(H, 'Hessian', log=self.log)
-        eps, vec = np.linalg.eigh(H)
-        self.optimizer.H0 = H
-        ncell = saa._ndofs_cell
-        C = H[:ncell, :ncell]
-        L = H[:ncell, ncell:]
-        K = H[ncell:, ncell:]
-        C0_zz = C - L @ np.linalg.inv(K) @ L.T
-        print('Stiffness tensor', C0_zz)
-        dM_zvv = saa.cell_coordinates.dM_zvv
-        print(
-            'Stiffness tensor',
-            np.einsum('yij,yz,zkl->ijkl', dM_zvv, C0_zz, dM_zvv),
-        )
-
-        # Reset to full symmetry
-        x[:] = 0.0
-        saa.set_x(x)
-        saa.actual_atoms.calc = self.calc()
-
 
 # Tests:
 # Wurtzite, distorted structure, nice logging, quick convergence
@@ -892,4 +846,3 @@ if __name__ == '__main__':
     )
 
     relax.run(fmax=0.01, smax=0.0005)
-    relax.calc_hessian()
