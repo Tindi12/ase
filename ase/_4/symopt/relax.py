@@ -381,7 +381,6 @@ class SymmeryAdaptedCellCoordinates:
 class SymmetryAdaptedScaledCoordinates:
     dof_zac: np.ndarray
     s0_ac: np.ndarray
-    precondition_z: np.ndarray
 
     def get_scaled_coordinates(self, atoms_z: np.ndarray):
         return self.s0_ac + np.einsum('zac,z->ac', self.dof_zac, atoms_z)
@@ -439,12 +438,8 @@ class SymmetryAdaptedScaledCoordinates:
             translation_sc,
             atommap_sa,
         )
-        print('SYMMETRIZE ATOMS SCALED COORDINATES', s0_ac)
-        if len(nullspace) == 0:
-            log('No atomic degrees of freedom')
-            return SymmetryAdaptedScaledCoordinates(
-                np.empty((0, na, 3)), s0_ac, np.empty((0,))
-            )
+
+        log(f'Atomic degrees of freedom: {len(nullspace)}')
 
         dof_zac = nullspace.reshape((-1, na, 3))
 
@@ -457,10 +452,7 @@ class SymmetryAdaptedScaledCoordinates:
             ]
             # minimize_l1(dof_zac)
 
-        precondition_z = np.max(np.max(np.abs(dof_zac), axis=2), axis=1)
-        precondition_z /= np.sum(np.sum(np.abs(dof_zac), axis=2), axis=1)
-
-        sasc = SymmetryAdaptedScaledCoordinates(dof_zac, s0_ac, precondition_z)
+        sasc = SymmetryAdaptedScaledCoordinates(dof_zac, s0_ac)
 
         return sasc
 
@@ -652,17 +644,7 @@ class SymmetryAdaptedAtoms:
                     f' {F2_v[0]:7.4f} {F2_v[1]:7.4f} {F2_v[2]:7.4f}'
                 )
 
-        gradient = np.hstack([grad_z, atoms_grad_z])
-        return gradient * self.get_preconditioner()
-
-    def get_preconditioner(self):
-        return 1
-        return np.hstack(
-            [
-                np.ones((self._ndofs_cell,)) * 10,
-                self.atom_coordinates.precondition_z,
-            ]
-        )
+        return np.hstack([grad_z, atoms_grad_z])
 
     def gradient_norm(self, grad_z):
         # Go actually to cell metric
@@ -927,5 +909,5 @@ if __name__ == '__main__':
         comm=world,
     )
 
-    relax.run(fmax=0.01, smax=0.0005, maxiter=40)
+    relax.run(fmax=0.01, smax=0.0005)
     relax.calc_hessian()

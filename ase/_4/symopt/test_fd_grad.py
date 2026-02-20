@@ -78,7 +78,7 @@ def test_fd_gradients():
         vec = np.zeros((3,))
         optimizable.set_x(vec)
         E0 = optimizable.get_value()
-        grad = optimizable.get_gradient() / optimizable.get_preconditioner()
+        grad = optimizable.get_gradient()
         vec[z] = 1e-6
         optimizable.set_x(vec)
         E1 = optimizable.get_value()
