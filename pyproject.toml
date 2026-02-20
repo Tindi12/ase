@@ -61,7 +61,7 @@ ase = [
 version = {attr = 'ase.__version__'}
 
 [tool.pytest.ini_options]
-testpaths = ['ase/test']
+testpaths = ['ase/test', 'ase/_4']
 markers = [
     'calculator: parametrizes calculator tests with calculator factories',
     'calculator_lite: for calculator tests; include in calculators-lite job',
