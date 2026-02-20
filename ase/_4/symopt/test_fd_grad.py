@@ -1,7 +1,8 @@
+import numpy as np
+
+from ase._4.symopt.relax import Relax
 from ase.build import bulk
 from ase.calculators.emt import EMT
-from ase._4.symopt.relax import Relax
-import numpy as np
 from ase.optimize.bfgs import BFGS
 from ase.parallel import world
 
@@ -31,7 +32,7 @@ def test_generalized_coordinate_units():
         scale = np.max(np.abs(grad[2])) / np.max(np.abs(F))
         print('SCALE F', scale)
         assert 3.9 < scale < 4.1, scale
-        
+
         print('generalized gradS S', grad[:2], 'vs', S)
         scale = np.max(np.abs(grad[:2])) / np.max(np.abs(S))
         print('SCALE S', scale)
@@ -46,6 +47,7 @@ def test_generalized_coordinate_units():
         else:
             dR = np.max(np.linalg.norm(atoms0.get_positions() - atoms1.get_positions(), axis=1))
             print('dR', dR)
+
 
 def test_fd_gradients():
     atoms = bulk('AuAg', crystalstructure='wurtzite', a=3.24, c=5.20)
@@ -62,7 +64,4 @@ def test_fd_gradients():
         print("Finite difference grad", (E1 - E0) / 1e-6)
         print("Gotten grad", grad[z])
         div = grad[z] / ((E1 - E0) / 1e-6)
-        assert 0.99 < div < 1.01 
-
-
-
+        assert 0.99 < div < 1.01

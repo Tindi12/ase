@@ -1,8 +1,9 @@
-import pytest
-from ase.build import bulk
-from ase.data import chemical_symbols, atomic_numbers
-from ase.calculators.emt import EMT
 import numpy as np
+import pytest
+
+from ase.build import bulk
+from ase.calculators.emt import EMT
+from ase.data import chemical_symbols
 
 
 def generate_all_bulk_structures():
@@ -44,16 +45,15 @@ def test_symmetry_constrained_relaxation_emt(system):
     relax.run(fmax=0.0001, smax=0.00001)
 
     print('Relax complete', atoms.get_stress())
-    from ase.filters import FrechetCellFilter 
+    from ase.filters import FrechetCellFilter
     from ase.optimize.cellawarebfgs import CellAwareBFGS
     atoms_ref.calc = EMT()
     relax = CellAwareBFGS(FrechetCellFilter(atoms_ref, exp_cell_factor=1.0))
     relax.run(fmax=0.0001, smax=0.00001)
     print('Ref relax complete', atoms_ref.get_stress())
-    
+
     print(atoms.cell.lengths(), atoms_ref.cell.lengths())
     print(atoms.cell.angles(), atoms_ref.cell.angles())
 
     assert np.allclose(atoms.cell.lengths(), atoms_ref.cell.lengths(), atol=0.01)
     assert np.allclose(atoms.cell.angles(), atoms_ref.cell.angles(), atol=0.01)
-

@@ -57,6 +57,7 @@ def pprint_atoms(atoms, log, units="Å"):
     log("Atoms:")
     atom_table(atoms, log=log)
 
+
 def pretty_atomic_dofs(atoms, dof_zac, *, log):
     C_cv = atoms.cell
     log("Atomic degrees of freedom:")
@@ -72,7 +73,6 @@ def pretty_atomic_dofs(atoms, dof_zac, *, log):
 
     for z, dof_ac in enumerate(dof_zac):
         log(f'Degree of freedom q{z:02d}')
-        from ase import Atom
         atoms = [FakeAtom(atom.index,
                           atom.symbol,
                           dof_ac[atom.index] @ C_cv,
@@ -80,7 +80,8 @@ def pretty_atomic_dofs(atoms, dof_zac, *, log):
         atom_table(atoms, log=log)
         log()
 
-def atom_table(atoms, *, log):    
+
+def atom_table(atoms, *, log):
     log('   id symbol  Rx         Ry         Rz         sx         sy         sz')
     for a in atoms:
         s = f"{a.index:5d} {a.symbol:5s}"
