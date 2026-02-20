@@ -4,7 +4,6 @@
 # [ ] Precalculate Cholesky derivative
 # [ ] Prettier print of atomic degrees of freedom
 from sys import argv
-from gpaw.new.logger import GREEN, RESET
 from ase.parallel import world
 from gpaw.new.ase_interface import GPAW
 from ase import Atoms
@@ -20,6 +19,11 @@ from ase._4.symopt.relax_print import (
     pretty_subheader,
     pretty_atomic_dofs,
 )
+
+
+def green(text: str) -> str:
+    return f'\x1b[32m{text}\x1b[0m'
+
 
 def minimize_l1(dof_zac):
     nz = len(dof_zac)
@@ -726,12 +730,12 @@ class Relax:
             Fmax = np.max(np.linalg.norm(F, axis=1))
             sFmax = f'{Fmax:7.3f}'
             if Fmax < self.fmax:
-                sFmax = GREEN + sFmax + RESET
+                sFmax = green(sFmax)
             
             Smax = self.symmetry_adapted_atoms.stress_conv
             sSmax = f'{Smax:7.4f}'
             if Smax < self.smax:
-                sSmax = GREEN + sSmax + RESET
+                sSmax = green(sSmax)
 
             gmax = np.max(np.abs(g))
 
@@ -747,7 +751,7 @@ class Relax:
             syviol = np.log10(self.symmetry_adapted_atoms.symmetry_force_violation)
             symviol = f'{syviol:4.1f}'
             if syviol < self.fmax:
-                symviol = GREEN + symviol + RESET
+                symviol = green(symviol)
             self.log(f'{i:5d} {tstr} {E:9.5f} {sFmax} {sSmax} {gmax:7.3f} {cell}{dofs} {symviol}')
             i += 1
             if i > self.maxiter or i > 40:
