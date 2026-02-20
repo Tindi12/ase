@@ -875,33 +875,6 @@ class Relax:
 
 
 def phonon_code(saa: SymmetryAdaptedAtoms):
-    symmetries = saa.symmetries
-    atommap_sa = symmetries.atommap_sa
-    rotation_scc = symmetries.rotation_scc
-    ns, na = atommap_sa.shape
-    B_saa = np.zeros((ns, na, na), int)
-    total = 0
-    for s, U_cc in enumerate(rotation_scc):
-        for a in range(na):
-            a2 = atommap_sa[s, a]
-            B_saa[s, a2, a] = 1
-        total = (
-            np.kron(np.kron(B_saa[s], U_cc.T), np.kron(B_saa[s], U_cc.T).T)
-            + total
-        )
-    print('total.shape', total.shape)
-    # B_qq = total.reshape((na * 3, na * 3))
-    H_qq = np.random.rand(3 * na, 3 * na)
-    H_qq = H_qq + H_qq.T
-    # A_qq = np.einsum('sop,pq,srq->or', B_sqq, H_qq, B_sqq)
-    A_qq = (total @ H_qq.flatten()).reshape((3 * na, 3 * na))
-    print(A_qq, '<- A_qq')
-    eps, vec = np.linalg.eigh(A_qq)
-    print(eps)
-    print(vec)
-
-
-def phonon_code(saa: SymmetryAdaptedAtoms):
     sym = saa.symmetries
     atommap_sa = sym.atommap_sa  # shape (ns, na)
     rotation_scc = sym.rotation_scc  # shape (ns, 3, 3)
