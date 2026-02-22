@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -20,7 +21,7 @@ class VolumeNotDefined(Exception):
 
 
 def get_rdf(
-    atoms: Atoms,
+    atoms: Atoms | Iterable[Atoms],
     rmax: float,
     nbins: int,
     distance_matrix: np.ndarray | None = None,
@@ -38,8 +39,13 @@ def get_rdf(
 
     Parameters
     ----------
-    atoms : Atoms
-        ASE ``Atoms`` object for which the RDF is computed.
+    atoms : Atoms | Iterable[Atoms]
+        :class:`~ase.Atoms` or their iterable for which the RDF is computed.
+
+        .. versionadded:: 3.28.0
+            This can accept an iterable of :class:`~ase.Atoms`
+            to compute the average RDF over the images.
+
     rmax : float
         The maximum distance that will contribute to the RDF.
         The unit cell should be large enough so that it encloses a
@@ -74,7 +80,31 @@ def get_rdf(
     non-periodic.
 
     """
+    images = [atoms] if isinstance(atoms, Atoms) else atoms
+    rdfs = []
+    for _ in images:
+        rdf, rr = _get_rdf_per_frame(
+            _,
+            rmax,
+            nbins,
+            distance_matrix=distance_matrix,
+            elements=elements,
+            volume=volume,
+        )
+        rdfs.append(rdf)
+    rdf = np.mean(rdfs, axis=0)
+    return rdf if no_dists else (rdf, rr)
 
+
+def _get_rdf_per_frame(
+    atoms: Atoms,
+    rmax: float,
+    nbins: int,
+    *,
+    elements: list[int] | tuple | None = None,
+    distance_matrix: np.ndarray | None = None,
+    volume: float | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     # First check whether the cell is sufficiently large
     vol = atoms.cell.volume if volume is None else volume
     if vol < 1.0e-10:
@@ -127,9 +157,6 @@ def get_rdf(
     rr = np.arange(dr / 2, rmax, dr)
     shell_volumes = 4.0 * math.pi * dr * (rr * rr + (dr * dr / 12))
     rdf[1:] /= n * rho * shell_volumes
-
-    if no_dists:
-        return rdf[1:]
 
     return rdf[1:], rr
 
