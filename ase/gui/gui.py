@@ -467,6 +467,10 @@ class GUI(View):
     def nanotube_window(self):
         return SetupNanotube(self)
 
+    def optimize_window(self):
+        from ase.gui.optimize_gui import OptimizationWindow
+        return OptimizationWindow(self)
+
     def new_atoms(self, atoms):
         "Set a new atoms object."
         self.images.history.isolate_history(self.frame)
@@ -675,11 +679,8 @@ class GUI(View):
                 self.nanoparticle_window),
               M(_('Nano_tube'), self.nanotube_window)]),
 
-            # (_('_Calculate'),
-            # [M(_('Set _Calculator'), self.calculator_window, disabled=True),
-            #  M(_('_Energy and Forces'), self.energy_window, disabled=True),
-            #  M(_('Energy Minimization'), self.energy_minimize_window,
-            #    disabled=True)]),
+            (_('_Calculate'),
+             [M(_('_Optimize Structure ...'), self.optimize_window)]),
 
             (_('_Help'),
              [M(_('_About'), partial(
