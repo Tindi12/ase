@@ -83,10 +83,11 @@ def _make_calculator(name: str):
         raise ValueError(f'Unknown calculator: {name!r}')
 
 
-def _make_optimizer(name: str, atoms, logfile, trajectory):
+def _make_optimizer(name: str, atoms, logfile, trajectory, **extra_kwargs):
     """Return an Optimizer instance for *atoms*."""
     kwargs = dict(logfile=logfile or None,
                   trajectory=trajectory or None)
+    kwargs.update(extra_kwargs)
 
     if name == 'BFGS':
         from ase.optimize import BFGS
@@ -120,6 +121,7 @@ class OptimizationWindow:
         self._thread = None
         self._queue = queue.Queue()
         self._poll_id = None  # tk.after() handle
+        self._opt_params = {}
 
         # ---- Build the top-level window ------------------------------------
         self.win = tk.Toplevel()
@@ -156,6 +158,15 @@ class OptimizationWindow:
                               values=_OPTIMIZER_NAMES,
                               state='readonly', width=30)
         opt_cb.grid(row=row, column=1, columnspan=2, sticky='ew', **pad)
+        opt_cb.bind('<<ComboboxSelected>>',
+                    lambda e: self._on_optimizer_changed())
+        row += 1
+
+        # Dynamic optimizer parameter frame (rebuilt on each dropdown change)
+        self._opt_params_frame = tk.LabelFrame(
+            grid, text='Optimizer Parameters', padx=4, pady=4)
+        self._opt_params_frame.grid(
+            row=row, column=0, columnspan=3, sticky='ew', padx=8, pady=4)
         row += 1
 
         # Maximum Force
@@ -233,6 +244,8 @@ class OptimizationWindow:
             .pack(fill=tk.X, pady=(4, 0))
 
         self._set_running(False)
+        # Schedule param panel build after window is fully rendered
+        self.win.after(1, self._on_optimizer_changed)
 
     # -----------------------------------------------------------------------
     # File choosers
@@ -280,6 +293,55 @@ class OptimizationWindow:
         self._progress.config(value=0)
         self._status_var.set('Atoms reset to original state.')
         self._set_status_strip('#d0d0d0')
+
+    def _on_optimizer_changed(self):
+        """Rebuild the parameter panel when the optimizer dropdown changes."""
+        # Remove all widgets currently inside the frame
+        for widget in self._opt_params_frame.winfo_children():
+            widget.destroy()
+        # Clear the stored variable dict
+        self._opt_params = {}
+
+        name = self._opt_var.get()
+        if name == 'BFGS':
+            self._add_param('maxstep', '0.2', 'Max step size (\u00c5)')
+            self._add_param('alpha', '70.0', 'Initial Hessian estimate')
+        elif name == 'FIRE':
+            self._add_param('dt', '0.1', 'Initial time step (fs)')
+            self._add_param('dtmax', '1.0', 'Max time step (fs)')
+            self._add_param('maxstep', '0.2', 'Max step size (\u00c5)')
+            self._add_param('Nmin', '5', 'Min steps before acceleration')
+            self._add_param('finc', '1.1', 'Time step increase factor')
+            self._add_param('fdec', '0.5', 'Time step decrease factor')
+            self._add_param('astart', '0.1', 'Velocity mixing (start)')
+        elif name == 'LBFGS':
+            self._add_param('maxstep', '0.2', 'Max step size (\u00c5)')
+            self._add_param('memory', '100', 'Steps to remember')
+        elif name == 'FIRE2':
+            self._add_param('dt', '0.1', 'Initial time step (fs)')
+            self._add_param('dtmax', '1.0', 'Max time step (fs)')
+            self._add_param('maxstep', '0.2', 'Max step size (\u00c5)')
+        elif name == 'MDMin':
+            self._add_param('dt', '0.02', 'Time step (fs)')
+        # Resize window to fit new content
+        self.win.update_idletasks()
+        self.win.geometry('')
+
+    def _add_param(self, name, default, label):
+        """Add one labeled Entry field to the optimizer parameter frame."""
+        row = len(self._opt_params_frame.winfo_children()) // 2
+        var = tk.StringVar(value=default)
+        self._opt_params[name] = var
+        tk.Label(
+            self._opt_params_frame,
+            text=label + ':',
+            anchor='w',
+        ).grid(row=row, column=0, sticky='w', padx=4, pady=2)
+        tk.Entry(
+            self._opt_params_frame,
+            textvariable=var,
+            width=10,
+        ).grid(row=row, column=1, sticky='w', padx=4, pady=2)
 
     # -----------------------------------------------------------------------
     # Run logic
@@ -333,10 +395,28 @@ class OptimizationWindow:
             except queue.Empty:
                 break
 
+        # Collect extra optimizer parameters from the dynamic panel
+        extra_kwargs = {}
+        for param_name, var in self._opt_params.items():
+            raw = var.get().strip()
+            try:
+                # Try int first, then float
+                extra_kwargs[param_name] = int(raw)
+            except ValueError:
+                try:
+                    extra_kwargs[param_name] = float(raw)
+                except ValueError:
+                    ui.error(
+                        _('Invalid input'),
+                        f'Parameter {param_name!r} must be a number.',
+                    )
+                    return
+
         # Launch background thread
         self._thread = threading.Thread(
             target=self._worker,
-            args=(atoms, opt_name, fmax, steps, logfile, trajectory),
+            args=(atoms, opt_name, fmax, steps,
+                  logfile, trajectory, extra_kwargs),
             daemon=True,
         )
         self._thread.start()
@@ -344,13 +424,16 @@ class OptimizationWindow:
         # Start polling
         self._poll_queue()
 
-    def _worker(self, atoms, opt_name, fmax, steps, logfile, trajectory):
+    def _worker(self, atoms, opt_name, fmax, steps,
+                logfile, trajectory, extra_kwargs):
         """Background thread: runs the optimization.
 
         Posts events to _queue for the main thread to read.
         """
         try:
-            opt = _make_optimizer(opt_name, atoms, logfile, trajectory)
+            opt = _make_optimizer(
+                opt_name, atoms, logfile, trajectory, **extra_kwargs
+            )
         except Exception as exc:
             self._queue.put(('error', f'Optimizer error: {exc}'))
             return
