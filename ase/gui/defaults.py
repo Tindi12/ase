@@ -27,6 +27,7 @@ gui_default_settings = {
     'movie_rate': 'auto',  # can set to float
     'movie_skip': 'auto',  # can set to int
     'movie_rock': False,
+    'calculators_folder': None,
 }
 
 

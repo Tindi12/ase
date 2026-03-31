@@ -12,6 +12,8 @@ import threading
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter.filedialog import asksaveasfilename
+import os
+import importlib.util
 
 import ase.gui.ui as ui
 from ase.gui.i18n import _
@@ -83,6 +85,47 @@ def _make_calculator(name: str):
         raise ValueError(f'Unknown calculator: {name!r}')
 
 
+# ---------------------------------------------------------------------------
+# Custom calculators
+# ---------------------------------------------------------------------------
+# A global dictionary to store dynamically loaded custom calculators:
+# Format -> { "Display Name": get_calculator_function }
+_CUSTOM_CALCULATORS = {}
+
+def load_custom_calculators(folder_path: str):
+    """
+    Scans a folder for Python files and tries to import 'get_calculator'.
+    
+    Args:
+        folder_path: Path to the folder containing calculator scripts.
+    """
+    # Clear existing custom calculators
+    _CUSTOM_CALCULATORS.clear()
+    
+    if not folder_path or not os.path.isdir(folder_path):
+        return
+
+    for filename in os.listdir(folder_path):
+        if filename.endswith('.py') and filename != '__init__.py':
+            module_name = filename[:-3]
+            file_path = os.path.join(folder_path, filename)
+            
+            try:
+                # Dynamically import the module
+                spec = importlib.util.spec_from_file_location(module_name, file_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                
+                # Check if it has the required function
+                if hasattr(module, 'get_calculator'):
+                    # Use the function's docstring as the display name
+                    display_name = module.get_calculator.__doc__ or module_name
+                    _CUSTOM_CALCULATORS[display_name] = module.get_calculator
+                    
+            except Exception as e:
+                print(f"Warning: Could not load calculator {filename}: {e}")
+
+
 def _make_optimizer(name: str, atoms, logfile, trajectory, **extra_kwargs):
     """Return an Optimizer instance for *atoms*."""
     kwargs = dict(logfile=logfile or None,
@@ -140,12 +183,21 @@ class OptimizationWindow:
 
         row = 0
 
-        # Calculator
+        # ---- Load Custom Calculators ----
+        folder_path = self.gui.config.get('calculators_folder') or os.environ.get('ASE_CALCULATORS_PATH')
+        load_custom_calculators(folder_path)
+        
+        # Combine the built-in calculators with any custom ones we found
+        all_calc_names = list(_CALCULATOR_NAMES) + list(_CUSTOM_CALCULATORS.keys())
+
+        # Calculator Dropdown
         tk.Label(grid, text=_('Calculator:'), anchor='w')\
             .grid(row=row, column=0, sticky='w', **pad)
-        self._calc_var = tk.StringVar(value=_CALCULATOR_NAMES[0])
+        
+        # Set the default value and populate the Combobox with the combined list
+        self._calc_var = tk.StringVar(value=all_calc_names[0])
         calc_cb = ttk.Combobox(grid, textvariable=self._calc_var,
-                               values=_CALCULATOR_NAMES,
+                               values=all_calc_names,
                                state='readonly', width=30)
         calc_cb.grid(row=row, column=1, columnspan=2, sticky='ew', **pad)
         row += 1
@@ -375,7 +427,11 @@ class OptimizationWindow:
 
         # Attach calculator
         try:
-            calc = _make_calculator(calc_name)
+            # Check if this is a custom calculator we loaded from the folder
+            if calc_name in _CUSTOM_CALCULATORS:
+                calc = _CUSTOM_CALCULATORS[calc_name]()  # Execute the dynamic function
+            else:
+                calc = _make_calculator(calc_name)       # Use the built-in factory
         except Exception as exc:
             ui.error(_('Calculator error'), str(exc))
             return
