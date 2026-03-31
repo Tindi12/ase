@@ -25,7 +25,7 @@ project = 'ASE'
 author = 'ASE developers'
 copyright = f'{datetime.date.today().year}, ASE-developers'
 exclude_patterns = ['build']
-default_role = 'math'
+default_role = 'code'
 pygments_style = 'sphinx'
 autoclass_content = 'both'
 modindex_common_prefix = ['ase.']
@@ -50,6 +50,10 @@ sphinx_gallery_conf = {
     'prefer_full_module': ['ase'],
     'matplotlib_animations': (True, 'mp4'),
     'within_subsection_order': 'FileNameSortKey',
+    'image_scrapers': (
+        'matplotlib',
+        'ase.utils.sphinx.png_scraper',
+    ),
 }
 
 html_theme = 'sphinx_book_theme'

@@ -12,18 +12,6 @@ Dissociation of oxygen on Pt(100)
 :download:`o2pt100.py`
 
 
-Phase diagrams
-==============
-
-.. |p2| image:: ../ase/phasediagram/ktao-2d.png
-   :width: 5cm
-.. |p3| image:: ../ase/phasediagram/ktao-3d.png
-   :width: 5cm
-
-|p2| |p3|
-
-:mod:`ase.phasediagram`
-:download:`ktao.py <../ase/phasediagram/ktao.py>`
 
 
 Brillouin zones
@@ -40,31 +28,8 @@ Brillouin zones
 :download:`bz.py <../ase/dft/bz.py>`
 
 
-Band-structure
-==============
-
-.. image:: ../ase/dft/cu.png
-   :width: 10cm
-
-:mod:`ase.dft.kpoints`
-:download:`bs.py <../ase/dft/bs.py>`
 
 
-Nudged elastic band calculations
-================================
-
-
-:mod:`ase.mep.neb`
-
-
-Nanoparticle
-============
-
-.. image:: ../ase/cluster/culayer.png
-   :width: 10cm
-
-:mod:`ase.cluster`
-:download:`cluster.py <../ase/cluster/cluster.py>`
 
 
 Pretty pictures

@@ -47,7 +47,8 @@ def write_openmx(label=None, atoms=None, parameters=None, properties=None,
     Write input (dat)-file.
     See calculator.py for further details.
 
-    Parameters:
+    Parameters
+    ----------
         - atoms        : The Atoms object to write.
         - properties   : The properties which should be calculated.
         - system_changes : List of properties changed since last run.
@@ -634,7 +635,8 @@ def write_tuple_float(fd, key, value):
 
 def write_tuple_bool(fd, key, value):
     omx_bl = {True: 'On', False: 'Off'}
-    fd.write("        ".join([key, "%s %s %s" % [omx_bl[bl] for bl in value]]))
+    fd.write("        ".join(
+        [key, "%s %s %s" % tuple([omx_bl[bl] for bl in value])]))
     fd.write("\n")
 
 
