@@ -28,6 +28,14 @@ class PackmolWindow:
         
         self._build_ui()
 
+    def _on_type_changed(self):
+        if self.type_var.get() == "Slab":
+            self._vacuum_label.grid()
+            self._vacuum_entry.grid()
+        else:
+            self._vacuum_label.grid_remove()
+            self._vacuum_entry.grid_remove()
+
     def _build_ui(self):
         """Draws the buttons and text boxes on the screen."""
         grid = tk.Frame(self.win, padx=10, pady=10)
@@ -36,12 +44,16 @@ class PackmolWindow:
         row = 0
         # --- Type Dropdown ---
         tk.Label(grid, text="Structure Type:").grid(row=row, column=0, sticky='w', pady=5)
-        ttk.Combobox(grid, textvariable=self.type_var, values=["Bulk", "Slab"], state="readonly").grid(row=row, column=1, sticky='ew')
+        type_cb = ttk.Combobox(grid, textvariable=self.type_var, values=["Bulk", "Slab"], state="readonly")
+        type_cb.grid(row=row, column=1, sticky='ew')
+        type_cb.bind("<<ComboboxSelected>>", lambda e: self._on_type_changed())
         
         row += 1
         # --- Vacuum Height (only relevant for Slab) ---
-        tk.Label(grid, text="Vacuum Height (Å):").grid(row=row, column=0, sticky='w', pady=5)
-        tk.Entry(grid, textvariable=self.vacuum_var).grid(row=row, column=1, sticky='ew')
+        self._vacuum_label = tk.Label(grid, text="Vacuum Height (Å):")
+        self._vacuum_label.grid(row=row, column=0, sticky='w', pady=5)
+        self._vacuum_entry = tk.Entry(grid, textvariable=self.vacuum_var)
+        self._vacuum_entry.grid(row=row, column=1, sticky='ew')
 
         row += 1
         # --- Density Input ---
@@ -62,7 +74,10 @@ class PackmolWindow:
         row += 1
         # --- Run Button ---
         tk.Button(self.win, text="Generate Structure", command=self._on_run, bg="#4CAF50", fg="white").pack(pady=10)
-        
+
+        self._on_type_changed()
+
+
     def _browse_file(self):
         """Opens a file explorer to select a molecule structure file."""
         filepath = askopenfilename(title="Select Molecule", filetypes=[("XYZ Files", "*.xyz"), ("All Files", "*.*")])

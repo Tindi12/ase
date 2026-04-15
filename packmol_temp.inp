@@ -1,0 +1,10 @@
+
+        tolerance 2.0
+        filetype xyz
+        output generated_packmol.xyz
+        
+        structure C:/Users/tindi/OneDrive/Desktop/ChemE Research/tindi-endeavors misc/gui-endeavors/water.xyz
+          number 50
+          inside box 0. 0. 0. 11.44 11.44 11.44
+        end structure
+        
