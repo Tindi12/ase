@@ -23,6 +23,8 @@ from ase.gui.settings import Settings
 from ase.gui.status import Status
 from ase.gui.surfaceslab import SetupSurfaceSlab
 from ase.gui.view import View
+from ase.gui.packmol_gui import PackmolWindow
+
 
 
 class GUIObservers:
@@ -471,6 +473,10 @@ class GUI(View):
         from ase.gui.optimize_gui import OptimizationWindow
         return OptimizationWindow(self)
 
+    def packmol_window(self):
+        # We imported PackmolWindow at the top of the file!
+        return PackmolWindow(self)
+
     def new_atoms(self, atoms):
         "Set a new atoms object."
         self.images.history.isolate_history(self.frame)
@@ -680,7 +686,8 @@ class GUI(View):
               M(_('Nano_tube'), self.nanotube_window)]),
 
             (_('_Calculate'),
-             [M(_('_Optimize Structure ...'), self.optimize_window)]),
+             [M(_('_Optimize Structure ...'), self.optimize_window),
+              M(_('Packmol Builder...'), self.packmol_window)]),
 
             (_('_Help'),
              [M(_('_About'), partial(
